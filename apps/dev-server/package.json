@@ -1,0 +1,24 @@
+{
+  "name": "@hauntjs/dev-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/main.ts",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hauntjs/core": "workspace:*",
+    "@hauntjs/demo-roost": "workspace:*",
+    "@hauntjs/place-2d": "workspace:*",
+    "@hauntjs/resident": "workspace:*",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

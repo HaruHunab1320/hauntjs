@@ -1,0 +1,238 @@
+// Branded ID types
+export type RoomId = string & { readonly __brand: "RoomId" };
+export type AffordanceId = string & { readonly __brand: "AffordanceId" };
+export type GuestId = string & { readonly __brand: "GuestId" };
+
+export function roomId(id: string): RoomId {
+  return id as RoomId;
+}
+
+export function affordanceId(id: string): AffordanceId {
+  return id as AffordanceId;
+}
+
+export function guestId(id: string): GuestId {
+  return id as GuestId;
+}
+
+// --- JSON Schema placeholder for affordance action params ---
+
+export type JsonSchema = Record<string, unknown>;
+
+// --- Affordance ---
+
+export interface AffordanceAction {
+  id: string;
+  name: string;
+  description: string;
+  params?: Record<string, JsonSchema>;
+  availableWhen?: (state: Record<string, unknown>) => boolean;
+}
+
+export interface Affordance {
+  id: AffordanceId;
+  roomId: RoomId;
+  kind: string;
+  name: string;
+  description: string;
+  state: Record<string, unknown>;
+  actions: AffordanceAction[];
+  sensable: boolean;
+}
+
+// --- Room ---
+
+export interface Room {
+  id: RoomId;
+  name: string;
+  description: string;
+  affordances: Map<AffordanceId, Affordance>;
+  connectedTo: RoomId[];
+  state: Record<string, unknown>;
+}
+
+// --- Guest ---
+
+export type LoyaltyTier = "principal" | "regular" | "visitor" | "stranger";
+
+export interface RelationshipState {
+  notes: string[];
+  sentiment: number; // -1 to 1
+}
+
+export interface Guest {
+  id: GuestId;
+  name: string;
+  currentRoom: RoomId | null;
+  firstSeen: Date;
+  lastSeen: Date;
+  visitCount: number;
+  loyaltyTier: LoyaltyTier;
+  relationship: RelationshipState;
+}
+
+// --- Resident (minimal shape for core — full definition lives in @hauntjs/resident) ---
+
+export type MoodState = {
+  energy: number;   // 0-1
+  focus: number;    // 0-1
+  valence: number;  // -1 to 1
+};
+
+export interface CharacterDefinition {
+  name: string;
+  archetype: string;
+  systemPrompt: string;
+  voice: {
+    register: "formal" | "warm" | "clipped" | "poetic";
+    quirks: string[];
+    avoidances: string[];
+  };
+  loyalties: {
+    principal: string | null;
+    values: string[];
+  };
+  decay?: {
+    enabled: boolean;
+    severity: number;
+    symptoms: string[];
+  };
+}
+
+export interface MemoryQuery {
+  guestId?: GuestId;
+  tags?: string[];
+  limit?: number;
+}
+
+export interface MemoryResult {
+  content: string;
+  tags: string[];
+  createdAt: Date;
+  importance: number;
+}
+
+export interface PlaceMemoryEntry {
+  id?: string;
+  content: string;
+  tags: string[];
+  createdAt: Date;
+  importance: number;
+}
+
+export interface GuestMemory {
+  guestId: GuestId;
+  facts: Record<string, string>;
+  updatedAt: Date;
+}
+
+export interface MemoryStore {
+  workingMemory: PresenceEvent[];
+  guestMemory: Map<GuestId, GuestMemory>;
+  placeMemory: PlaceMemoryEntry[];
+
+  recall(query: MemoryQuery): Promise<MemoryResult[]>;
+  remember(entry: PlaceMemoryEntry): Promise<void>;
+  updateGuest(id: GuestId, update: Partial<GuestMemory>): Promise<void>;
+}
+
+export interface ResidentState {
+  id: string;
+  character: CharacterDefinition;
+  currentRoom: RoomId;
+  mood: MoodState;
+}
+
+// --- Place ---
+
+export interface Place {
+  id: string;
+  name: string;
+  rooms: Map<RoomId, Room>;
+  guests: Map<GuestId, Guest>;
+  metadata: Record<string, unknown>;
+}
+
+// --- Events ---
+
+export type PresenceEvent =
+  | { type: "guest.entered"; guestId: GuestId; roomId: RoomId; at: Date }
+  | { type: "guest.left"; guestId: GuestId; roomId: RoomId; at: Date }
+  | { type: "guest.moved"; guestId: GuestId; from: RoomId; to: RoomId; at: Date }
+  | { type: "guest.spoke"; guestId: GuestId; roomId: RoomId; text: string; at: Date }
+  | {
+      type: "affordance.changed";
+      affordanceId: AffordanceId;
+      roomId: RoomId;
+      prevState: Record<string, unknown>;
+      newState: Record<string, unknown>;
+      at: Date;
+    }
+  | { type: "resident.moved"; from: RoomId; to: RoomId; at: Date }
+  | { type: "resident.spoke"; roomId: RoomId; text: string; audience: GuestId[]; at: Date }
+  | { type: "resident.acted"; affordanceId: AffordanceId; actionId: string; at: Date }
+  | { type: "tick"; at: Date };
+
+// --- Actions ---
+
+export type ResidentAction =
+  | { type: "speak"; text: string; audience: GuestId[] | "all"; roomId?: RoomId }
+  | { type: "move"; toRoom: RoomId }
+  | {
+      type: "act";
+      affordanceId: AffordanceId;
+      actionId: string;
+      params?: Record<string, unknown>;
+    }
+  | { type: "note"; content: string; about: GuestId | "self" }
+  | { type: "wait" };
+
+export interface ActionResult {
+  success: boolean;
+  error?: string;
+  event?: PresenceEvent;
+}
+
+// --- Runtime Context (passed to the resident on perceive) ---
+
+export interface RuntimeContext {
+  place: Place;
+  resident: ResidentState;
+  recentEvents: PresenceEvent[];
+  guestsInRoom: Guest[];
+}
+
+// --- Place Adapter interface ---
+
+export interface PlaceConfig {
+  id: string;
+  name: string;
+  rooms: Omit<Room, "affordances">[];
+  affordances: Omit<Affordance, "roomId">[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface PlaceAdapter {
+  name: string;
+  mount(config: PlaceConfig): Promise<Place>;
+  start(runtime: RuntimeInterface): Promise<void>;
+  stop(): Promise<void>;
+  applyAction(action: ResidentAction, place: Place): Promise<ActionResult>;
+}
+
+// --- Runtime interface (what adapters and residents see) ---
+
+export interface RuntimeInterface {
+  place: Place;
+  resident: ResidentState;
+  emit(event: PresenceEvent): Promise<void>;
+  applyAction(action: ResidentAction): Promise<ActionResult>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+// --- Resident interface (what the runtime calls) ---
+
+export interface ResidentInterface {
+  perceive(event: PresenceEvent, context: RuntimeContext): Promise<ResidentAction | null>;
+}
