@@ -9,6 +9,7 @@ const lobby: Room = {
   description:
     "The main hall of The Roost. A worn leather armchair sits by the fireplace. The notice board near the door carries messages from past and present guests. The light is warm, the air smells faintly of woodsmoke.",
   affordances: new Map(),
+  sensors: new Map(),
   connectedTo: [roomId("study"), roomId("parlor")],
   state: {},
 };
@@ -19,6 +20,7 @@ const study: Room = {
   description:
     "A quiet room lined with bookshelves. A heavy desk sits beneath the window, its surface scattered with papers and a reading lamp. The chair behind it has been worn to the shape of its most frequent occupant.",
   affordances: new Map(),
+  sensors: new Map(),
   connectedTo: [roomId("lobby")],
   state: {},
 };
@@ -29,6 +31,7 @@ const parlor: Room = {
   description:
     "A sitting room with deep sofas and a piano in the corner. The wallpaper is old but not shabby — it has the look of something that was chosen well and has aged with grace. A window overlooks the garden.",
   affordances: new Map(),
+  sensors: new Map(),
   connectedTo: [roomId("lobby"), roomId("garden")],
   state: {},
 };
@@ -39,6 +42,7 @@ const garden: Room = {
   description:
     "An outdoor sitting area enclosed by ivy-covered walls. A stone fountain stands at the center, its water running clear. Benches are arranged in a loose semicircle. The air is cooler here, and quieter.",
   affordances: new Map(),
+  sensors: new Map(),
   connectedTo: [roomId("parlor")],
   state: {},
 };

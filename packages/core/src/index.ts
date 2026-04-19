@@ -27,10 +27,18 @@ export type {
   PlaceAdapter,
   RuntimeInterface,
   ResidentInterface,
+  SensorId,
+  SensorModality,
+  SensorFidelity,
+  SensorReach,
+  PerceptionField,
+  Sensor,
+  Perception,
+  SensorAffect,
 } from "./types.js";
 
 // ID constructors
-export { roomId, affordanceId, guestId } from "./types.js";
+export { roomId, affordanceId, guestId, sensorId } from "./types.js";
 
 // Place state manager
 export {
@@ -49,6 +57,17 @@ export {
   getGuestsInRoom,
 } from "./place.js";
 export type { CreatePlaceOptions, AddRoomOptions, AddGuestOptions } from "./place.js";
+
+// Sensor factories
+export {
+  presenceSensor,
+  sightSensor,
+  soundSensor,
+  mutedAudioSensor,
+  stateSensor,
+  textSensor,
+  omniscientSensor,
+} from "./sensors/index.js";
 
 // Event bus
 export { EventBus } from "./event-bus.js";

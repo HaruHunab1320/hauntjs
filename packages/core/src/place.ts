@@ -44,6 +44,7 @@ export function addRoom(place: Place, options: AddRoomOptions): Room {
     name: options.name,
     description: options.description,
     affordances: new Map(),
+    sensors: new Map(),
     connectedTo: options.connectedTo ?? [],
     state: options.state ?? {},
   };

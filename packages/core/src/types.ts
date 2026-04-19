@@ -27,6 +27,7 @@ export interface AffordanceAction {
   description: string;
   params?: Record<string, JsonSchema>;
   availableWhen?: (state: Record<string, unknown>) => boolean;
+  affects?: SensorAffect[];
 }
 
 export interface Affordance {
@@ -40,6 +41,75 @@ export interface Affordance {
   sensable: boolean;
 }
 
+// --- Sensors ---
+
+export type SensorId = string & { readonly __brand: "SensorId" };
+
+export function sensorId(id: string): SensorId {
+  return id as SensorId;
+}
+
+/** The type of sensory information a sensor provides. */
+export type SensorModality =
+  | "sight"
+  | "sound"
+  | "presence"
+  | "state"
+  | "text"
+  | (string & {});  // extensible — adapters can define more
+
+/** How much detail the sensor reveals. */
+export type SensorFidelity =
+  | { kind: "full" }
+  | { kind: "partial"; reveals: PerceptionField[] }
+  | { kind: "ambiguous"; confidence: number }
+  | { kind: "delayed"; delayMs: number };
+
+/** What aspects of an event a sensor can reveal. */
+export type PerceptionField =
+  | "presence"
+  | "identity"
+  | "content"
+  | "count"
+  | "mood"
+  | (string & {});
+
+/** The spatial scope of what a sensor can detect. */
+export type SensorReach =
+  | { kind: "room" }
+  | { kind: "adjacent"; maxDepth?: number }
+  | { kind: "affordance"; affordanceId: AffordanceId }
+  | { kind: "place-wide" };
+
+/** A sensor installed in a room. Channels through which events become perceptible. */
+export interface Sensor {
+  id: SensorId;
+  roomId: RoomId;
+  modality: SensorModality;
+  name: string;
+  description: string;
+  fidelity: SensorFidelity;
+  enabled: boolean;
+  reach: SensorReach;
+}
+
+/** What the resident actually perceives — the sensor's report, not the raw event. */
+export interface Perception {
+  sourceSensorId: SensorId;
+  roomId: RoomId;
+  modality: SensorModality;
+  content: string;
+  confidence: number;
+  at: Date;
+  rawEvent?: PresenceEvent;
+}
+
+/** How an affordance action affects a sensor. */
+export interface SensorAffect {
+  sensorId: SensorId;
+  change: { enabled: boolean } | { fidelity: SensorFidelity };
+}
+
 // --- Room ---
 
 export interface Room {
@@ -47,6 +117,7 @@ export interface Room {
   name: string;
   description: string;
   affordances: Map<AffordanceId, Affordance>;
+  sensors: Map<SensorId, Sensor>;
   connectedTo: RoomId[];
   state: Record<string, unknown>;
 }
