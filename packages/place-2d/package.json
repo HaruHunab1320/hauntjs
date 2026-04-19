@@ -13,9 +13,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hauntjs/core": "workspace:*"
+    "@hauntjs/core": "workspace:*",
+    "ws": "^8.20.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.1",
     "typescript": "^5.7.0"
   }
 }
