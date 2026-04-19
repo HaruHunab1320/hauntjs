@@ -1,4 +1,4 @@
-import type { Sensor, RoomId, SensorFidelity, SensorReach } from "../types.js";
+import type { Sensor, SensorId, RoomId, SensorFidelity, SensorReach } from "../types.js";
 import { sensorId } from "../types.js";
 
 export interface SightSensorOptions {
@@ -21,9 +21,9 @@ export function sightSensor(
   id: string,
   roomIdValue: RoomId,
   options?: SightSensorOptions,
-): [string, Sensor] {
+): [SensorId, Sensor] {
   return [
-    id,
+    sensorId(id),
     {
       id: sensorId(id),
       roomId: roomIdValue,

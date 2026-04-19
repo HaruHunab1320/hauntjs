@@ -1,48 +1,79 @@
-import { roomId, affordanceId } from "@hauntjs/core";
+import { roomId, affordanceId, presenceSensor, sightSensor, soundSensor, mutedAudioSensor, stateSensor } from "@hauntjs/core";
 import type { Room, Affordance } from "@hauntjs/core";
 
 // --- The Roost: Room definitions ---
 
+// Lobby — public, well-perceived
 const lobby: Room = {
   id: roomId("lobby"),
   name: "Lobby",
   description:
     "The main hall of The Roost. A worn leather armchair sits by the fireplace. The notice board near the door carries messages from past and present guests. The light is warm, the air smells faintly of woodsmoke.",
   affordances: new Map(),
-  sensors: new Map(),
+  sensors: new Map([
+    presenceSensor("lobby.presence", roomId("lobby"), { fidelity: { kind: "full" } }),
+    sightSensor("lobby.sight", roomId("lobby")),
+    soundSensor("lobby.sound", roomId("lobby")),
+    stateSensor("lobby.fireplace-state", roomId("lobby"), "fireplace"),
+    stateSensor("lobby.board-state", roomId("lobby"), "notice-board"),
+  ]),
   connectedTo: [roomId("study"), roomId("parlor")],
   state: {},
 };
 
+// Study — semi-private, focused (no reach into other rooms)
 const study: Room = {
   id: roomId("study"),
   name: "Study",
   description:
     "A quiet room lined with bookshelves. A heavy desk sits beneath the window, its surface scattered with papers and a reading lamp. The chair behind it has been worn to the shape of its most frequent occupant.",
   affordances: new Map(),
-  sensors: new Map(),
+  sensors: new Map([
+    sightSensor("study.sight", roomId("study")),
+    soundSensor("study.sound", roomId("study")),
+    stateSensor("study.desk-state", roomId("study"), "desk"),
+  ]),
   connectedTo: [roomId("lobby")],
   state: {},
 };
 
+// Parlor — public but acoustically connected to lobby
 const parlor: Room = {
   id: roomId("parlor"),
   name: "Parlor",
   description:
     "A sitting room with deep sofas and a piano in the corner. The wallpaper is old but not shabby — it has the look of something that was chosen well and has aged with grace. A window overlooks the garden.",
   affordances: new Map(),
-  sensors: new Map(),
+  sensors: new Map([
+    sightSensor("parlor.sight", roomId("parlor"), {
+      fidelity: { kind: "partial", reveals: ["presence", "identity"] },
+    }),
+    soundSensor("parlor.sound", roomId("parlor")),
+    soundSensor("parlor.lobby-sound", roomId("parlor"), {
+      reach: { kind: "adjacent", maxDepth: 1 },
+      description: "Sound carries between the parlor and lobby.",
+    }),
+  ]),
   connectedTo: [roomId("lobby"), roomId("garden")],
   state: {},
 };
 
+// Garden — outdoor, sparser perception
 const garden: Room = {
   id: roomId("garden"),
   name: "Garden",
   description:
     "An outdoor sitting area enclosed by ivy-covered walls. A stone fountain stands at the center, its water running clear. Benches are arranged in a loose semicircle. The air is cooler here, and quieter.",
   affordances: new Map(),
-  sensors: new Map(),
+  sensors: new Map([
+    presenceSensor("garden.presence", roomId("garden"), {
+      description: "A sense of someone being out there — but hard to tell who.",
+    }),
+    mutedAudioSensor("garden.wind-sound", roomId("garden"), {
+      confidence: 0.3,
+      description: "Sound carries poorly outdoors — the wind interferes.",
+    }),
+  ]),
   connectedTo: [roomId("parlor")],
   state: {},
 };

@@ -83,7 +83,7 @@ describe("buildPrompt", () => {
       at: new Date(),
     };
 
-    const request = buildPrompt(makeCharacter(), makeContext(), event, [], new Map());
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], [], new Map());
 
     expect(request.systemPrompt).toContain("Poe");
     expect(request.systemPrompt).toContain("Lobby");
@@ -97,7 +97,7 @@ describe("buildPrompt", () => {
 
   it("includes guest info in system prompt", () => {
     const event: PresenceEvent = { type: "tick", at: new Date() };
-    const request = buildPrompt(makeCharacter(), makeContext(), event, [], new Map());
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], [], new Map());
 
     expect(request.systemPrompt).toContain("Takeshi");
     expect(request.systemPrompt).toContain("stranger");
@@ -105,7 +105,7 @@ describe("buildPrompt", () => {
 
   it("includes affordance details in system prompt", () => {
     const event: PresenceEvent = { type: "tick", at: new Date() };
-    const request = buildPrompt(makeCharacter(), makeContext(), event, [], new Map());
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], [], new Map());
 
     expect(request.systemPrompt).toContain("Fireplace");
     expect(request.systemPrompt).toContain("light");
@@ -114,14 +114,14 @@ describe("buildPrompt", () => {
 
   it("includes connected rooms", () => {
     const event: PresenceEvent = { type: "tick", at: new Date() };
-    const request = buildPrompt(makeCharacter(), makeContext(), event, [], new Map());
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], [], new Map());
 
     expect(request.systemPrompt).toContain("Study");
   });
 
   it("includes voice guidance", () => {
     const event: PresenceEvent = { type: "tick", at: new Date() };
-    const request = buildPrompt(makeCharacter(), makeContext(), event, [], new Map());
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], [], new Map());
 
     expect(request.systemPrompt).toContain("warm");
     expect(request.systemPrompt).toContain("references literature");
@@ -134,7 +134,7 @@ describe("buildPrompt", () => {
       { content: "Takeshi likes whiskey.", tags: ["takeshi"], createdAt: new Date(), importance: 0.7 },
     ];
 
-    const request = buildPrompt(makeCharacter(), makeContext(), event, memories, new Map());
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], memories, new Map());
     const allContent = request.messages.map((m) => m.content).join("\n");
 
     expect(allContent).toContain("Takeshi likes whiskey.");
@@ -149,7 +149,7 @@ describe("buildPrompt", () => {
       updatedAt: new Date(),
     });
 
-    const request = buildPrompt(makeCharacter(), makeContext(), event, [], guestMems);
+    const request = buildPrompt(makeCharacter(), makeContext(), event, [], [], guestMems);
     const allContent = request.messages.map((m) => m.content).join("\n");
 
     expect(allContent).toContain("whiskey");
@@ -176,7 +176,7 @@ describe("buildPrompt", () => {
       at: new Date(),
     };
 
-    const request = buildPrompt(makeCharacter(), ctx, event, [], new Map());
+    const request = buildPrompt(makeCharacter(), ctx, event, [], [], new Map());
     const allContent = request.messages.map((m) => m.content).join("\n");
 
     expect(allContent).toContain("Good evening, Poe.");

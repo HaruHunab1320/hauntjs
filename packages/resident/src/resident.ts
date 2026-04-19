@@ -1,6 +1,7 @@
 import type {
   CharacterDefinition,
   PresenceEvent,
+  Perception,
   ResidentAction,
   RuntimeContext,
   ResidentInterface,
@@ -42,6 +43,7 @@ export class Resident implements ResidentInterface {
 
   async perceive(
     event: PresenceEvent,
+    perceptions: Perception[],
     context: RuntimeContext,
   ): Promise<ResidentAction | ResidentAction[] | null> {
     // ALWAYS perceive: add every event to working memory regardless
@@ -51,12 +53,11 @@ export class Resident implements ResidentInterface {
     if (!DELIBERATION_EVENTS.has(event.type)) return null;
 
     // Backpressure: if a model call is in flight, skip deliberation
-    // but the event is still in working memory for next time
     if (this.busy) return null;
 
     this.busy = true;
     try {
-      return await this.deliberate(event, context);
+      return await this.deliberate(event, perceptions, context);
     } catch (err) {
       console.error("[Resident] model error:", err instanceof Error ? err.message : err);
       return null;
@@ -65,12 +66,11 @@ export class Resident implements ResidentInterface {
     }
   }
 
-  /** Call the model and decide what to do. */
   private async deliberate(
     event: PresenceEvent,
+    perceptions: Perception[],
     context: RuntimeContext,
   ): Promise<ResidentAction | ResidentAction[] | null> {
-    // Recall relevant memories
     const placeMemories = await this.memory.recall({ limit: 5 });
     const guestMemories = new Map<GuestId, NonNullable<ReturnType<typeof this.memory.guestMemory.get>>>();
     for (const guest of context.guestsInRoom) {
@@ -78,11 +78,11 @@ export class Resident implements ResidentInterface {
       if (mem) guestMemories.set(guest.id, mem);
     }
 
-    // Build prompt
     const request = buildPrompt(
       this.character,
       context,
       event,
+      perceptions,
       placeMemories.map((r) => ({
         content: r.content,
         tags: r.tags,
@@ -92,22 +92,18 @@ export class Resident implements ResidentInterface {
       guestMemories,
     );
 
-    // Call model
     const response = await this.model.chat(request);
-
-    // Parse all decisions
     const actions = parseAllDecisions(response);
 
     if (actions.length === 0) return null;
 
-    // Handle side effects
     for (const action of actions) {
       if (action.type === "note") {
         await this.persistNote(action);
       }
     }
 
-    // Auto-persist conversation context for guest speech events
+    // Auto-persist conversation context
     const speakAction = actions.find((a): a is ResidentAction & { type: "speak" } => a.type === "speak");
     if (event.type === "guest.spoke" && speakAction) {
       await this.autoRememberConversation(event.guestId, event.text, speakAction.text, context);

@@ -1,6 +1,7 @@
 import type {
   Place,
   PresenceEvent,
+  Perception,
   ResidentAction,
   ActionResult,
   ResidentState,
@@ -16,6 +17,9 @@ import type { EventBus } from "../event-bus.js";
 export interface PipelineState {
   /** The triggering event. */
   event: PresenceEvent;
+
+  /** Perceptions produced by the SensorSystem. Empty if no sensors matched. */
+  perceptions: Perception[];
 
   /** Whether the resident should be invoked for this event. Set by AutonomySystem. */
   shouldDeliberate: boolean;

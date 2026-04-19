@@ -16,6 +16,7 @@ import type {
   Affordance,
   ResidentInterface,
 } from "./types.js";
+import { omniscientSensor } from "./sensors/omniscient.js";
 
 function makeTestPlace(): Place {
   const place = createPlace({ id: "roost", name: "The Roost" });
@@ -26,6 +27,11 @@ function makeTestPlace(): Place {
   addRoom(place, { id: lobby, name: "Lobby", description: "The main hall" });
   addRoom(place, { id: study, name: "Study", description: "A quiet room" });
   addRoom(place, { id: garden, name: "Garden", description: "The garden" });
+
+  // Add omniscient sensors so tests behave like Phase 1 (perceive everything)
+  for (const room of place.rooms.values()) {
+    room.sensors = new Map([omniscientSensor(`${room.id}.omni`, room.id)]);
+  }
   connectRooms(place, lobby, study);
   connectRooms(place, lobby, garden);
 

@@ -12,6 +12,7 @@ import type {
 import { EventBus } from "./event-bus.js";
 import type { System, PipelineState, SystemContext } from "./systems/types.js";
 import { StatePropagationSystem } from "./systems/state-propagation.js";
+import { SensorSystem } from "./systems/sensor-system.js";
 import { MemorySystem } from "./systems/memory-system.js";
 import { AutonomySystem } from "./systems/autonomy-system.js";
 import { ResidentSystem } from "./systems/resident-system.js";
@@ -31,11 +32,11 @@ export interface RuntimeOptions {
 
 /**
  * The default systems pipeline order.
- * Phase 2.3 will insert SensorSystem between StatePropagation and Memory.
  */
 function createDefaultPipeline(): System[] {
   return [
     new StatePropagationSystem(),
+    new SensorSystem(),
     new MemorySystem(),
     new AutonomySystem(),
     new ResidentSystem(),
@@ -88,6 +89,7 @@ export class Runtime implements RuntimeInterface {
 
     const pipeline: PipelineState = {
       event,
+      perceptions: [],
       shouldDeliberate: false,
       actions: [],
       actionResults: [],

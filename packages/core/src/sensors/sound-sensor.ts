@@ -1,4 +1,4 @@
-import type { Sensor, RoomId, SensorFidelity, SensorReach } from "../types.js";
+import type { Sensor, SensorId, RoomId, SensorFidelity, SensorReach } from "../types.js";
 import { sensorId } from "../types.js";
 
 export interface SoundSensorOptions {
@@ -21,9 +21,9 @@ export function soundSensor(
   id: string,
   roomIdValue: RoomId,
   options?: SoundSensorOptions,
-): [string, Sensor] {
+): [SensorId, Sensor] {
   return [
-    id,
+    sensorId(id),
     {
       id: sensorId(id),
       roomId: roomIdValue,
@@ -45,9 +45,9 @@ export function mutedAudioSensor(
   id: string,
   roomIdValue: RoomId,
   options?: { confidence?: number; reach?: SensorReach; description?: string },
-): [string, Sensor] {
+): [SensorId, Sensor] {
   return [
-    id,
+    sensorId(id),
     {
       id: sensorId(id),
       roomId: roomIdValue,

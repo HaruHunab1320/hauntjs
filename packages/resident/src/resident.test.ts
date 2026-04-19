@@ -103,7 +103,7 @@ describe("Resident", () => {
       at: new Date(),
     };
 
-    const action = await resident.perceive(event, makeContext());
+    const action = await resident.perceive(event, [], makeContext());
 
     expect(action).toBeDefined();
     expect(action!.type).toBe("speak");
@@ -125,7 +125,7 @@ describe("Resident", () => {
 
     const resident = new Resident({ character: makeCharacter(), model, memory });
     const event: PresenceEvent = { type: "tick", at: new Date() };
-    const action = await resident.perceive(event, makeContext());
+    const action = await resident.perceive(event, [], makeContext());
 
     expect(action).toBeNull();
   });
@@ -152,7 +152,7 @@ describe("Resident", () => {
       at: new Date(),
     };
 
-    const action = await resident.perceive(event, makeContext());
+    const action = await resident.perceive(event, [], makeContext());
     expect(action?.type).toBe("note");
 
     // Verify guest memory was updated
@@ -177,7 +177,7 @@ describe("Resident", () => {
     const resident = new Resident({ character: makeCharacter(), model, memory });
     const event: PresenceEvent = { type: "tick", at: new Date() };
 
-    await resident.perceive(event, makeContext());
+    await resident.perceive(event, [], makeContext());
 
     const memories = await memory.recall({});
     expect(memories).toHaveLength(1);
@@ -195,7 +195,7 @@ describe("Resident", () => {
       at: new Date(),
     };
 
-    await resident.perceive(event, makeContext());
+    await resident.perceive(event, [], makeContext());
     expect(memory.workingMemory).toHaveLength(1);
     expect(memory.workingMemory[0].type).toBe("guest.entered");
   });

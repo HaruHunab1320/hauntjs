@@ -15,7 +15,7 @@ export class ResidentSystem implements System {
     }
 
     const context = this.buildContext(ctx);
-    const result = await ctx.residentMind.perceive(pipeline.event, context);
+    const result = await ctx.residentMind.perceive(pipeline.event, pipeline.perceptions, context);
 
     if (result) {
       pipeline.actions = Array.isArray(result) ? result : [result];

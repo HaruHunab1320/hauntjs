@@ -1,4 +1,4 @@
-import type { Sensor, RoomId } from "../types.js";
+import type { Sensor, SensorId, RoomId } from "../types.js";
 import { sensorId } from "../types.js";
 
 /**
@@ -16,9 +16,9 @@ import { sensorId } from "../types.js";
 export function omniscientSensor(
   id: string,
   roomIdValue: RoomId,
-): [string, Sensor] {
+): [SensorId, Sensor] {
   return [
-    id,
+    sensorId(id),
     {
       id: sensorId(id),
       roomId: roomIdValue,

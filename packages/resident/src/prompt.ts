@@ -2,6 +2,7 @@ import type {
   CharacterDefinition,
   RuntimeContext,
   PresenceEvent,
+  Perception,
   Guest,
   Affordance,
   PlaceMemoryEntry,
@@ -100,11 +101,12 @@ export function buildPrompt(
   character: CharacterDefinition,
   context: RuntimeContext,
   event: PresenceEvent,
+  perceptions: Perception[],
   placeMemories: PlaceMemoryEntry[],
   guestMemories: Map<GuestId, GuestMemory>,
 ): ChatRequest {
   const systemPrompt = buildSystemPrompt(character, context);
-  const messages = buildMessages(context, event, placeMemories, guestMemories);
+  const messages = buildMessages(context, event, perceptions, placeMemories, guestMemories);
 
   return {
     systemPrompt,
@@ -144,6 +146,7 @@ function buildSystemPrompt(
     .join("\n") || "No one else is here.";
 
   const voiceGuidance = buildVoiceGuidance(character);
+  const perceptualReach = buildPerceptualReach(context);
 
   return `${character.systemPrompt}
 
@@ -163,6 +166,9 @@ ${affordances}
 ### Connected rooms
 ${connectedRooms}
 
+### Your perceptual reach
+${perceptualReach}
+
 ### Your mood
 Energy: ${(context.resident.mood.energy * 100).toFixed(0)}% | Focus: ${(context.resident.mood.focus * 100).toFixed(0)}% | Valence: ${context.resident.mood.valence > 0 ? "positive" : context.resident.mood.valence < 0 ? "negative" : "neutral"}
 
@@ -181,7 +187,8 @@ ${voiceGuidance}
 - Write notes about guests when you learn something worth remembering. Be selective — not every detail matters.
 - Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
 - Never repeat yourself. If you already greeted someone, do not greet them again. Continue the conversation naturally.
-- Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.`;
+- Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.
+- Your perception is limited by your sensors. If a perception is marked uncertain, hedge — say "I think" or "it sounds like" rather than stating facts. Never describe things happening in rooms you have no sensors for. If you don't know, say so honestly.`;
 }
 
 function buildVoiceGuidance(character: CharacterDefinition): string {
@@ -196,6 +203,50 @@ function buildVoiceGuidance(character: CharacterDefinition): string {
   }
 
   return lines.join("\n");
+}
+
+function buildPerceptualReach(context: RuntimeContext): string {
+  const currentRoom = context.place.rooms.get(context.resident.currentRoom);
+  if (!currentRoom) return "No perceptual data available.";
+
+  const lines: string[] = [];
+
+  // Current room sensors
+  const currentSensors = Array.from(currentRoom.sensors.values()).filter((s) => s.enabled);
+  if (currentSensors.length > 0) {
+    lines.push(`In ${currentRoom.name}, you have:`);
+    for (const s of currentSensors) {
+      const fidelityDesc = s.fidelity.kind === "full" ? "clear" :
+        s.fidelity.kind === "partial" ? "partial" :
+        s.fidelity.kind === "ambiguous" ? "uncertain" : "delayed";
+      lines.push(`  - ${s.name}: ${s.description} (${fidelityDesc})`);
+    }
+  } else {
+    lines.push(`You have no sensors in ${currentRoom.name} — you cannot perceive events here directly.`);
+  }
+
+  // Adjacent room reach
+  for (const connId of currentRoom.connectedTo) {
+    const connRoom = context.place.rooms.get(connId);
+    if (!connRoom) continue;
+
+    // Check if any sensor in the current room reaches into this adjacent room
+    const reachingSensors = currentSensors.filter((s) =>
+      s.reach.kind === "adjacent" || s.reach.kind === "place-wide"
+    );
+    // Also check sensors in the adjacent room that reach back
+    const adjSensors = Array.from(connRoom.sensors.values()).filter((s) =>
+      s.enabled && (s.reach.kind === "adjacent" || s.reach.kind === "place-wide")
+    );
+
+    if (reachingSensors.length > 0 || adjSensors.length > 0) {
+      lines.push(`  Through the connection to ${connRoom.name}: partial awareness via adjacent sensors`);
+    } else {
+      lines.push(`  ${connRoom.name}: no perceptual reach (you'd need to go there)`);
+    }
+  }
+
+  return lines.join("\n") || "No perceptual data available.";
 }
 
 function describeAffordance(affordance: Affordance): string {
@@ -225,6 +276,7 @@ function describeGuest(guest: Guest): string {
 function buildMessages(
   context: RuntimeContext,
   currentEvent: PresenceEvent,
+  currentPerceptions: Perception[],
   placeMemories: PlaceMemoryEntry[],
   guestMemories: Map<GuestId, GuestMemory>,
 ): ChatMessage[] {
@@ -276,15 +328,36 @@ function buildMessages(
 
   flushContext();
 
-  // The current event
+  // The current event — use perceptions if available, fall back to raw event for ticks
   if (currentEvent.type === "guest.spoke") {
-    const guest = context.place.guests.get(currentEvent.guestId);
-    const name = guest?.name ?? currentEvent.guestId;
+    // Speech events: use the perception content if available, otherwise raw text
+    const speechPerception = currentPerceptions.find((p) => p.modality === "sound" || p.modality === "text");
+    if (speechPerception) {
+      messages.push({
+        role: "user",
+        content: `[Perception] ${speechPerception.content}${speechPerception.confidence < 0.8 ? ` (confidence: ${(speechPerception.confidence * 100).toFixed(0)}%)` : ""}\n\n[Respond naturally. Use the \`speak\` tool to reply, the \`act\` tool to interact with objects, the \`move\` tool to go somewhere, or \`wait\` if silence is more appropriate. If the guest is agreeing to something you offered, follow through with action — don't just acknowledge.]`,
+      });
+    } else {
+      // Fallback if no sound/text sensor caught it (shouldn't happen with proper sensors)
+      const guest = context.place.guests.get(currentEvent.guestId);
+      const name = guest?.name ?? currentEvent.guestId;
+      messages.push({
+        role: "user",
+        content: `${name}: ${currentEvent.text}\n\n[Respond naturally.]`,
+      });
+    }
+  } else if (currentPerceptions.length > 0) {
+    // Non-speech events with perceptions: describe what was perceived
+    const perceptionDescs = currentPerceptions.map((p) => {
+      const conf = p.confidence < 0.8 ? ` (uncertain — ${(p.confidence * 100).toFixed(0)}% confidence)` : "";
+      return `- [${p.modality}] ${p.content}${conf}`;
+    });
     messages.push({
       role: "user",
-      content: `${name}: ${currentEvent.text}\n\n[Respond naturally. Use the \`speak\` tool to reply, the \`act\` tool to interact with objects, the \`move\` tool to go somewhere, or \`wait\` if silence is more appropriate. If the guest is agreeing to something you offered, follow through with action — don't just acknowledge.]`,
+      content: `[What you perceived]\n${perceptionDescs.join("\n")}\n\n[Decide what to do. Use one of the available tools, or use \`wait\` if no action is warranted. If your perception is uncertain, you may hedge or wonder aloud rather than stating facts.]`,
     });
   } else {
+    // Tick events or events with no perceptions
     const desc = describeEvent(currentEvent, context);
     if (desc) {
       messages.push({

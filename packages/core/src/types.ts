@@ -306,5 +306,9 @@ export interface RuntimeInterface {
 // --- Resident interface (what the runtime calls) ---
 
 export interface ResidentInterface {
-  perceive(event: PresenceEvent, context: RuntimeContext): Promise<ResidentAction | ResidentAction[] | null>;
+  perceive(
+    event: PresenceEvent,
+    perceptions: Perception[],
+    context: RuntimeContext,
+  ): Promise<ResidentAction | ResidentAction[] | null>;
 }

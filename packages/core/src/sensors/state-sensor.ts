@@ -1,4 +1,4 @@
-import type { Sensor, RoomId, SensorFidelity } from "../types.js";
+import type { Sensor, SensorId, RoomId, SensorFidelity } from "../types.js";
 import { sensorId, affordanceId as toAffordanceId } from "../types.js";
 
 export interface StateSensorOptions {
@@ -21,9 +21,9 @@ export function stateSensor(
   roomIdValue: RoomId,
   targetAffordanceId: string,
   options?: StateSensorOptions,
-): [string, Sensor] {
+): [SensorId, Sensor] {
   return [
-    id,
+    sensorId(id),
     {
       id: sensorId(id),
       roomId: roomIdValue,

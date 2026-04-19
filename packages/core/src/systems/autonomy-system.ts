@@ -4,9 +4,11 @@ import type { System, PipelineState, SystemContext } from "./types.js";
  * Decides whether the resident should be invoked for this event.
  * Sets pipeline.shouldDeliberate.
  *
- * Rules: invoke for all events except the resident's own actions.
- * The Resident class itself handles finer-grained filtering
- * (DELIBERATION_EVENTS set, backpressure).
+ * Rules:
+ * - Skip the resident's own actions (prevents loops)
+ * - Tick events always pass through (the resident decides whether to act)
+ * - For external events: only invoke if sensors produced perceptions
+ *   (strict-by-default — unsensored events are invisible to the resident)
  */
 
 const SKIP_EVENTS = new Set([
@@ -19,19 +21,24 @@ export class AutonomySystem implements System {
   readonly name = "Autonomy";
 
   async run(pipeline: PipelineState, ctx: SystemContext): Promise<PipelineState> {
-    // No mind wired in — nothing to invoke
     if (!ctx.residentMind) {
       pipeline.shouldDeliberate = false;
       return pipeline;
     }
 
-    // Don't invoke for the resident's own actions (prevents loops)
     if (SKIP_EVENTS.has(pipeline.event.type)) {
       pipeline.shouldDeliberate = false;
       return pipeline;
     }
 
-    pipeline.shouldDeliberate = true;
+    // Tick events always pass through — they're internal heartbeats, not sensor-gated
+    if (pipeline.event.type === "tick") {
+      pipeline.shouldDeliberate = true;
+      return pipeline;
+    }
+
+    // For external events: only deliberate if at least one sensor picked it up
+    pipeline.shouldDeliberate = pipeline.perceptions.length > 0;
     return pipeline;
   }
 }
