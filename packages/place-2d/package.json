@@ -7,13 +7,15 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --build",
-    "dev": "tsc --build --watch",
-    "test": "vitest run",
+    "dev": "vite --config vite.config.ts",
+    "dev:server": "tsc --build --watch",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hauntjs/core": "workspace:*",
+    "phaser": "^4.0.0",
     "ws": "^8.20.0",
     "zod": "^4.3.6"
   },
