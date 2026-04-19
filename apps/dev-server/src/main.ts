@@ -46,7 +46,7 @@ async function start(): Promise<void> {
   });
 
   // 7. Create the runtime with mind + on-return hook
-  let tickScheduler: TickScheduler;
+  const tick = { scheduler: null as TickScheduler | null };
 
   const runtime = new Runtime({
     place,
@@ -55,8 +55,7 @@ async function start(): Promise<void> {
     onGuestReturn: (guestId) => {
       const guest = place.guests.get(guestId);
       console.log(`  [Roost] returning guest: ${guest?.name ?? guestId} (visit #${guest?.visitCount})`);
-      // Fire an immediate tick so Poe can prepare a return greeting
-      tickScheduler.fireImmediate().catch(() => {});
+      tick.scheduler?.fireImmediate().catch(() => {});
     },
   });
 
@@ -118,11 +117,11 @@ async function start(): Promise<void> {
   await runtime.start();
 
   // 9. Start the tick scheduler
-  tickScheduler = new TickScheduler(runtime, {
+  tick.scheduler = new TickScheduler(runtime, {
     intervalMs: TICK_INTERVAL_MS,
     tickWhenEmpty: false,
   });
-  tickScheduler.start();
+  tick.scheduler.start();
 
   // 10. Start the WebSocket server
   await adapter.start(runtime);
@@ -156,7 +155,7 @@ async function start(): Promise<void> {
   // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`\nClosing The Roost (${signal})...`);
-    tickScheduler.stop();
+    tick.scheduler?.stop();
     await adapter.stop();
     await runtime.stop();
     memory.close();

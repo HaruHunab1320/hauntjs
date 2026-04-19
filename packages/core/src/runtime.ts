@@ -5,21 +5,19 @@ import type {
   ActionResult,
   ResidentState,
   RuntimeInterface,
-  RuntimeContext,
   ResidentInterface,
   GuestId,
   RoomId,
 } from "./types.js";
 import { EventBus } from "./event-bus.js";
-import {
-  enterRoom,
-  moveGuest,
-  leavePlace,
-  getGuestsInRoom,
-  getAffordance,
-} from "./place.js";
-
-const WORKING_MEMORY_LIMIT = 50;
+import type { System, PipelineState, SystemContext } from "./systems/types.js";
+import { StatePropagationSystem } from "./systems/state-propagation.js";
+import { MemorySystem } from "./systems/memory-system.js";
+import { AutonomySystem } from "./systems/autonomy-system.js";
+import { ResidentSystem } from "./systems/resident-system.js";
+import { ActionDispatchSystem } from "./systems/action-dispatch.js";
+import { BroadcastSystem } from "./systems/broadcast-system.js";
+import { getGuestsInRoom, getAffordance } from "./place.js";
 
 export interface RuntimeOptions {
   place: Place;
@@ -27,6 +25,23 @@ export interface RuntimeOptions {
   residentMind?: ResidentInterface;
   /** Called when a known guest (visitCount > 0) re-enters after absence. */
   onGuestReturn?: (guestId: GuestId) => void;
+  /** Custom systems pipeline. If not provided, uses the default pipeline. */
+  systems?: System[];
+}
+
+/**
+ * The default systems pipeline order.
+ * Phase 2.3 will insert SensorSystem between StatePropagation and Memory.
+ */
+function createDefaultPipeline(): System[] {
+  return [
+    new StatePropagationSystem(),
+    new MemorySystem(),
+    new AutonomySystem(),
+    new ResidentSystem(),
+    new ActionDispatchSystem(),
+    new BroadcastSystem(),
+  ];
 }
 
 export class Runtime implements RuntimeInterface {
@@ -34,6 +49,7 @@ export class Runtime implements RuntimeInterface {
   readonly resident: ResidentState;
   readonly eventBus: EventBus;
 
+  private systems: System[];
   private residentMind: ResidentInterface | null;
   private recentEvents: PresenceEvent[] = [];
   private running = false;
@@ -45,6 +61,7 @@ export class Runtime implements RuntimeInterface {
     this.residentMind = options.residentMind ?? null;
     this.onGuestReturn = options.onGuestReturn ?? null;
     this.eventBus = new EventBus();
+    this.systems = options.systems ?? createDefaultPipeline();
   }
 
   setResidentMind(mind: ResidentInterface): void {
@@ -60,131 +77,66 @@ export class Runtime implements RuntimeInterface {
     this.eventBus.clear();
   }
 
+  /**
+   * Process an event through the systems pipeline.
+   * Public API unchanged from Phase 1.
+   */
   async emit(event: PresenceEvent): Promise<void> {
     if (!this.running) {
       throw new Error("Runtime is not running. Call start() first.");
     }
 
-    // Update place state based on event
-    this.applyEventToState(event);
+    const pipeline: PipelineState = {
+      event,
+      shouldDeliberate: false,
+      actions: [],
+      actionResults: [],
+    };
 
-    // Store in working memory
-    this.recentEvents.push(event);
-    if (this.recentEvents.length > WORKING_MEMORY_LIMIT) {
-      this.recentEvents.shift();
-    }
+    const ctx: SystemContext = {
+      place: this.place,
+      resident: this.resident,
+      residentMind: this.residentMind,
+      eventBus: this.eventBus,
+      recentEvents: this.recentEvents,
+      onGuestReturn: this.onGuestReturn,
+    };
 
-    // Broadcast to listeners
-    await this.eventBus.emit(event);
-
-    // Let the resident perceive and possibly respond
-    if (this.residentMind && event.type !== "resident.spoke" && event.type !== "resident.moved" && event.type !== "resident.acted") {
-      const context = this.buildContext();
-      const result = await this.residentMind.perceive(event, context);
-      if (result) {
-        const actions = Array.isArray(result) ? result : [result];
-        for (const action of actions) {
-          await this.applyAction(action);
-        }
-      }
+    let state = pipeline;
+    for (const system of this.systems) {
+      state = await system.run(state, ctx);
     }
   }
 
+  /**
+   * Apply a single resident action outside the pipeline.
+   * Used by tests and direct action invocation.
+   */
   async applyAction(action: ResidentAction): Promise<ActionResult> {
-    let result: ActionResult;
+    const result = this.dispatchAction(action);
 
-    switch (action.type) {
-      case "speak":
-        result = this.handleSpeak(action);
-        break;
-      case "move":
-        result = this.handleMove(action);
-        break;
-      case "act":
-        result = this.handleAct(action);
-        break;
-      case "note":
-        result = { success: true };
-        break;
-      case "wait":
-        result = { success: true };
-        break;
-      default:
-        result = { success: false, error: "Unknown action type" };
-    }
-
-    // Emit the resulting event through the bus so adapters can broadcast it
     if (result.success && result.event) {
+      this.recentEvents.push(result.event);
       await this.eventBus.emit(result.event);
     }
 
     return result;
   }
 
-  private applyEventToState(event: PresenceEvent): void {
-    switch (event.type) {
-      case "guest.entered":
-        this.handleGuestEntered(event);
-        break;
-      case "guest.left":
-        this.handleGuestLeft(event);
-        break;
-      case "guest.moved":
-        this.handleGuestMoved(event);
-        break;
-      case "affordance.changed":
-        this.handleAffordanceChanged(event);
-        break;
-    }
-  }
-
-  private handleGuestEntered(event: { guestId: GuestId; roomId: RoomId }): void {
-    const guest = this.place.guests.get(event.guestId);
-    if (!guest) return;
-
-    const isReturning = guest.visitCount > 0 && guest.currentRoom === null;
-
-    // Skip if already in this room (adapter may have applied the change already)
-    if (guest.currentRoom === event.roomId) {
-      // Still notify on-return even if position was pre-applied
-      if (isReturning && this.onGuestReturn) {
-        this.onGuestReturn(event.guestId);
-      }
-      return;
-    }
-
-    const wasReturning = guest.visitCount > 0;
-    enterRoom(this.place, event.guestId, event.roomId);
-
-    if (wasReturning && this.onGuestReturn) {
-      this.onGuestReturn(event.guestId);
-    }
-  }
-
-  private handleGuestLeft(event: { guestId: GuestId }): void {
-    const guest = this.place.guests.get(event.guestId);
-    if (!guest || !guest.currentRoom) return;
-    leavePlace(this.place, event.guestId);
-  }
-
-  private handleGuestMoved(event: { guestId: GuestId; to: RoomId }): void {
-    const guest = this.place.guests.get(event.guestId);
-    if (!guest || !guest.currentRoom) return;
-    // Skip if already in the target room (adapter may have applied the change already)
-    if (guest.currentRoom === event.to) return;
-    moveGuest(this.place, event.guestId, event.to);
-  }
-
-  private handleAffordanceChanged(event: {
-    affordanceId: string;
-    roomId: RoomId;
-    newState: Record<string, unknown>;
-  }): void {
-    const room = this.place.rooms.get(event.roomId);
-    if (!room) return;
-    const aff = room.affordances.get(event.affordanceId as never);
-    if (aff) {
-      aff.state = { ...event.newState };
+  private dispatchAction(action: ResidentAction): ActionResult {
+    switch (action.type) {
+      case "speak":
+        return this.handleSpeak(action);
+      case "move":
+        return this.handleMove(action);
+      case "act":
+        return this.handleAct(action);
+      case "note":
+        return { success: true };
+      case "wait":
+        return { success: true };
+      default:
+        return { success: false, error: "Unknown action type" };
     }
   }
 
@@ -210,7 +162,6 @@ export class Runtime implements RuntimeInterface {
       at: new Date(),
     };
 
-    this.recentEvents.push(event);
     return { success: true, event };
   }
 
@@ -236,7 +187,6 @@ export class Runtime implements RuntimeInterface {
       at: new Date(),
     };
 
-    this.recentEvents.push(event);
     return { success: true, event };
   }
 
@@ -272,17 +222,6 @@ export class Runtime implements RuntimeInterface {
       at: new Date(),
     };
 
-    this.recentEvents.push(event);
     return { success: true, event };
-  }
-
-  private buildContext(): RuntimeContext {
-    const guestsInRoom = getGuestsInRoom(this.place, this.resident.currentRoom);
-    return {
-      place: this.place,
-      resident: this.resident,
-      recentEvents: [...this.recentEvents],
-      guestsInRoom,
-    };
   }
 }

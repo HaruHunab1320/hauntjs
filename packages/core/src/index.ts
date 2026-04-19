@@ -58,6 +58,17 @@ export type { EventHandler, EventType } from "./event-bus.js";
 export { Runtime } from "./runtime.js";
 export type { RuntimeOptions } from "./runtime.js";
 
+// Systems pipeline
+export {
+  StatePropagationSystem,
+  MemorySystem,
+  AutonomySystem,
+  ResidentSystem,
+  ActionDispatchSystem,
+  BroadcastSystem,
+} from "./systems/index.js";
+export type { System, SystemContext, PipelineState } from "./systems/index.js";
+
 // Tick scheduler
 export { TickScheduler } from "./tick.js";
 export type { TickSchedulerOptions } from "./tick.js";
