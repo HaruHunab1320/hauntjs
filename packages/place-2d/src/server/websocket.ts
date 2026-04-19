@@ -21,7 +21,6 @@ export interface Place2DServerOptions {
 export class Place2DServer {
   private wss: WebSocketServer | null = null;
   private sessions = new Map<WebSocket, GuestSession>();
-  private guestCounter = 0;
   private options: Place2DServerOptions;
 
   constructor(options: Place2DServerOptions) {
@@ -113,6 +112,9 @@ export class Place2DServer {
             case "interact":
               await this.handleInteract(session, msg.affordanceId, msg.actionId, msg.params);
               break;
+            case "approach":
+              await this.handleApproach(session, msg.affordanceId);
+              break;
           }
         }
       } catch (err) {
@@ -132,15 +134,21 @@ export class Place2DServer {
       return;
     }
 
-    this.guestCounter++;
-    const id = guestId(`guest-${this.guestCounter}`);
+    // Use a stable ID based on the guest name so memory persists across sessions
+    const id = guestId(`guest-${guestName.toLowerCase().replace(/\s+/g, "-")}`);
     const entryRoom = this.options.entryRoom;
 
-    // Add guest to the place
-    addGuest(this.options.runtime.place, {
-      id,
-      name: guestName,
-    });
+    // Reuse existing guest if they've been here before, otherwise create
+    const existingGuest = this.options.runtime.place.guests.get(id);
+    if (existingGuest) {
+      // Returning guest — they were here before
+      existingGuest.lastSeen = new Date();
+    } else {
+      addGuest(this.options.runtime.place, {
+        id,
+        name: guestName,
+      });
+    }
 
     const session: GuestSession = {
       ws,
@@ -296,6 +304,21 @@ export class Place2DServer {
       affordanceId: aff.id as string,
       roomId: session.currentRoom as string,
       newState: { ...aff.state },
+    });
+  }
+
+  private async handleApproach(session: GuestSession, affId: string): Promise<void> {
+    if (!session.currentRoom) return;
+
+    const aff = this.options.runtime.place.rooms.get(session.currentRoom)?.affordances.get(affordanceId(affId));
+    if (!aff) return;
+
+    await this.options.runtime.emit({
+      type: "guest.approached",
+      guestId: session.guestId,
+      roomId: session.currentRoom,
+      affordanceId: aff.id,
+      at: new Date(),
     });
   }
 

@@ -93,6 +93,7 @@ export class RoostScene extends Phaser.Scene {
   private interactHint!: HTMLElement;
   private nearDoor: string | null = null;
   private nearAffordance: string | null = null;
+  private lastApproachedAffordance: string | null = null;
 
   constructor() {
     super({ key: "RoostScene" });
@@ -238,9 +239,15 @@ export class RoostScene extends Phaser.Scene {
 
     this.socket.on("resident.moved", (msg) => {
       if (msg.type === "resident.moved" && this.placeState) {
+        const toRoom = this.placeState.rooms.find((r: { id: string }) => r.id === msg.to);
+        const roomName = toRoom?.name ?? msg.to;
         this.placeState.residentRoom = msg.to;
         this.updateResidentVisibility();
-        this.chatBox.addSystem(`Poe moves to the ${msg.to}.`);
+        if (msg.to === this.placeState.currentRoom) {
+          this.chatBox.addSystem(`Poe arrives from the ${msg.from}.`);
+        } else if (msg.from === this.placeState.currentRoom) {
+          this.chatBox.addSystem(`Poe heads to the ${roomName}.`);
+        }
       }
     });
 
@@ -490,6 +497,14 @@ export class RoostScene extends Phaser.Scene {
         this.nearAffordance = affId;
         break;
       }
+    }
+
+    // Send approach event once when entering proximity
+    if (this.nearAffordance && this.nearAffordance !== this.lastApproachedAffordance) {
+      this.lastApproachedAffordance = this.nearAffordance;
+      this.socket.approach(this.nearAffordance);
+    } else if (!this.nearAffordance) {
+      this.lastApproachedAffordance = null;
     }
 
     if (this.nearAffordance) {

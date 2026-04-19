@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import { join } from "node:path";
-import { Runtime } from "@hauntjs/core";
-import type { ResidentState, PresenceEvent, ResidentAction } from "@hauntjs/core";
+import { Runtime, TickScheduler, addGuest, guestId } from "@hauntjs/core";
+import type { ResidentState } from "@hauntjs/core";
 import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
 import { Resident, SqliteMemoryStore, createModelProvider } from "@hauntjs/resident";
 import { poe } from "@hauntjs/demo-roost";
@@ -9,6 +9,7 @@ import { poe } from "@hauntjs/demo-roost";
 const WS_PORT = Number(process.env.WS_PORT ?? 3002);
 const HTTP_PORT = Number(process.env.PORT ?? 3333);
 const MODEL_PROVIDER = (process.env.HAUNT_MODEL ?? "gemini") as "anthropic" | "openai" | "ollama" | "gemini";
+const TICK_INTERVAL_MS = Number(process.env.TICK_INTERVAL ?? 90 * 1000); // 90 seconds default in dev
 
 async function start(): Promise<void> {
   // 1. Create the place adapter
@@ -44,40 +45,89 @@ async function start(): Promise<void> {
     memory,
   });
 
-  // 7. Create the runtime — wire the mind in after construction
-  const throttledMind = createThrottledPerceive(residentMind);
+  // 7. Create the runtime with mind + on-return hook
+  let tickScheduler: TickScheduler;
+
   const runtime = new Runtime({
     place,
     resident: residentState,
-    residentMind: throttledMind,
+    residentMind: residentMind,
+    onGuestReturn: (guestId) => {
+      const guest = place.guests.get(guestId);
+      console.log(`  [Roost] returning guest: ${guest?.name ?? guestId} (visit #${guest?.visitCount})`);
+      // Fire an immediate tick so Poe can prepare a return greeting
+      tickScheduler.fireImmediate().catch(() => {});
+    },
   });
 
-  // 8. Wire action broadcast: when resident acts, push to clients via adapter
+  // 8. Pre-populate known guests from prior sessions
+  const knownGuests = memory.getKnownGuests();
+  for (const kg of knownGuests) {
+    try {
+      addGuest(place, {
+        id: guestId(kg.id),
+        name: kg.name,
+        loyaltyTier: kg.loyaltyTier as "principal" | "regular" | "visitor" | "stranger",
+      });
+      const guest = place.guests.get(guestId(kg.id));
+      if (guest) {
+        guest.visitCount = kg.visitCount;
+        guest.firstSeen = kg.firstSeen;
+        guest.lastSeen = kg.lastSeen;
+      }
+    } catch {
+      // Guest may already exist
+    }
+  }
+  if (knownGuests.length > 0) {
+    console.log(`  Loaded ${knownGuests.length} known guest(s) from memory`);
+  }
+
+  // 9. Wire event bus: logging, action broadcast, guest persistence
   runtime.eventBus.on("*", async (event) => {
+    // Log resident actions
     if (event.type === "resident.spoke") {
+      console.log(`  [Poe] spoke: "${event.text.slice(0, 80)}"`);
       await adapter.applyAction(
         { type: "speak", text: event.text, audience: event.audience },
         place,
       );
     } else if (event.type === "resident.moved") {
+      console.log(`  [Poe] moved: ${event.from} → ${event.to}`);
       await adapter.applyAction(
         { type: "move", toRoom: event.to },
         place,
       );
     } else if (event.type === "resident.acted") {
+      console.log(`  [Poe] acted: ${event.affordanceId}:${event.actionId}`);
       await adapter.applyAction(
         { type: "act", affordanceId: event.affordanceId, actionId: event.actionId },
         place,
       );
     }
+
+    // Persist guest data on leave
+    if (event.type === "guest.left") {
+      const guest = place.guests.get(event.guestId);
+      if (guest) {
+        memory.persistGuest(guest.id, guest.name, guest.visitCount, guest.loyaltyTier);
+      }
+    }
   });
 
   await runtime.start();
 
-  // 8. Start the WebSocket server
+  // 9. Start the tick scheduler
+  tickScheduler = new TickScheduler(runtime, {
+    intervalMs: TICK_INTERVAL_MS,
+    tickWhenEmpty: false,
+  });
+  tickScheduler.start();
+
+  // 10. Start the WebSocket server
   await adapter.start(runtime);
 
-  // 9. Start the HTTP server
+  // 11. Start the HTTP server
   const server = Fastify({ logger: true, forceCloseConnections: true });
 
   server.get("/", async () => {
@@ -87,6 +137,7 @@ async function start(): Promise<void> {
       version: "0.0.0",
       model: MODEL_PROVIDER,
       wsPort: WS_PORT,
+      tickIntervalMs: TICK_INTERVAL_MS,
       rooms: Array.from(place.rooms.values()).map((r) => ({
         id: r.id,
         name: r.name,
@@ -97,6 +148,7 @@ async function start(): Promise<void> {
   await server.listen({ port: HTTP_PORT, host: "0.0.0.0" });
   console.log(`\n  The Roost is open.`);
   console.log(`  Model:     ${MODEL_PROVIDER} (${model.name})`);
+  console.log(`  Tick:      every ${TICK_INTERVAL_MS / 1000}s`);
   console.log(`  HTTP:      http://localhost:${HTTP_PORT}`);
   console.log(`  WebSocket: ws://localhost:${WS_PORT}`);
   console.log(`  Client:    Run "pnpm --filter @hauntjs/place-2d dev" and open http://localhost:5173\n`);
@@ -104,6 +156,7 @@ async function start(): Promise<void> {
   // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`\nClosing The Roost (${signal})...`);
+    tickScheduler.stop();
     await adapter.stop();
     await runtime.stop();
     memory.close();
@@ -114,52 +167,6 @@ async function start(): Promise<void> {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGUSR2", () => shutdown("SIGUSR2"));
-}
-
-/**
- * Wraps the resident's perceive with throttling:
- * - Only calls the model for meaningful events (guest speech, entry, movement)
- * - Skips ticks and affordance changes
- * - Drops events while a model call is in flight (backpressure)
- */
-function createThrottledPerceive(residentMind: Resident) {
-  let busy = false;
-
-  const MEANINGFUL_EVENTS = new Set([
-    "guest.entered",
-    "guest.left",
-    "guest.spoke",
-    "guest.moved",
-    "affordance.changed",
-  ]);
-
-  return {
-    async perceive(
-      event: PresenceEvent,
-      context: Parameters<Resident["perceive"]>[1],
-    ): Promise<ResidentAction | null> {
-      if (busy) return null;
-      if (!MEANINGFUL_EVENTS.has(event.type)) return null;
-
-      busy = true;
-      try {
-        console.log(`  [Poe] perceiving: ${event.type}`);
-        const action = await residentMind.perceive(event, context);
-        if (action) {
-          const detail = action.type === "speak" ? ` — "${action.text.slice(0, 80)}"` : "";
-          console.log(`  [Poe] action: ${action.type}${detail}`);
-        } else {
-          console.log(`  [Poe] action: (silence)`);
-        }
-        return action;
-      } catch (err) {
-        console.error("  [Poe] model error:", err instanceof Error ? err.message : err);
-        return null;
-      } finally {
-        busy = false;
-      }
-    },
-  };
 }
 
 start().catch((err) => {

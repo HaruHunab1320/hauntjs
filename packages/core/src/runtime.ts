@@ -25,6 +25,8 @@ export interface RuntimeOptions {
   place: Place;
   resident: ResidentState;
   residentMind?: ResidentInterface;
+  /** Called when a known guest (visitCount > 0) re-enters after absence. */
+  onGuestReturn?: (guestId: GuestId) => void;
 }
 
 export class Runtime implements RuntimeInterface {
@@ -35,11 +37,13 @@ export class Runtime implements RuntimeInterface {
   private residentMind: ResidentInterface | null;
   private recentEvents: PresenceEvent[] = [];
   private running = false;
+  private onGuestReturn: ((guestId: GuestId) => void) | null;
 
   constructor(options: RuntimeOptions) {
     this.place = options.place;
     this.resident = options.resident;
     this.residentMind = options.residentMind ?? null;
+    this.onGuestReturn = options.onGuestReturn ?? null;
     this.eventBus = new EventBus();
   }
 
@@ -76,9 +80,12 @@ export class Runtime implements RuntimeInterface {
     // Let the resident perceive and possibly respond
     if (this.residentMind && event.type !== "resident.spoke" && event.type !== "resident.moved" && event.type !== "resident.acted") {
       const context = this.buildContext();
-      const action = await this.residentMind.perceive(event, context);
-      if (action) {
-        await this.applyAction(action);
+      const result = await this.residentMind.perceive(event, context);
+      if (result) {
+        const actions = Array.isArray(result) ? result : [result];
+        for (const action of actions) {
+          await this.applyAction(action);
+        }
       }
     }
   }
@@ -134,9 +141,24 @@ export class Runtime implements RuntimeInterface {
   private handleGuestEntered(event: { guestId: GuestId; roomId: RoomId }): void {
     const guest = this.place.guests.get(event.guestId);
     if (!guest) return;
+
+    const isReturning = guest.visitCount > 0 && guest.currentRoom === null;
+
     // Skip if already in this room (adapter may have applied the change already)
-    if (guest.currentRoom === event.roomId) return;
+    if (guest.currentRoom === event.roomId) {
+      // Still notify on-return even if position was pre-applied
+      if (isReturning && this.onGuestReturn) {
+        this.onGuestReturn(event.guestId);
+      }
+      return;
+    }
+
+    const wasReturning = guest.visitCount > 0;
     enterRoom(this.place, event.guestId, event.roomId);
+
+    if (wasReturning && this.onGuestReturn) {
+      this.onGuestReturn(event.guestId);
+    }
   }
 
   private handleGuestLeft(event: { guestId: GuestId }): void {

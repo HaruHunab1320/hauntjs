@@ -159,6 +159,36 @@ export class SqliteMemoryStore implements MemoryStore {
     memory.updatedAt = now;
   }
 
+  /** Returns all known guests from the database for pre-populating the place on startup. */
+  getKnownGuests(): Array<{ id: string; name: string; visitCount: number; loyaltyTier: string; firstSeen: Date; lastSeen: Date }> {
+    const rows = this.db
+      .prepare("SELECT id, name, first_seen, last_seen, visit_count, loyalty_tier FROM guests")
+      .all() as Array<{ id: string; name: string; first_seen: string; last_seen: string; visit_count: number; loyalty_tier: string }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      visitCount: row.visit_count,
+      loyaltyTier: row.loyalty_tier,
+      firstSeen: new Date(row.first_seen),
+      lastSeen: new Date(row.last_seen),
+    }));
+  }
+
+  /** Persist guest visit data to SQLite. */
+  persistGuest(id: GuestId, name: string, visitCount: number, loyaltyTier: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO guests (id, name, first_seen, last_seen, visit_count, loyalty_tier)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           last_seen = excluded.last_seen,
+           visit_count = excluded.visit_count,
+           loyalty_tier = excluded.loyalty_tier`,
+      )
+      .run(id, name, new Date().toISOString(), new Date().toISOString(), visitCount, loyaltyTier);
+  }
+
   addToWorkingMemory(event: PresenceEvent): void {
     this.workingMemory.push(event);
     if (this.workingMemory.length > WORKING_MEMORY_LIMIT) {

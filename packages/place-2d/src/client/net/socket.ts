@@ -66,6 +66,10 @@ export class GameSocket {
     this.send({ type: "interact", affordanceId, actionId });
   }
 
+  approach(affordanceId: string): void {
+    this.send({ type: "approach", affordanceId });
+  }
+
   disconnect(): void {
     this.ws?.close();
     this.ws = null;

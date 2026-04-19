@@ -57,3 +57,7 @@ export type { EventHandler, EventType } from "./event-bus.js";
 // Runtime
 export { Runtime } from "./runtime.js";
 export type { RuntimeOptions } from "./runtime.js";
+
+// Tick scheduler
+export { TickScheduler } from "./tick.js";
+export type { TickSchedulerOptions } from "./tick.js";

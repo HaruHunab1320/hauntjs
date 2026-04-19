@@ -24,11 +24,17 @@ export const InteractMessage = z.object({
   params: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const ApproachMessage = z.object({
+  type: z.literal("approach"),
+  affordanceId: z.string().min(1),
+});
+
 export const ClientMessage = z.discriminatedUnion("type", [
   JoinMessage,
   MoveMessage,
   SpeakMessage,
   InteractMessage,
+  ApproachMessage,
 ]);
 
 export type ClientMessage = z.infer<typeof ClientMessage>;

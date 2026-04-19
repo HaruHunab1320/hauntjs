@@ -9,7 +9,7 @@ import type {
 import type { ModelProvider } from "./model/types.js";
 import type { SqliteMemoryStore } from "./memory/store.js";
 import { buildPrompt } from "./prompt.js";
-import { parseDecision } from "./decision.js";
+import { parseAllDecisions } from "./decision.js";
 
 export interface ResidentOptions {
   character: CharacterDefinition;
@@ -17,10 +17,22 @@ export interface ResidentOptions {
   memory: SqliteMemoryStore;
 }
 
+/** Events that warrant calling the model for deliberation. */
+const DELIBERATION_EVENTS = new Set([
+  "guest.entered",
+  "guest.left",
+  "guest.spoke",
+  "guest.moved",
+  "guest.approached",
+  "affordance.changed",
+  "tick",
+]);
+
 export class Resident implements ResidentInterface {
   readonly character: CharacterDefinition;
   private model: ModelProvider;
   private memory: SqliteMemoryStore;
+  private busy = false;
 
   constructor(options: ResidentOptions) {
     this.character = options.character;
@@ -31,10 +43,33 @@ export class Resident implements ResidentInterface {
   async perceive(
     event: PresenceEvent,
     context: RuntimeContext,
-  ): Promise<ResidentAction | null> {
-    // Add event to working memory
+  ): Promise<ResidentAction | ResidentAction[] | null> {
+    // ALWAYS perceive: add every event to working memory regardless
     this.memory.addToWorkingMemory(event);
 
+    // Decide whether this event warrants deliberation (a model call)
+    if (!DELIBERATION_EVENTS.has(event.type)) return null;
+
+    // Backpressure: if a model call is in flight, skip deliberation
+    // but the event is still in working memory for next time
+    if (this.busy) return null;
+
+    this.busy = true;
+    try {
+      return await this.deliberate(event, context);
+    } catch (err) {
+      console.error("[Resident] model error:", err instanceof Error ? err.message : err);
+      return null;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Call the model and decide what to do. */
+  private async deliberate(
+    event: PresenceEvent,
+    context: RuntimeContext,
+  ): Promise<ResidentAction | ResidentAction[] | null> {
     // Recall relevant memories
     const placeMemories = await this.memory.recall({ limit: 5 });
     const guestMemories = new Map<GuestId, NonNullable<ReturnType<typeof this.memory.guestMemory.get>>>();
@@ -60,25 +95,64 @@ export class Resident implements ResidentInterface {
     // Call model
     const response = await this.model.chat(request);
 
-    // Parse decision
-    const action = parseDecision(response);
+    // Parse all decisions
+    const actions = parseAllDecisions(response);
 
-    // If the action is a note, persist it
-    if (action?.type === "note") {
-      if (action.about === "self") {
-        await this.memory.remember({
-          content: action.content,
-          tags: ["self"],
-          createdAt: new Date(),
-          importance: 0.5,
-        });
-      } else {
-        await this.memory.updateGuest(action.about, {
-          facts: { note: action.content },
-        });
+    if (actions.length === 0) return null;
+
+    // Handle side effects
+    for (const action of actions) {
+      if (action.type === "note") {
+        await this.persistNote(action);
       }
     }
 
-    return action;
+    // Auto-persist conversation context for guest speech events
+    const speakAction = actions.find((a): a is ResidentAction & { type: "speak" } => a.type === "speak");
+    if (event.type === "guest.spoke" && speakAction) {
+      await this.autoRememberConversation(event.guestId, event.text, speakAction.text, context);
+    }
+
+    return actions.length === 1 ? actions[0] : actions;
+  }
+
+  private async persistNote(action: ResidentAction & { type: "note" }): Promise<void> {
+    if (action.about === "self") {
+      await this.memory.remember({
+        content: action.content,
+        tags: ["self"],
+        createdAt: new Date(),
+        importance: 0.5,
+      });
+    } else {
+      await this.memory.updateGuest(action.about, {
+        facts: { note: action.content },
+      });
+    }
+  }
+
+  private async autoRememberConversation(
+    id: GuestId,
+    guestText: string,
+    residentText: string,
+    context: RuntimeContext,
+  ): Promise<void> {
+    const guest = context.place.guests.get(id);
+    const name = guest?.name ?? id;
+
+    const existing = this.memory.guestMemory.get(id);
+    const prevExchanges = existing?.facts["recent_conversation"] ?? "";
+
+    const newExchange = `${name}: ${guestText.slice(0, 100)}\nPoe: ${residentText.slice(0, 100)}`;
+    const exchanges = prevExchanges
+      ? prevExchanges.split("\n---\n").slice(-2).concat(newExchange).join("\n---\n")
+      : newExchange;
+
+    await this.memory.updateGuest(id, {
+      facts: {
+        recent_conversation: exchanges,
+        last_topic: guestText.slice(0, 200),
+      },
+    });
   }
 }

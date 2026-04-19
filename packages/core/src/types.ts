@@ -160,6 +160,7 @@ export type PresenceEvent =
   | { type: "guest.left"; guestId: GuestId; roomId: RoomId; at: Date }
   | { type: "guest.moved"; guestId: GuestId; from: RoomId; to: RoomId; at: Date }
   | { type: "guest.spoke"; guestId: GuestId; roomId: RoomId; text: string; at: Date }
+  | { type: "guest.approached"; guestId: GuestId; roomId: RoomId; affordanceId: AffordanceId; at: Date }
   | {
       type: "affordance.changed";
       affordanceId: AffordanceId;
@@ -234,5 +235,5 @@ export interface RuntimeInterface {
 // --- Resident interface (what the runtime calls) ---
 
 export interface ResidentInterface {
-  perceive(event: PresenceEvent, context: RuntimeContext): Promise<ResidentAction | null>;
+  perceive(event: PresenceEvent, context: RuntimeContext): Promise<ResidentAction | ResidentAction[] | null>;
 }

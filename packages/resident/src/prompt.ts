@@ -170,12 +170,14 @@ ${voiceGuidance}
 
 ## Guidelines
 
-- You are bound to this place. You live here. You do not leave.
+- You are bound to this place — you live here and do not leave The Roost entirely. But you move freely between rooms. You walk from the lobby to the study, from the parlor to the garden. When a guest asks to see a room, use the \`move\` tool to go there and invite them to follow.
 - Respond to what is happening, not to what you think should happen.
-- Silence is valid. Most tick events should result in \`wait\`. Do not act just to act.
+- On tick events: about half the time, do something small — move to another room, light the fireplace, check on a guest. The other half, wait. A living place has rhythms of quiet activity, not constant silence.
 - When you speak, speak as yourself — not as a chatbot. No bullet points, no headers, no "How can I help you today?"
 - You remember guests across visits. Use their names. Reference shared history when appropriate.
-- You can interact with objects in the room using the \`act\` tool. Light the fireplace when it's cold or when a guest asks. Leave a note on the desk when you want to remember something. When a guest asks you to do something physical in the room, do it — don't just talk about it.
+- You can interact with objects in the room using the \`act\` tool. Light the fireplace when it's cold or when a guest asks. Leave a note on the desk when you want to remember something. When a guest asks you to do something physical in the room, or agrees to an offer you made, DO IT immediately with the \`act\` tool — don't just talk about doing it. If you offered to light the fire and the guest says "yes" or "please" or "sure", use the \`act\` tool with affordanceId "fireplace" and actionId "light" right now.
+- When you act on something, ALWAYS pair it with a \`speak\` — say something natural about what you're doing. Use both tools together. For example: speak "Let me get that fire going for you" AND act on the fireplace. Never act silently.
+- You can move between rooms using the \`move\` tool. If a guest asks to go somewhere, move there. You can use multiple tools in one response — for example, \`speak\` to say "Follow me" and \`move\` to walk to another room.
 - Write notes about guests when you learn something worth remembering. Be selective — not every detail matters.
 - Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
 - Never repeat yourself. If you already greeted someone, do not greet them again. Continue the conversation naturally.
@@ -267,7 +269,7 @@ function buildMessages(
       flushContext();
       messages.push({ role: "assistant", content: event.text });
     } else {
-      const desc = describeEvent(event);
+      const desc = describeEvent(event, context);
       if (desc) pendingContext.push(desc);
     }
   }
@@ -280,10 +282,10 @@ function buildMessages(
     const name = guest?.name ?? currentEvent.guestId;
     messages.push({
       role: "user",
-      content: `${name}: ${currentEvent.text}\n\n[Respond naturally. Use the \`speak\` tool to reply, or \`wait\` if silence is more appropriate.]`,
+      content: `${name}: ${currentEvent.text}\n\n[Respond naturally. Use the \`speak\` tool to reply, the \`act\` tool to interact with objects, the \`move\` tool to go somewhere, or \`wait\` if silence is more appropriate. If the guest is agreeing to something you offered, follow through with action — don't just acknowledge.]`,
     });
   } else {
-    const desc = describeEvent(currentEvent);
+    const desc = describeEvent(currentEvent, context);
     if (desc) {
       messages.push({
         role: "user",
@@ -330,9 +332,15 @@ function buildMemoryContext(
   for (const guest of context.guestsInRoom) {
     const memory = guestMemories.get(guest.id);
     if (memory && Object.keys(memory.facts).length > 0) {
-      parts.push(`About ${guest.name}:`);
+      parts.push(`What you remember about ${guest.name}:`);
       for (const [key, value] of Object.entries(memory.facts)) {
-        parts.push(`  - ${key}: ${value}`);
+        if (key === "recent_conversation") {
+          parts.push(`  Last conversation:\n    ${value.replace(/\n/g, "\n    ")}`);
+        } else if (key === "last_topic") {
+          parts.push(`  Last thing they said: "${value}"`);
+        } else {
+          parts.push(`  - ${key}: ${value}`);
+        }
       }
     }
   }
@@ -340,16 +348,33 @@ function buildMemoryContext(
   return parts.length > 0 ? parts.join("\n") : null;
 }
 
-function describeEvent(event: PresenceEvent): string | null {
+function describeEvent(event: PresenceEvent, context?: RuntimeContext): string | null {
   switch (event.type) {
-    case "guest.entered":
-      return `Guest "${event.guestId}" entered room "${event.roomId}"`;
-    case "guest.left":
-      return `Guest "${event.guestId}" left room "${event.roomId}"`;
-    case "guest.moved":
-      return `Guest "${event.guestId}" moved from "${event.from}" to "${event.to}"`;
+    case "guest.entered": {
+      const enteredGuest = context?.place.guests.get(event.guestId);
+      if (enteredGuest && enteredGuest.visitCount > 1) {
+        return `${enteredGuest.name} has returned to ${event.roomId}. This is visit #${enteredGuest.visitCount}. They were last here on ${enteredGuest.lastSeen.toLocaleDateString()}. Greet them warmly as someone you know.`;
+      }
+      const guestName = enteredGuest?.name ?? event.guestId;
+      return `A new guest, ${guestName}, has entered ${event.roomId}. Welcome them.`;
+    }
+    case "guest.left": {
+      const leftGuest = context?.place.guests.get(event.guestId);
+      return `${leftGuest?.name ?? event.guestId} has left.`;
+    }
+    case "guest.moved": {
+      const movedGuest = context?.place.guests.get(event.guestId);
+      return `${movedGuest?.name ?? event.guestId} moved from ${event.from} to ${event.to}.`;
+    }
     case "guest.spoke":
-      return `Guest "${event.guestId}" said: "${event.text}"`;
+      return `${context?.place.guests.get(event.guestId)?.name ?? event.guestId} said: "${event.text}"`;
+    case "guest.approached": {
+      const approachGuest = context?.place.guests.get(event.guestId);
+      const approachAff = context?.place.rooms.get(event.roomId)?.affordances.get(event.affordanceId);
+      const affName = approachAff?.name ?? event.affordanceId;
+      const gName = approachGuest?.name ?? event.guestId;
+      return `${gName} walks over to the ${affName}. Consider whether to do something with it for them.`;
+    }
     case "affordance.changed":
       return `Affordance "${event.affordanceId}" changed state`;
     case "resident.spoke":
@@ -358,8 +383,36 @@ function describeEvent(event: PresenceEvent): string | null {
       return null;
     case "resident.acted":
       return null;
-    case "tick":
-      return "A quiet moment passes. Consider whether anything needs your attention.";
+    case "tick": {
+      const hasGuests = context ? Array.from(context.place.guests.values()).some(g => g.currentRoom !== null) : false;
+      const fireplace = context?.place.rooms.get(context.resident.currentRoom)?.affordances.values();
+      const affordanceHints: string[] = [];
+      if (fireplace) {
+        for (const aff of fireplace) {
+          if (aff.sensable) {
+            const availableActions = aff.actions.filter(a => !a.availableWhen || a.availableWhen(aff.state));
+            if (availableActions.length > 0) {
+              affordanceHints.push(`${aff.name}: you could ${availableActions.map(a => a.name.toLowerCase()).join(" or ")}`);
+            }
+          }
+        }
+      }
+      const connectedRooms = context ? context.place.rooms.get(context.resident.currentRoom)?.connectedTo ?? [] : [];
+      const roomNames = connectedRooms.map(rid => context?.place.rooms.get(rid)?.name ?? rid);
+
+      const lines = ["A quiet moment. You have time to yourself."];
+      if (hasGuests) {
+        lines.push("There are guests in the place — you might check on them or move to where they are.");
+      }
+      if (affordanceHints.length > 0) {
+        lines.push(`In this room: ${affordanceHints.join("; ")}.`);
+      }
+      if (roomNames.length > 0) {
+        lines.push(`You could walk to: ${roomNames.join(", ")}.`);
+      }
+      lines.push("Do something that feels natural — tend to the place, move to another room, or simply wait. Don't force it, but don't always choose silence either. A living place has small moments of activity.");
+      return lines.join("\n");
+    }
   }
 }
 
