@@ -1,2 +1,2 @@
 // @hauntjs/demo-roost — The Roost reference world
-export {};
+export { poe } from "./characters/poe.js";

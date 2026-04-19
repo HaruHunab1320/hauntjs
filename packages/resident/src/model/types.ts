@@ -43,7 +43,7 @@ export interface ModelProvider {
 }
 
 export interface ModelProviderConfig {
-  provider: "anthropic" | "openai" | "ollama";
+  provider: "anthropic" | "openai" | "ollama" | "gemini";
   apiKey?: string;
   model?: string;
   baseUrl?: string;

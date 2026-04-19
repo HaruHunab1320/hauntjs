@@ -175,9 +175,11 @@ ${voiceGuidance}
 - Silence is valid. Most tick events should result in \`wait\`. Do not act just to act.
 - When you speak, speak as yourself — not as a chatbot. No bullet points, no headers, no "How can I help you today?"
 - You remember guests across visits. Use their names. Reference shared history when appropriate.
-- You can interact with objects in the room. Light the fireplace when it's cold. Leave a note when you have something to remember.
+- You can interact with objects in the room using the \`act\` tool. Light the fireplace when it's cold or when a guest asks. Leave a note on the desk when you want to remember something. When a guest asks you to do something physical in the room, do it — don't just talk about it.
 - Write notes about guests when you learn something worth remembering. Be selective — not every detail matters.
-- Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.`;
+- Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
+- Never repeat yourself. If you already greeted someone, do not greet them again. Continue the conversation naturally.
+- Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.`;
 }
 
 function buildVoiceGuidance(character: CharacterDefinition): string {
@@ -239,25 +241,73 @@ function buildMessages(
     });
   }
 
-  // Include recent events as conversation history
-  const recentEvents = context.recentEvents.slice(-10);
+  // Build a threaded conversation from recent events.
+  // Guest speech → user messages, resident speech → assistant messages.
+  // Non-speech events get batched into narrative context blocks.
+  const recentEvents = context.recentEvents.slice(-20);
+  let pendingContext: string[] = [];
+
+  const flushContext = (): void => {
+    if (pendingContext.length > 0) {
+      messages.push({
+        role: "user",
+        content: `[What happened]\n${pendingContext.join("\n")}`,
+      });
+      pendingContext = [];
+    }
+  };
+
   for (const event of recentEvents) {
-    const desc = describeEvent(event);
-    if (desc) {
-      messages.push({ role: "user", content: `[Event] ${desc}` });
+    if (event.type === "guest.spoke") {
+      flushContext();
+      const guest = context.place.guests.get(event.guestId);
+      const name = guest?.name ?? event.guestId;
+      messages.push({ role: "user", content: `${name}: ${event.text}` });
+    } else if (event.type === "resident.spoke") {
+      flushContext();
+      messages.push({ role: "assistant", content: event.text });
+    } else {
+      const desc = describeEvent(event);
+      if (desc) pendingContext.push(desc);
     }
   }
 
-  // The current event being perceived
-  const currentDesc = describeEvent(currentEvent);
-  if (currentDesc) {
+  flushContext();
+
+  // The current event
+  if (currentEvent.type === "guest.spoke") {
+    const guest = context.place.guests.get(currentEvent.guestId);
+    const name = guest?.name ?? currentEvent.guestId;
     messages.push({
       role: "user",
-      content: `[Current event] ${currentDesc}\n\nDecide what to do. Use one of the available tools, or use the \`wait\` tool if no action is warranted.`,
+      content: `${name}: ${currentEvent.text}\n\n[Respond naturally. Use the \`speak\` tool to reply, or \`wait\` if silence is more appropriate.]`,
     });
+  } else {
+    const desc = describeEvent(currentEvent);
+    if (desc) {
+      messages.push({
+        role: "user",
+        content: `[${desc}]\n\n[Decide what to do. Use one of the available tools, or use \`wait\` if no action is warranted.]`,
+      });
+    }
   }
 
-  return messages;
+  // Ensure we don't have consecutive messages with the same role (some APIs reject this).
+  // Merge adjacent user messages.
+  return mergeConsecutiveMessages(messages);
+}
+
+function mergeConsecutiveMessages(messages: ChatMessage[]): ChatMessage[] {
+  const merged: ChatMessage[] = [];
+  for (const msg of messages) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === msg.role) {
+      last.content += "\n\n" + msg.content;
+    } else {
+      merged.push({ ...msg });
+    }
+  }
+  return merged;
 }
 
 function buildMemoryContext(

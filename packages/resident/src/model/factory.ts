@@ -26,7 +26,14 @@ export function createModelProvider(config?: ModelProviderConfig): ModelProvider
         model: config?.model,
       });
 
+    case "gemini":
+      return new OpenAIProvider({
+        apiKey: config?.apiKey ?? process.env.GEMINI_API_KEY,
+        model: config?.model ?? "gemini-2.5-flash",
+        baseUrl: config?.baseUrl ?? "https://generativelanguage.googleapis.com/v1beta/openai/",
+      });
+
     default:
-      throw new Error(`Unknown model provider: "${provider}". Expected "anthropic", "openai", or "ollama".`);
+      throw new Error(`Unknown model provider: "${provider}". Expected "anthropic", "openai", "ollama", or "gemini".`);
   }
 }

@@ -10,22 +10,31 @@ import type { ChatResponse } from "./model/types.js";
  * If the response is empty or a wait tool call, return null.
  */
 export function parseDecision(response: ChatResponse): ResidentAction | null {
-  // If the model used a tool, parse it
+  const actions = parseAllDecisions(response);
+  return actions.length > 0 ? actions[0] : null;
+}
+
+export function parseAllDecisions(response: ChatResponse): ResidentAction[] {
+  const actions: ResidentAction[] = [];
+
+  // Parse all tool calls
   if (response.toolCalls && response.toolCalls.length > 0) {
-    return parseToolCall(response.toolCalls[0].name, response.toolCalls[0].arguments);
+    for (const tc of response.toolCalls) {
+      const action = parseToolCall(tc.name, tc.arguments);
+      if (action) actions.push(action);
+    }
   }
 
-  // If the model responded with plain text (no tool call), treat as speech
-  if (response.content && response.content.trim().length > 0) {
-    return {
+  // If there's also text content alongside tool calls, include it as speech
+  if (response.content && response.content.trim().length > 0 && actions.length === 0) {
+    actions.push({
       type: "speak",
       text: response.content.trim(),
       audience: "all" as GuestId[] | "all",
-    };
+    });
   }
 
-  // Empty response — do nothing
-  return null;
+  return actions;
 }
 
 function parseToolCall(

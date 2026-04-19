@@ -31,7 +31,7 @@ export type { SqliteMemoryStoreOptions } from "./memory/store.js";
 export { buildPrompt, ACTION_TOOLS } from "./prompt.js";
 
 // Decision
-export { parseDecision } from "./decision.js";
+export { parseDecision, parseAllDecisions } from "./decision.js";
 
 // Resident
 export { Resident } from "./resident.js";

@@ -84,20 +84,34 @@ export class Runtime implements RuntimeInterface {
   }
 
   async applyAction(action: ResidentAction): Promise<ActionResult> {
+    let result: ActionResult;
+
     switch (action.type) {
       case "speak":
-        return this.handleSpeak(action);
+        result = this.handleSpeak(action);
+        break;
       case "move":
-        return this.handleMove(action);
+        result = this.handleMove(action);
+        break;
       case "act":
-        return this.handleAct(action);
+        result = this.handleAct(action);
+        break;
       case "note":
-        return { success: true };
+        result = { success: true };
+        break;
       case "wait":
-        return { success: true };
+        result = { success: true };
+        break;
       default:
-        return { success: false, error: "Unknown action type" };
+        result = { success: false, error: "Unknown action type" };
     }
+
+    // Emit the resulting event through the bus so adapters can broadcast it
+    if (result.success && result.event) {
+      await this.eventBus.emit(result.event);
+    }
+
+    return result;
   }
 
   private applyEventToState(event: PresenceEvent): void {

@@ -280,14 +280,19 @@ export class RoostScene extends Phaser.Scene {
     this.socket.on("affordance.changed", (msg) => {
       if (msg.type === "affordance.changed") {
         this.chatBox.addSystem(`Something changes...`);
-        // Update local state
+        // Update local state without re-rendering (which resets player position)
         if (this.placeState) {
-          const room = this.placeState.rooms.find((r) => r.id === msg.roomId);
+          const room = this.placeState.rooms.find((r: { id: string }) => r.id === msg.roomId);
           if (room) {
-            const aff = room.affordances.find((a) => a.id === msg.affordanceId);
+            const aff = room.affordances.find((a: { id: string }) => a.id === msg.affordanceId);
             if (aff) {
               aff.state = msg.newState;
-              this.renderRoom();
+              // Update just the affordance sprite color
+              const sprite = this.affordanceSprites.get(msg.affordanceId);
+              if (sprite) {
+                const isLit = msg.affordanceId === "fireplace" && msg.newState.lit === true;
+                sprite.rect.setFillStyle(isLit ? 0xff6600 : 0x444466);
+              }
             }
           }
         }
