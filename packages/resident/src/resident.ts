@@ -143,7 +143,7 @@ export class Resident implements ResidentInterface {
     const existing = this.memory.guestMemory.get(id);
     const prevExchanges = existing?.facts["recent_conversation"] ?? "";
 
-    const newExchange = `${name}: ${guestText.slice(0, 100)}\nPoe: ${residentText.slice(0, 100)}`;
+    const newExchange = `${name}: ${guestText.slice(0, 100)}\n${this.character.name}: ${residentText.slice(0, 100)}`;
     const exchanges = prevExchanges
       ? prevExchanges.split("\n---\n").slice(-2).concat(newExchange).join("\n---\n")
       : newExchange;
