@@ -3,8 +3,8 @@ import { Runtime } from "@hauntjs/core";
 import type { ResidentState } from "@hauntjs/core";
 import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
 
-const WS_PORT = Number(process.env.WS_PORT ?? 3001);
-const HTTP_PORT = Number(process.env.PORT ?? 3000);
+const WS_PORT = Number(process.env.WS_PORT ?? 3002);
+const HTTP_PORT = Number(process.env.PORT ?? 3333);
 
 async function start(): Promise<void> {
   // 1. Create the place adapter
@@ -38,7 +38,7 @@ async function start(): Promise<void> {
   await adapter.start(runtime);
 
   // 6. Start the HTTP server (health check + serves info)
-  const server = Fastify({ logger: true });
+  const server = Fastify({ logger: true, forceCloseConnections: true });
 
   server.get("/", async () => {
     return {
@@ -60,16 +60,18 @@ async function start(): Promise<void> {
   console.log(`  Client:    Run "pnpm --filter @hauntjs/place-2d dev" and open http://localhost:5173\n`);
 
   // Graceful shutdown
-  const shutdown = async (): Promise<void> => {
-    console.log("\nClosing The Roost...");
+  const shutdown = async (signal: string): Promise<void> => {
+    console.log(`\nClosing The Roost (${signal})...`);
     await adapter.stop();
     await runtime.stop();
     await server.close();
     process.exit(0);
   };
 
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  // tsx watch sends SIGUSR2 before restart
+  process.on("SIGUSR2", () => shutdown("SIGUSR2"));
 }
 
 start().catch((err) => {

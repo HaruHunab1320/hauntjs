@@ -1,13 +1,13 @@
 /**
  * Manual test script — connects as a fake guest and walks through The Roost.
  *
- * Prerequisites: the dev-server must be running with the WebSocket server on port 3001.
+ * Prerequisites: the dev-server must be running with the WebSocket server on port 3002.
  * Run with: pnpm --filter @hauntjs/place-2d exec tsx scripts/test-guest.ts
  */
 
 import { WebSocket } from "ws";
 
-const PORT = process.env.WS_PORT ?? "3001";
+const PORT = process.env.WS_PORT ?? "3002";
 const URL = `ws://localhost:${PORT}`;
 
 function send(ws: WebSocket, msg: object): void {

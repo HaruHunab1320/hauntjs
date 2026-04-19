@@ -120,6 +120,8 @@ export class Runtime implements RuntimeInterface {
   private handleGuestEntered(event: { guestId: GuestId; roomId: RoomId }): void {
     const guest = this.place.guests.get(event.guestId);
     if (!guest) return;
+    // Skip if already in this room (adapter may have applied the change already)
+    if (guest.currentRoom === event.roomId) return;
     enterRoom(this.place, event.guestId, event.roomId);
   }
 
@@ -132,6 +134,8 @@ export class Runtime implements RuntimeInterface {
   private handleGuestMoved(event: { guestId: GuestId; to: RoomId }): void {
     const guest = this.place.guests.get(event.guestId);
     if (!guest || !guest.currentRoom) return;
+    // Skip if already in the target room (adapter may have applied the change already)
+    if (guest.currentRoom === event.to) return;
     moveGuest(this.place, event.guestId, event.to);
   }
 

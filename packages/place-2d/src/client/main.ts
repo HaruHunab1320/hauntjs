@@ -1,8 +1,8 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import { GameSocket } from "./net/socket.js";
 import { RoostScene } from "./scenes/roost-scene.js";
 
-const WS_URL = `ws://${window.location.hostname}:3001`;
+const WS_URL = `ws://${window.location.hostname}:3002`;
 
 function boot(guestName: string): void {
   const socket = new GameSocket(WS_URL);
@@ -40,12 +40,26 @@ function boot(guestName: string): void {
 
 // Name entry
 const nameInput = document.getElementById("name-input") as HTMLInputElement;
+const nameSubmit = document.getElementById("name-submit") as HTMLButtonElement;
 const nameModal = document.getElementById("name-modal")!;
 
-nameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && nameInput.value.trim()) {
-    const name = nameInput.value.trim();
-    nameModal.style.display = "none";
-    boot(name);
+function submitName(): void {
+  const name = nameInput.value.trim();
+  if (!name) return;
+  nameModal.style.display = "none";
+  boot(name);
+}
+
+nameInput.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitName();
   }
 });
+
+nameSubmit.addEventListener("click", () => {
+  submitName();
+});
+
+// Ensure input is focused
+nameInput.focus();

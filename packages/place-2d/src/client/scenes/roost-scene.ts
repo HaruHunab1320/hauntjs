@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import { GameSocket } from "../net/socket.js";
 import { ChatBox } from "../ui/chat-box.js";
 import { SpeechBubble } from "../ui/speech-bubble.js";

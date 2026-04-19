@@ -12,6 +12,10 @@ export class ChatBox {
       if (e.key === "Enter" && this.input.value.trim()) {
         this.onSend(this.input.value.trim());
         this.input.value = "";
+        this.input.blur();
+      }
+      if (e.key === "Escape") {
+        this.input.blur();
       }
       // Prevent game input while typing
       e.stopPropagation();

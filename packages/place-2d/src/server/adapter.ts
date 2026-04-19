@@ -79,7 +79,7 @@ export class Place2DAdapter implements PlaceAdapter {
   async start(runtime: RuntimeInterface): Promise<void> {
     this.runtime = runtime;
     this.server = new Place2DServer({
-      port: this.config.port ?? 3001,
+      port: this.config.port ?? 3002,
       runtime,
       entryRoom: this.config.entryRoom,
       buildPlaceState: (guestId, currentRoom) =>
