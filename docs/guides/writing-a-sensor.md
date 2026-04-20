@@ -98,10 +98,39 @@ When someone turns off the lamp, the study's sight sensor disables. The resident
 
 ## Presence Modes and Sensors
 
-Sensors work the same regardless of the resident's presence mode:
+Sensors and presence modes are **independent mechanisms** that compose:
 
-- **Host** mode: The sensor pipeline checks ALL rooms. Place-wide sensors ensure the Host hears everything.
-- **Inhabitant** mode: The sensor pipeline still checks all rooms, but the autonomy system only invokes the resident when perceptions are produced.
+- **Sensors** determine what the resident can *perceive* — what events produce perceptions
+- **Presence modes** determine how the resident *relates to space* — avatar, attention, context
+
+They combine in non-obvious ways. Understanding the interaction is critical for authoring:
+
+### Host mode + place-wide sensors (The Poe archetype)
+
+This is what The Roost uses. Poe IS the place: he appears everywhere (Host mode), AND he can hear/see everything (place-wide sensors). You need both:
+
+- **Host mode alone** (without place-wide sensors): Poe appears in every room but can only perceive rooms that have sensors. He'd show up in the garden but be deaf there.
+- **Place-wide sensors alone** (without Host mode): Poe perceives everything but has to walk between rooms. He'd know someone is in the garden but his avatar would be stuck in the lobby.
+
+```ts
+// Both needed for the Poe archetype:
+presenceMode: "host",  // appears everywhere
+// + in world-config:
+soundSensor("roost.intercom", roomId("lobby"), { reach: { kind: "place-wide" } }),
+presenceSensor("roost.awareness", roomId("lobby"), { reach: { kind: "place-wide" } }),
+```
+
+### Host mode + room-scoped sensors (The Cottagecore Librarian)
+
+The resident is present in every room but only perceives clearly where sensors are configured. She's there when you need her, but she doesn't know everything — she notices when you speak in the reading room (good sensors) but only vaguely senses you in the back garden (sparse sensors).
+
+### Inhabitant mode + room-scoped sensors (The Caretaker)
+
+The classic v0.1 model. Physical body in one room, walks between them, perceives through local sensors only. Feels like a person who lives there.
+
+### Presence mode + place-wide sensors (The Board)
+
+An ambient environmental entity. Perceives everything but has no avatar. Acts by subtly changing the place — lighting a fire, closing a door, leaving a trace.
 
 ## Debug Overlay
 
