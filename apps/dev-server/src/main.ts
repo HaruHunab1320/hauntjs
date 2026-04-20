@@ -107,17 +107,6 @@ async function start(): Promise<void> {
       );
     }
 
-    // After Poe finishes speaking, check if there are unanswered guest messages
-    // and fire a catch-up tick so Poe responds promptly
-    if (event.type === "resident.spoke" || event.type === "resident.acted") {
-      const hasGuests = Array.from(place.guests.values()).some((g) => g.currentRoom !== null);
-      if (hasGuests) {
-        setTimeout(() => {
-          tick.scheduler?.fireImmediate().catch(() => {});
-        }, 500);
-      }
-    }
-
     // Persist guest data on leave
     if (event.type === "guest.left") {
       const guest = place.guests.get(event.guestId);
