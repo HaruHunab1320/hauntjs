@@ -3,6 +3,7 @@ import { GameSocket } from "../net/socket.js";
 import { ChatBox } from "../ui/chat-box.js";
 import { SpeechBubble } from "../ui/speech-bubble.js";
 import { InteractMenu } from "../ui/interact-menu.js";
+import { DebugOverlay } from "../ui/debug-overlay.js";
 import type { PublicPlaceState } from "../../../shared/protocol-types.js";
 
 // Room visual layouts — positions of affordances and doorways relative to room center
@@ -66,6 +67,7 @@ export class RoostScene extends Phaser.Scene {
   private chatBox!: ChatBox;
   private interactMenu!: InteractMenu;
   private speechBubble!: SpeechBubble;
+  private debugOverlay!: DebugOverlay;
 
   private guestId: string | null = null;
   private guestName: string = "";
@@ -121,6 +123,7 @@ export class RoostScene extends Phaser.Scene {
 
     // Speech bubble
     this.speechBubble = new SpeechBubble(this);
+    this.debugOverlay = new DebugOverlay();
 
     // Player sprite
     this.playerSprite = this.add.circle(cx, cy, PLAYER_RADIUS, 0x88ccaa);
@@ -309,6 +312,13 @@ export class RoostScene extends Phaser.Scene {
     this.socket.on("error", (msg) => {
       if (msg.type === "error") {
         this.chatBox.addSystem(`Error: ${msg.message}`);
+      }
+    });
+
+    this.socket.on("debug.snapshot" as never, (msg: never) => {
+      const snapshot = msg as { type: "debug.snapshot"; sensors: Array<{ id: string; roomId: string; roomName: string; modality: string; name: string; enabled: boolean; fidelity: string; reach: string }>; recentPerceptions: Array<{ sensorId: string; roomId: string; modality: string; content: string; confidence: number; at: string }> };
+      if (snapshot.type === "debug.snapshot") {
+        this.debugOverlay.update(snapshot.sensors, snapshot.recentPerceptions);
       }
     });
   }

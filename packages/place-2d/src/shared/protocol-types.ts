@@ -43,4 +43,25 @@ export type ServerMessage =
   | { type: "resident.spoke"; text: string; roomId: string }
   | { type: "resident.moved"; from: string; to: string }
   | { type: "affordance.changed"; affordanceId: string; roomId: string; newState: Record<string, unknown> }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "debug.snapshot"; sensors: DebugSensorInfo[]; recentPerceptions: DebugPerceptionInfo[] };
+
+export interface DebugSensorInfo {
+  id: string;
+  roomId: string;
+  roomName: string;
+  modality: string;
+  name: string;
+  enabled: boolean;
+  fidelity: string;
+  reach: string;
+}
+
+export interface DebugPerceptionInfo {
+  sensorId: string;
+  roomId: string;
+  modality: string;
+  content: string;
+  confidence: number;
+  at: string;
+}

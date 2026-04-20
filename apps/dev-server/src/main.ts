@@ -107,6 +107,30 @@ async function start(): Promise<void> {
       );
     }
 
+    // Send debug snapshot if debug mode is on
+    if (process.env.HAUNT_DEBUG === "1" && adapter.getServer()) {
+      const sensors: Array<{ id: string; roomId: string; roomName: string; modality: string; name: string; enabled: boolean; fidelity: string; reach: string }> = [];
+      for (const room of place.rooms.values()) {
+        for (const sensor of room.sensors.values()) {
+          sensors.push({
+            id: sensor.id as string,
+            roomId: room.id as string,
+            roomName: room.name,
+            modality: sensor.modality,
+            name: sensor.name,
+            enabled: sensor.enabled,
+            fidelity: sensor.fidelity.kind,
+            reach: sensor.reach.kind,
+          });
+        }
+      }
+      adapter.getServer()!.broadcastToAll({
+        type: "debug.snapshot",
+        sensors,
+        recentPerceptions: [],
+      });
+    }
+
     // Persist guest data on leave
     if (event.type === "guest.left") {
       const guest = place.guests.get(event.guestId);
