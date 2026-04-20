@@ -1,8 +1,13 @@
 // Types
 
+// Action handlers
+export { applySensorEffects, dispatchAction } from "./action-handlers.js";
 export type { EventHandler, EventType } from "./event-bus.js";
 // Event bus
 export { EventBus } from "./event-bus.js";
+export type { Logger, LogLevel } from "./logger.js";
+// Logger
+export { createLogger } from "./logger.js";
 export type { AddGuestOptions, AddRoomOptions, CreatePlaceOptions } from "./place.js";
 // Place state manager
 export {
@@ -14,6 +19,7 @@ export {
   enterRoom,
   getAffordance,
   getGuestsInRoom,
+  getSensor,
   leavePlace,
   moveGuest,
   removeAffordance,
@@ -86,10 +92,3 @@ export type {
 } from "./types.js";
 // ID constructors
 export { affordanceId, guestId, roomId, sensorId } from "./types.js";
-
-// Action handlers
-export { applySensorEffects, dispatchAction } from "./action-handlers.js";
-
-// Logger
-export { createLogger } from "./logger.js";
-export type { Logger, LogLevel } from "./logger.js";

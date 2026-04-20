@@ -128,10 +128,18 @@ export function updateAffordanceState(
   return { prevState, newState };
 }
 
-export function getAffordance(place: Place, affordanceId: AffordanceId): Affordance | undefined {
+export function getAffordance(place: Place, id: AffordanceId | string): Affordance | undefined {
   for (const room of place.rooms.values()) {
-    const aff = room.affordances.get(affordanceId);
+    const aff = room.affordances.get(id as AffordanceId);
     if (aff) return aff;
+  }
+  return undefined;
+}
+
+export function getSensor(place: Place, id: string): import("./types.js").Sensor | undefined {
+  for (const room of place.rooms.values()) {
+    const sensor = room.sensors.get(id as import("./types.js").SensorId);
+    if (sensor) return sensor;
   }
   return undefined;
 }

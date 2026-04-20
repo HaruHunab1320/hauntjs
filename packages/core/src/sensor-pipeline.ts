@@ -1,4 +1,12 @@
-import type { Perception, Place, PresenceEvent, RoomId, Sensor, SensorModality } from "./types.js";
+import type {
+  AffordanceId,
+  Perception,
+  Place,
+  PresenceEvent,
+  RoomId,
+  Sensor,
+  SensorModality,
+} from "./types.js";
 
 /**
  * The event→modality mapping. Determines which sensor modalities
@@ -297,7 +305,7 @@ function describeGuestApproached(
   let affName = event.affordanceId as string;
   const room = place.rooms.get(event.roomId);
   if (room) {
-    const aff = room.affordances.get(event.affordanceId as never);
+    const aff = room.affordances.get(event.affordanceId as AffordanceId);
     if (aff) affName = aff.name;
   }
 
@@ -315,7 +323,7 @@ function describeAffordanceChanged(
 ): string {
   let affName = event.affordanceId;
   for (const r of place.rooms.values()) {
-    const aff = r.affordances.get(event.affordanceId as never);
+    const aff = r.affordances.get(event.affordanceId as AffordanceId);
     if (aff) {
       affName = aff.name;
       break;

@@ -1,5 +1,5 @@
 import { enterRoom, leavePlace, moveGuest } from "../place.js";
-import type { GuestId, RoomId } from "../types.js";
+import type { AffordanceId, GuestId, RoomId } from "../types.js";
 import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
@@ -73,7 +73,7 @@ export class StatePropagationSystem implements System {
   ): void {
     const room = ctx.place.rooms.get(event.roomId);
     if (!room) return;
-    const aff = room.affordances.get(event.affordanceId as never);
+    const aff = room.affordances.get(event.affordanceId as AffordanceId);
     if (aff) {
       aff.state = { ...event.newState };
     }

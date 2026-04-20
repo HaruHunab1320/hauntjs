@@ -1,5 +1,7 @@
+import { getAffordance, getGuestsInRoom } from "./place.js";
 import type {
   ActionResult,
+  AffordanceId,
   GuestId,
   Place,
   PresenceEvent,
@@ -7,8 +9,8 @@ import type {
   ResidentState,
   RoomId,
   SensorAffect,
+  SensorId,
 } from "./types.js";
-import { getAffordance, getGuestsInRoom } from "./place.js";
 
 /**
  * Dispatches a single resident action, returning an ActionResult.
@@ -117,7 +119,7 @@ function handleAct(
   action: { affordanceId: string; actionId: string; params?: Record<string, unknown> },
   place: Place,
 ): ActionResult {
-  const affordance = getAffordance(place, action.affordanceId as never);
+  const affordance = getAffordance(place, action.affordanceId as AffordanceId);
   if (!affordance) {
     return { success: false, error: `Affordance "${action.affordanceId}" does not exist` };
   }
@@ -156,7 +158,7 @@ function handleAct(
 export function applySensorEffects(affects: SensorAffect[], place: Place): void {
   for (const effect of affects) {
     for (const room of place.rooms.values()) {
-      const sensor = room.sensors.get(effect.sensorId as never);
+      const sensor = room.sensors.get(effect.sensorId as SensorId);
       if (sensor) {
         if ("enabled" in effect.change) {
           sensor.enabled = effect.change.enabled;
