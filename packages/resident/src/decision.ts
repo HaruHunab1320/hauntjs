@@ -1,6 +1,8 @@
 import type { GuestId, ResidentAction } from "@hauntjs/core";
-import { affordanceId, guestId, roomId } from "@hauntjs/core";
+import { affordanceId, createLogger, guestId, roomId } from "@hauntjs/core";
 import type { ChatResponse } from "./model/types.js";
+
+const log = createLogger("Decision");
 
 /**
  * Parse a model response into a ResidentAction.
@@ -50,7 +52,7 @@ function parseToolCall(name: string, args: Record<string, unknown>): ResidentAct
     case "wait":
       return null; // Explicit wait = no action
     default:
-      console.warn(`Unknown tool call: ${name}`);
+      log.warn(`Unknown tool call: ${name}`);
       return null;
   }
 }

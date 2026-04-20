@@ -89,3 +89,7 @@ export { affordanceId, guestId, roomId, sensorId } from "./types.js";
 
 // Action handlers
 export { applySensorEffects, dispatchAction } from "./action-handlers.js";
+
+// Logger
+export { createLogger } from "./logger.js";
+export type { Logger, LogLevel } from "./logger.js";

@@ -1,5 +1,13 @@
 import type { GuestId, RoomId, RuntimeInterface } from "@hauntjs/core";
-import { addGuest, affordanceId, applySensorEffects, guestId, moveGuest, roomId } from "@hauntjs/core";
+import {
+  addGuest,
+  affordanceId,
+  applySensorEffects,
+  createLogger,
+  guestId,
+  moveGuest,
+  roomId,
+} from "@hauntjs/core";
 import { WebSocket, WebSocketServer } from "ws";
 import type { PublicPlaceState, ServerMessage } from "./protocol.js";
 import { ClientMessage } from "./protocol.js";
@@ -31,7 +39,7 @@ export class Place2DServer {
   async start(): Promise<void> {
     return new Promise((resolve) => {
       this.wss = new WebSocketServer({ port: this.options.port }, () => {
-        console.log(`Place2D WebSocket server listening on port ${this.options.port}`);
+        createLogger("Place2D").info(`WebSocket server listening on port ${this.options.port}`);
         resolve();
       });
 

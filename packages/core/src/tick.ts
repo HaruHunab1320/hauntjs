@@ -1,3 +1,4 @@
+import { createLogger } from "./logger.js";
 import type { RuntimeInterface } from "./types.js";
 
 export interface TickSchedulerOptions {
@@ -15,6 +16,7 @@ export class TickScheduler {
   private tickWhenEmpty: boolean;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private log = createLogger("TickScheduler");
 
   constructor(runtime: RuntimeInterface, options?: TickSchedulerOptions) {
     this.runtime = runtime;
@@ -28,11 +30,11 @@ export class TickScheduler {
 
     this.timer = setInterval(() => {
       this.tick().catch((err) => {
-        console.error("[TickScheduler] tick error:", err);
+        this.log.error("tick error:", err);
       });
     }, this.intervalMs);
 
-    console.log(`[TickScheduler] started — interval: ${this.intervalMs / 1000}s`);
+    this.log.info(`started — interval: ${this.intervalMs / 1000}s`);
   }
 
   stop(): void {
@@ -51,7 +53,6 @@ export class TickScheduler {
   private async tick(): Promise<void> {
     if (!this.running) return;
 
-    // Check if any guests are present
     if (!this.tickWhenEmpty) {
       const hasGuests = Array.from(this.runtime.place.guests.values()).some(
         (g) => g.currentRoom !== null,

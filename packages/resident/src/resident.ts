@@ -1,12 +1,14 @@
 import type {
   CharacterDefinition,
   GuestId,
+  Logger,
   Perception,
   PresenceEvent,
   ResidentAction,
   ResidentMind,
   RuntimeContext,
 } from "@hauntjs/core";
+import { createLogger } from "@hauntjs/core";
 import { parseAllDecisions } from "./decision.js";
 import type { SqliteMemoryStore } from "./memory/store.js";
 import type { ModelProvider } from "./model/types.js";
@@ -14,6 +16,7 @@ import { buildPrompt } from "./prompt.js";
 
 export interface ResidentOptions {
   character: CharacterDefinition;
+  logger?: Logger;
   model: ModelProvider;
   memory: SqliteMemoryStore;
 }
@@ -33,12 +36,14 @@ export class Resident implements ResidentMind {
   readonly character: CharacterDefinition;
   private model: ModelProvider;
   private memory: SqliteMemoryStore;
+  private log: Logger;
   private busy = false;
 
   constructor(options: ResidentOptions) {
     this.character = options.character;
     this.model = options.model;
     this.memory = options.memory;
+    this.log = options.logger ?? createLogger("Resident");
   }
 
   async perceive(
@@ -60,7 +65,7 @@ export class Resident implements ResidentMind {
     try {
       return await this.deliberate(event, perceptions, context);
     } catch (err) {
-      console.error("[Resident] model error:", err instanceof Error ? err.message : err);
+      this.log.error("model error:", err instanceof Error ? err.message : err);
       return null;
     } finally {
       this.busy = false;
