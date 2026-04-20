@@ -1,5 +1,5 @@
+import { dispatchAction } from "./action-handlers.js";
 import { EventBus } from "./event-bus.js";
-import { getAffordance, getGuestsInRoom } from "./place.js";
 import { ActionDispatchSystem } from "./systems/action-dispatch.js";
 import { AutonomySystem } from "./systems/autonomy-system.js";
 import { BroadcastSystem } from "./systems/broadcast-system.js";
@@ -16,7 +16,6 @@ import type {
   ResidentAction,
   ResidentInterface,
   ResidentState,
-  RoomId,
   RuntimeInterface,
 } from "./types.js";
 
@@ -80,7 +79,6 @@ export class Runtime implements RuntimeInterface {
 
   /**
    * Process an event through the systems pipeline.
-   * Public API unchanged from Phase 1.
    */
   async emit(event: PresenceEvent): Promise<void> {
     if (!this.running) {
@@ -112,10 +110,10 @@ export class Runtime implements RuntimeInterface {
 
   /**
    * Apply a single resident action outside the pipeline.
-   * Used by tests and direct action invocation.
+   * Delegates to the shared action-handlers module.
    */
   async applyAction(action: ResidentAction): Promise<ActionResult> {
-    const result = this.dispatchAction(action);
+    const result = dispatchAction(action, this.place, this.resident);
 
     if (result.success && result.event) {
       this.recentEvents.push(result.event);
@@ -123,119 +121,5 @@ export class Runtime implements RuntimeInterface {
     }
 
     return result;
-  }
-
-  private dispatchAction(action: ResidentAction): ActionResult {
-    switch (action.type) {
-      case "speak":
-        return this.handleSpeak(action);
-      case "move":
-        return this.handleMove(action);
-      case "focus":
-        return this.handleFocus(action);
-      case "act":
-        return this.handleAct(action);
-      case "note":
-        return { success: true };
-      case "wait":
-        return { success: true };
-      default:
-        return { success: false, error: "Unknown action type" };
-    }
-  }
-
-  private handleFocus(action: { roomId: RoomId }): ActionResult {
-    const room = this.place.rooms.get(action.roomId);
-    if (!room) return { success: false, error: `Room "${action.roomId}" does not exist` };
-    this.resident.focusRoom = action.roomId;
-    return { success: true };
-  }
-
-  private handleSpeak(action: {
-    text: string;
-    audience: GuestId[] | "all";
-    roomId?: RoomId;
-  }): ActionResult {
-    const roomId =
-      action.roomId ??
-      (this.resident.presenceMode === "host" ? this.resident.focusRoom : null) ??
-      this.resident.currentRoom;
-    const room = this.place.rooms.get(roomId);
-    if (!room) return { success: false, error: `Room "${roomId}" does not exist` };
-
-    const audience =
-      action.audience === "all"
-        ? getGuestsInRoom(this.place, roomId).map((g) => g.id)
-        : action.audience;
-
-    const event: PresenceEvent = {
-      type: "resident.spoke",
-      roomId,
-      text: action.text,
-      audience,
-      at: new Date(),
-    };
-
-    return { success: true, event };
-  }
-
-  private handleMove(action: { toRoom: RoomId }): ActionResult {
-    const toRoom = this.place.rooms.get(action.toRoom);
-    if (!toRoom) return { success: false, error: `Room "${action.toRoom}" does not exist` };
-
-    const currentRoom = this.place.rooms.get(this.resident.currentRoom);
-    if (currentRoom && !currentRoom.connectedTo.includes(action.toRoom)) {
-      return {
-        success: false,
-        error: `Room "${action.toRoom}" is not connected to "${this.resident.currentRoom}"`,
-      };
-    }
-
-    const from = this.resident.currentRoom;
-    this.resident.currentRoom = action.toRoom;
-
-    const event: PresenceEvent = {
-      type: "resident.moved",
-      from,
-      to: action.toRoom,
-      at: new Date(),
-    };
-
-    return { success: true, event };
-  }
-
-  private handleAct(action: {
-    affordanceId: string;
-    actionId: string;
-    params?: Record<string, unknown>;
-  }): ActionResult {
-    const affordance = getAffordance(this.place, action.affordanceId as never);
-    if (!affordance) {
-      return { success: false, error: `Affordance "${action.affordanceId}" does not exist` };
-    }
-
-    const affordanceAction = affordance.actions.find((a) => a.id === action.actionId);
-    if (!affordanceAction) {
-      return {
-        success: false,
-        error: `Action "${action.actionId}" does not exist on affordance "${action.affordanceId}"`,
-      };
-    }
-
-    if (affordanceAction.availableWhen && !affordanceAction.availableWhen(affordance.state)) {
-      return {
-        success: false,
-        error: `Action "${action.actionId}" is not available in current state`,
-      };
-    }
-
-    const event: PresenceEvent = {
-      type: "resident.acted",
-      affordanceId: affordance.id,
-      actionId: action.actionId,
-      at: new Date(),
-    };
-
-    return { success: true, event };
   }
 }

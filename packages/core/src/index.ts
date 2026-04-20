@@ -86,3 +86,6 @@ export type {
 } from "./types.js";
 // ID constructors
 export { affordanceId, guestId, roomId, sensorId } from "./types.js";
+
+// Action handlers
+export { applySensorEffects, dispatchAction } from "./action-handlers.js";

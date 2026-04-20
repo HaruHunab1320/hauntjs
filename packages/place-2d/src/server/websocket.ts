@@ -1,8 +1,9 @@
 import type { GuestId, RoomId, RuntimeInterface } from "@hauntjs/core";
-import { addGuest, affordanceId, guestId, moveGuest, roomId } from "@hauntjs/core";
+import { addGuest, affordanceId, applySensorEffects, guestId, moveGuest, roomId } from "@hauntjs/core";
 import { WebSocket, WebSocketServer } from "ws";
 import type { PublicPlaceState, ServerMessage } from "./protocol.js";
 import { ClientMessage } from "./protocol.js";
+import { getStateUpdate } from "./state-updates.js";
 
 interface GuestSession {
   ws: WebSocket;
@@ -291,24 +292,12 @@ export class Place2DServer {
 
     // Apply sensor effects declared by this action
     if (action.affects) {
-      for (const effect of action.affects) {
-        for (const room of this.options.runtime.place.rooms.values()) {
-          const sensor = room.sensors.get(effect.sensorId as never);
-          if (sensor) {
-            if ("enabled" in effect.change) {
-              sensor.enabled = effect.change.enabled;
-            } else if ("fidelity" in effect.change) {
-              sensor.fidelity = effect.change.fidelity;
-            }
-            break;
-          }
-        }
-      }
+      applySensorEffects(action.affects, this.options.runtime.place);
     }
 
     // Emit affordance change event
     const prevState = { ...aff.state };
-    const stateUpdate = getInteractionStateUpdate(actionId);
+    const stateUpdate = getStateUpdate(actionId);
     if (stateUpdate) {
       Object.assign(aff.state, stateUpdate);
     }
@@ -396,23 +385,3 @@ export class Place2DServer {
   }
 }
 
-function getInteractionStateUpdate(actionId: string): Record<string, unknown> | null {
-  switch (actionId) {
-    case "light":
-      return { lit: true };
-    case "extinguish":
-      return { lit: false };
-    case "leave-note":
-      return { hasNote: true };
-    case "turn-on":
-      return { on: true };
-    case "turn-off":
-      return { on: false };
-    case "open":
-      return { open: true };
-    case "close":
-      return { open: false };
-    default:
-      return null;
-  }
-}

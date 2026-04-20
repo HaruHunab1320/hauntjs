@@ -19,6 +19,7 @@ import {
   updateAffordanceState,
 } from "@hauntjs/core";
 import type { PublicAffordanceState, PublicPlaceState, PublicRoomState } from "./protocol.js";
+import { getStateUpdate } from "./state-updates.js";
 import { Place2DServer } from "./websocket.js";
 
 export interface Place2DConfig {
@@ -166,7 +167,7 @@ export class Place2DAdapter implements PlaceAdapter {
         }
 
         // Apply state changes based on the action
-        const stateUpdate = getActionStateUpdate(action.actionId, affordance);
+        const stateUpdate = getStateUpdate(action.actionId);
         if (stateUpdate) {
           const { newState } = updateAffordanceState(
             place,
@@ -255,29 +256,5 @@ export class Place2DAdapter implements PlaceAdapter {
           ? ((currentRoom as string) ?? (this.runtime!.resident.currentRoom as string))
           : (this.runtime!.resident.currentRoom as string),
     };
-  }
-}
-
-function getActionStateUpdate(
-  actionId: string,
-  _affordance: { state: Record<string, unknown> },
-): Record<string, unknown> | null {
-  switch (actionId) {
-    case "light":
-      return { lit: true };
-    case "extinguish":
-      return { lit: false };
-    case "leave-note":
-      return { hasNote: true };
-    case "turn-on":
-      return { on: true };
-    case "turn-off":
-      return { on: false };
-    case "open":
-      return { open: true };
-    case "close":
-      return { open: false };
-    default:
-      return null;
   }
 }
