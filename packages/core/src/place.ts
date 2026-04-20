@@ -16,6 +16,7 @@ export interface CreatePlaceOptions {
   metadata?: Record<string, unknown>;
 }
 
+/** Creates a new Place with empty rooms and guests maps. */
 export function createPlace(options: CreatePlaceOptions): Place {
   return {
     id: options.id,
@@ -34,6 +35,10 @@ export interface AddRoomOptions {
   state?: Record<string, unknown>;
 }
 
+/**
+ * Adds a new room to the place and returns it.
+ * @throws If a room with the same id already exists in the place.
+ */
 export function addRoom(place: Place, options: AddRoomOptions): Room {
   if (place.rooms.has(options.id)) {
     throw new Error(`Room "${options.id}" already exists in place "${place.name}"`);
@@ -53,6 +58,10 @@ export function addRoom(place: Place, options: AddRoomOptions): Room {
   return room;
 }
 
+/**
+ * Removes a room from the place and cleans up connections from other rooms.
+ * @throws If the room does not exist or any guest is still in it.
+ */
 export function removeRoom(place: Place, roomId: RoomId): void {
   if (!place.rooms.has(roomId)) {
     throw new Error(`Room "${roomId}" does not exist in place "${place.name}"`);
@@ -73,6 +82,10 @@ export function removeRoom(place: Place, roomId: RoomId): void {
   }
 }
 
+/**
+ * Creates a bidirectional connection between two rooms.
+ * @throws If either room does not exist in the place.
+ */
 export function connectRooms(place: Place, a: RoomId, b: RoomId): void {
   const roomA = place.rooms.get(a);
   const roomB = place.rooms.get(b);
@@ -84,6 +97,10 @@ export function connectRooms(place: Place, a: RoomId, b: RoomId): void {
   if (!roomB.connectedTo.includes(a)) roomB.connectedTo.push(a);
 }
 
+/**
+ * Adds an affordance to the specified room.
+ * @throws If the room does not exist or an affordance with the same id is already present.
+ */
 export function addAffordance(place: Place, roomId: RoomId, affordance: Affordance): void {
   const room = place.rooms.get(roomId);
   if (!room) {
@@ -96,6 +113,10 @@ export function addAffordance(place: Place, roomId: RoomId, affordance: Affordan
   room.affordances.set(affordance.id, { ...affordance, roomId });
 }
 
+/**
+ * Removes an affordance from the specified room.
+ * @throws If the room or affordance does not exist.
+ */
 export function removeAffordance(place: Place, roomId: RoomId, affordanceId: AffordanceId): void {
   const room = place.rooms.get(roomId);
   if (!room) {
@@ -108,6 +129,10 @@ export function removeAffordance(place: Place, roomId: RoomId, affordanceId: Aff
   room.affordances.delete(affordanceId);
 }
 
+/**
+ * Merges an update into an affordance's state and returns the previous and new state.
+ * @throws If the room or affordance does not exist.
+ */
 export function updateAffordanceState(
   place: Place,
   roomId: RoomId,
@@ -128,6 +153,7 @@ export function updateAffordanceState(
   return { prevState, newState };
 }
 
+/** Searches all rooms for an affordance by id, returning it or undefined if not found. */
 export function getAffordance(place: Place, id: AffordanceId | string): Affordance | undefined {
   for (const room of place.rooms.values()) {
     const aff = room.affordances.get(id as AffordanceId);
@@ -136,6 +162,7 @@ export function getAffordance(place: Place, id: AffordanceId | string): Affordan
   return undefined;
 }
 
+/** Searches all rooms for a sensor by id, returning it or undefined if not found. */
 export function getSensor(place: Place, id: string): import("./types.js").Sensor | undefined {
   for (const room of place.rooms.values()) {
     const sensor = room.sensors.get(id as import("./types.js").SensorId);
@@ -151,6 +178,10 @@ export interface AddGuestOptions {
   relationship?: RelationshipState;
 }
 
+/**
+ * Registers a new guest in the place (not yet in any room) and returns it.
+ * @throws If a guest with the same id already exists in the place.
+ */
 export function addGuest(place: Place, options: AddGuestOptions): Guest {
   if (place.guests.has(options.id)) {
     throw new Error(`Guest "${options.id}" already exists in place "${place.name}"`);
@@ -172,6 +203,10 @@ export function addGuest(place: Place, options: AddGuestOptions): Guest {
   return guest;
 }
 
+/**
+ * Places a guest into a room, updating their lastSeen timestamp and visit count.
+ * @throws If the guest or room does not exist.
+ */
 export function enterRoom(place: Place, guestId: GuestId, roomId: RoomId): void {
   const guest = place.guests.get(guestId);
   if (!guest) throw new Error(`Guest "${guestId}" does not exist`);
@@ -184,6 +219,10 @@ export function enterRoom(place: Place, guestId: GuestId, roomId: RoomId): void 
   guest.visitCount += 1;
 }
 
+/**
+ * Moves a guest from their current room to a connected room.
+ * @throws If the guest or room does not exist, the guest is not in a room, or the rooms are not connected.
+ */
 export function moveGuest(place: Place, guestId: GuestId, toRoomId: RoomId): void {
   const guest = place.guests.get(guestId);
   if (!guest) throw new Error(`Guest "${guestId}" does not exist`);
@@ -203,6 +242,10 @@ export function moveGuest(place: Place, guestId: GuestId, toRoomId: RoomId): voi
   guest.lastSeen = new Date();
 }
 
+/**
+ * Removes a guest from their current room (sets currentRoom to null) and returns the room they left.
+ * @throws If the guest does not exist or is not in any room.
+ */
 export function leavePlace(place: Place, guestId: GuestId): RoomId {
   const guest = place.guests.get(guestId);
   if (!guest) throw new Error(`Guest "${guestId}" does not exist`);
@@ -215,6 +258,7 @@ export function leavePlace(place: Place, guestId: GuestId): RoomId {
   return roomId;
 }
 
+/** Returns all guests currently located in the specified room. */
 export function getGuestsInRoom(place: Place, roomId: RoomId): Guest[] {
   const guests: Guest[] = [];
   for (const guest of place.guests.values()) {

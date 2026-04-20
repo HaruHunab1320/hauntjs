@@ -3,6 +3,7 @@ import { OllamaProvider } from "./ollama.js";
 import { OpenAIProvider } from "./openai.js";
 import type { ModelProvider, ModelProviderConfig } from "./types.js";
 
+/** Creates a ModelProvider based on config or HAUNT_MODEL env var. Defaults to Anthropic. */
 export function createModelProvider(config?: ModelProviderConfig): ModelProvider {
   const provider =
     config?.provider ?? (process.env.HAUNT_MODEL as ModelProviderConfig["provider"]) ?? "anthropic";

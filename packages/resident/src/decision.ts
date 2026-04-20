@@ -16,6 +16,7 @@ export function parseDecision(response: ChatResponse): ResidentAction | null {
   return actions.length > 0 ? actions[0] : null;
 }
 
+/** Parse all tool calls from a model response into ResidentActions. Plain text becomes speech. */
 export function parseAllDecisions(response: ChatResponse): ResidentAction[] {
   const actions: ResidentAction[] = [];
 

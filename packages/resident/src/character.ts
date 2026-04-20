@@ -27,10 +27,12 @@ const CharacterSchema = z.object({
   decay: DecaySchema.optional(),
 });
 
+/** Validates an unknown value against the CharacterDefinition schema. Throws on invalid input. */
 export function validateCharacter(data: unknown): CharacterDefinition {
   return CharacterSchema.parse(data);
 }
 
+/** Creates and validates a CharacterDefinition. Convenience wrapper around validateCharacter. */
 export function createCharacter(definition: CharacterDefinition): CharacterDefinition {
   return validateCharacter(definition);
 }
