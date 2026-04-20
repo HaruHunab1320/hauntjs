@@ -1,21 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  createPlace,
-  addRoom,
-  removeRoom,
-  connectRooms,
   addAffordance,
-  removeAffordance,
-  updateAffordanceState,
-  getAffordance,
   addGuest,
+  addRoom,
+  connectRooms,
+  createPlace,
   enterRoom,
-  moveGuest,
-  leavePlace,
+  getAffordance,
   getGuestsInRoom,
+  leavePlace,
+  moveGuest,
+  removeAffordance,
+  removeRoom,
+  updateAffordanceState,
 } from "./place.js";
-import { roomId, affordanceId, guestId } from "./types.js";
 import type { Affordance } from "./types.js";
+import { affordanceId, guestId, roomId } from "./types.js";
 
 function makePlace() {
   const place = createPlace({ id: "test", name: "Test Place" });
@@ -133,21 +133,18 @@ describe("affordances", () => {
   it("updates affordance state", () => {
     const { place, lobby } = makePlace();
     addAffordance(place, lobby, makeFireplace("lobby"));
-    const { prevState, newState } = updateAffordanceState(
-      place,
-      lobby,
-      affordanceId("fireplace"),
-      { lit: true },
-    );
+    const { prevState, newState } = updateAffordanceState(place, lobby, affordanceId("fireplace"), {
+      lit: true,
+    });
     expect(prevState.lit).toBe(false);
     expect(newState.lit).toBe(true);
   });
 
   it("throws when updating affordance in non-existent room", () => {
     const { place } = makePlace();
-    expect(() =>
-      updateAffordanceState(place, roomId("nowhere"), affordanceId("x"), {}),
-    ).toThrow(/does not exist/);
+    expect(() => updateAffordanceState(place, roomId("nowhere"), affordanceId("x"), {})).toThrow(
+      /does not exist/,
+    );
   });
 });
 

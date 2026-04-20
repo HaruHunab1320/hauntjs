@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { validateCharacter } from "./character.js";
 
 const validCharacter = {
   name: "Poe",
   archetype: "hospitable concierge",
-  systemPrompt: "You are Poe, the resident of The Roost. You tend to the place with quiet pride and warmth.",
+  systemPrompt:
+    "You are Poe, the resident of The Roost. You tend to the place with quiet pride and warmth.",
   voice: {
     register: "warm" as const,
     quirks: ["references literature"],
@@ -24,15 +25,11 @@ describe("validateCharacter", () => {
   });
 
   it("rejects a character with missing name", () => {
-    expect(() =>
-      validateCharacter({ ...validCharacter, name: "" }),
-    ).toThrow();
+    expect(() => validateCharacter({ ...validCharacter, name: "" })).toThrow();
   });
 
   it("rejects a character with too-short system prompt", () => {
-    expect(() =>
-      validateCharacter({ ...validCharacter, systemPrompt: "Short." }),
-    ).toThrow();
+    expect(() => validateCharacter({ ...validCharacter, systemPrompt: "Short." })).toThrow();
   });
 
   it("rejects an invalid voice register", () => {

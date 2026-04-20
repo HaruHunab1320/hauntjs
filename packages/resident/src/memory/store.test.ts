@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SqliteMemoryStore } from "./store.js";
-import { guestId } from "@hauntjs/core";
-import { join } from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { guestId } from "@hauntjs/core";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { SqliteMemoryStore } from "./store.js";
 
 describe("SqliteMemoryStore", () => {
   let store: SqliteMemoryStore;

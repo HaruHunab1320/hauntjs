@@ -1,4 +1,4 @@
-import type { System, PipelineState, SystemContext } from "./types.js";
+import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
  * Emits events through the event bus so adapters and external listeners

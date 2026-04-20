@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { roomId } from "../types.js";
+import { omniscientSensor } from "./omniscient.js";
 import { presenceSensor } from "./presence-sensor.js";
 import { sightSensor } from "./sight-sensor.js";
-import { soundSensor, mutedAudioSensor } from "./sound-sensor.js";
+import { mutedAudioSensor, soundSensor } from "./sound-sensor.js";
 import { stateSensor } from "./state-sensor.js";
 import { textSensor } from "./text-sensor.js";
-import { omniscientSensor } from "./omniscient.js";
-import { roomId } from "../types.js";
 
 const lobby = roomId("lobby");
 

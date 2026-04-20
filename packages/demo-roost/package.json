@@ -9,7 +9,7 @@
     "build": "tsc --build",
     "dev": "tsc --build --watch",
     "test": "vitest run",
-    "lint": "eslint src/",
+    "lint": "biome check src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

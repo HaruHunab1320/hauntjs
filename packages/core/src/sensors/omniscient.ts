@@ -1,4 +1,4 @@
-import type { Sensor, SensorId, RoomId } from "../types.js";
+import type { RoomId, Sensor, SensorId } from "../types.js";
 import { sensorId } from "../types.js";
 
 /**
@@ -13,10 +13,7 @@ import { sensorId } from "../types.js";
  * @param id - Sensor ID, e.g. "lobby.omniscient"
  * @param roomId - The room this sensor is installed in
  */
-export function omniscientSensor(
-  id: string,
-  roomIdValue: RoomId,
-): [SensorId, Sensor] {
+export function omniscientSensor(id: string, roomIdValue: RoomId): [SensorId, Sensor] {
   return [
     sensorId(id),
     {

@@ -1,15 +1,15 @@
 import type {
-  CharacterDefinition,
-  RuntimeContext,
-  PresenceEvent,
-  Perception,
-  Guest,
   Affordance,
-  PlaceMemoryEntry,
-  GuestMemory,
+  CharacterDefinition,
+  Guest,
   GuestId,
+  GuestMemory,
+  Perception,
+  PlaceMemoryEntry,
+  PresenceEvent,
+  RuntimeContext,
 } from "@hauntjs/core";
-import type { ChatRequest, ChatMessage, ToolDefinition } from "./model/types.js";
+import type { ChatMessage, ChatRequest, ToolDefinition } from "./model/types.js";
 
 const ACTION_TOOLS: ToolDefinition[] = [
   {
@@ -117,10 +117,7 @@ export function buildPrompt(
   };
 }
 
-function buildSystemPrompt(
-  character: CharacterDefinition,
-  context: RuntimeContext,
-): string {
+function buildSystemPrompt(character: CharacterDefinition, context: RuntimeContext): string {
   const isHost = context.resident.presenceMode === "host";
   const voiceGuidance = buildVoiceGuidance(character);
 
@@ -151,9 +148,12 @@ function buildHostSystemPrompt(
       .map(describeAffordance);
 
     const guestLine = guests.length > 0 ? `  Guests: ${guests.join(", ")}` : "  No guests.";
-    const affLine = affordances.length > 0 ? `  Objects:\n${affordances.map((a) => "    " + a).join("\n")}` : "";
+    const affLine =
+      affordances.length > 0 ? `  Objects:\n${affordances.map((a) => "    " + a).join("\n")}` : "";
 
-    roomDescriptions.push(`**${room.name}** (${room.id})\n  ${room.description}\n${guestLine}${affLine ? "\n" + affLine : ""}`);
+    roomDescriptions.push(
+      `**${room.name}** (${room.id})\n  ${room.description}\n${guestLine}${affLine ? "\n" + affLine : ""}`,
+    );
   }
 
   return `${character.systemPrompt}
@@ -214,9 +214,8 @@ function buildInhabitantSystemPrompt(
         .join("\n")
     : "None";
 
-  const guestsPresent = context.guestsInRoom
-    .map((g) => describeGuest(g))
-    .join("\n") || "No one else is here.";
+  const guestsPresent =
+    context.guestsInRoom.map((g) => describeGuest(g)).join("\n") || "No one else is here.";
 
   const perceptualReach = buildPerceptualReach(context);
 
@@ -288,13 +287,20 @@ function buildPerceptualReach(context: RuntimeContext): string {
   if (currentSensors.length > 0) {
     lines.push(`In ${currentRoom.name}, you have:`);
     for (const s of currentSensors) {
-      const fidelityDesc = s.fidelity.kind === "full" ? "clear" :
-        s.fidelity.kind === "partial" ? "partial" :
-        s.fidelity.kind === "ambiguous" ? "uncertain" : "delayed";
+      const fidelityDesc =
+        s.fidelity.kind === "full"
+          ? "clear"
+          : s.fidelity.kind === "partial"
+            ? "partial"
+            : s.fidelity.kind === "ambiguous"
+              ? "uncertain"
+              : "delayed";
       lines.push(`  - ${s.name}: ${s.description} (${fidelityDesc})`);
     }
   } else {
-    lines.push(`You have no sensors in ${currentRoom.name} — you cannot perceive events here directly.`);
+    lines.push(
+      `You have no sensors in ${currentRoom.name} — you cannot perceive events here directly.`,
+    );
   }
 
   // Adjacent room reach
@@ -303,16 +309,18 @@ function buildPerceptualReach(context: RuntimeContext): string {
     if (!connRoom) continue;
 
     // Check if any sensor in the current room reaches into this adjacent room
-    const reachingSensors = currentSensors.filter((s) =>
-      s.reach.kind === "adjacent" || s.reach.kind === "place-wide"
+    const reachingSensors = currentSensors.filter(
+      (s) => s.reach.kind === "adjacent" || s.reach.kind === "place-wide",
     );
     // Also check sensors in the adjacent room that reach back
-    const adjSensors = Array.from(connRoom.sensors.values()).filter((s) =>
-      s.enabled && (s.reach.kind === "adjacent" || s.reach.kind === "place-wide")
+    const adjSensors = Array.from(connRoom.sensors.values()).filter(
+      (s) => s.enabled && (s.reach.kind === "adjacent" || s.reach.kind === "place-wide"),
     );
 
     if (reachingSensors.length > 0 || adjSensors.length > 0) {
-      lines.push(`  Through the connection to ${connRoom.name}: partial awareness via adjacent sensors`);
+      lines.push(
+        `  Through the connection to ${connRoom.name}: partial awareness via adjacent sensors`,
+      );
     } else {
       lines.push(`  ${connRoom.name}: no perceptual reach (you'd need to go there)`);
     }
@@ -403,7 +411,9 @@ function buildMessages(
   // The current event — use perceptions if available, fall back to raw event for ticks
   if (currentEvent.type === "guest.spoke") {
     // Speech events: use the perception content if available, otherwise raw text
-    const speechPerception = currentPerceptions.find((p) => p.modality === "sound" || p.modality === "text");
+    const speechPerception = currentPerceptions.find(
+      (p) => p.modality === "sound" || p.modality === "text",
+    );
     if (speechPerception) {
       messages.push({
         role: "user",
@@ -421,7 +431,8 @@ function buildMessages(
   } else if (currentPerceptions.length > 0) {
     // Non-speech events with perceptions: describe what was perceived
     const perceptionDescs = currentPerceptions.map((p) => {
-      const conf = p.confidence < 0.8 ? ` (uncertain — ${(p.confidence * 100).toFixed(0)}% confidence)` : "";
+      const conf =
+        p.confidence < 0.8 ? ` (uncertain — ${(p.confidence * 100).toFixed(0)}% confidence)` : "";
       return `- [${p.modality}] ${p.content}${conf}`;
     });
     messages.push({
@@ -515,7 +526,9 @@ function describeEvent(event: PresenceEvent, context?: RuntimeContext): string |
       return `${context?.place.guests.get(event.guestId)?.name ?? event.guestId} said: "${event.text}"`;
     case "guest.approached": {
       const approachGuest = context?.place.guests.get(event.guestId);
-      const approachAff = context?.place.rooms.get(event.roomId)?.affordances.get(event.affordanceId);
+      const approachAff = context?.place.rooms
+        .get(event.roomId)
+        ?.affordances.get(event.affordanceId);
       const affName = approachAff?.name ?? event.affordanceId;
       const gName = approachGuest?.name ?? event.guestId;
       return `${gName} walks over to the ${affName}. Consider whether to do something with it for them.`;
@@ -529,25 +542,37 @@ function describeEvent(event: PresenceEvent, context?: RuntimeContext): string |
     case "resident.acted":
       return null;
     case "tick": {
-      const hasGuests = context ? Array.from(context.place.guests.values()).some(g => g.currentRoom !== null) : false;
-      const fireplace = context?.place.rooms.get(context.resident.currentRoom)?.affordances.values();
+      const hasGuests = context
+        ? Array.from(context.place.guests.values()).some((g) => g.currentRoom !== null)
+        : false;
+      const fireplace = context?.place.rooms
+        .get(context.resident.currentRoom)
+        ?.affordances.values();
       const affordanceHints: string[] = [];
       if (fireplace) {
         for (const aff of fireplace) {
           if (aff.sensable) {
-            const availableActions = aff.actions.filter(a => !a.availableWhen || a.availableWhen(aff.state));
+            const availableActions = aff.actions.filter(
+              (a) => !a.availableWhen || a.availableWhen(aff.state),
+            );
             if (availableActions.length > 0) {
-              affordanceHints.push(`${aff.name}: you could ${availableActions.map(a => a.name.toLowerCase()).join(" or ")}`);
+              affordanceHints.push(
+                `${aff.name}: you could ${availableActions.map((a) => a.name.toLowerCase()).join(" or ")}`,
+              );
             }
           }
         }
       }
-      const connectedRooms = context ? context.place.rooms.get(context.resident.currentRoom)?.connectedTo ?? [] : [];
-      const roomNames = connectedRooms.map(rid => context?.place.rooms.get(rid)?.name ?? rid);
+      const connectedRooms = context
+        ? (context.place.rooms.get(context.resident.currentRoom)?.connectedTo ?? [])
+        : [];
+      const roomNames = connectedRooms.map((rid) => context?.place.rooms.get(rid)?.name ?? rid);
 
       const lines = ["A quiet moment. You have time to yourself."];
       if (hasGuests) {
-        lines.push("There are guests in the place — you might check on them or move to where they are.");
+        lines.push(
+          "There are guests in the place — you might check on them or move to where they are.",
+        );
       }
       if (affordanceHints.length > 0) {
         lines.push(`In this room: ${affordanceHints.join("; ")}.`);
@@ -555,7 +580,9 @@ function describeEvent(event: PresenceEvent, context?: RuntimeContext): string |
       if (roomNames.length > 0) {
         lines.push(`You could walk to: ${roomNames.join(", ")}.`);
       }
-      lines.push("Do something that feels natural — tend to the place, move to another room, or simply wait. Don't force it, but don't always choose silence either. A living place has small moments of activity.");
+      lines.push(
+        "Do something that feels natural — tend to the place, move to another room, or simply wait. Don't force it, but don't always choose silence either. A living place has small moments of activity.",
+      );
       return lines.join("\n");
     }
   }

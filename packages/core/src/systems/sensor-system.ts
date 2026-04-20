@@ -1,5 +1,5 @@
-import type { System, PipelineState, SystemContext } from "./types.js";
 import { filterEvent } from "../sensor-pipeline.js";
+import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
  * Routes events through the place's sensors to produce Perceptions.

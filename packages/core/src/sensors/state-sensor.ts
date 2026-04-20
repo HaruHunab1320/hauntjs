@@ -1,4 +1,4 @@
-import type { Sensor, SensorId, RoomId, SensorFidelity } from "../types.js";
+import type { RoomId, Sensor, SensorFidelity, SensorId } from "../types.js";
 import { sensorId, affordanceId as toAffordanceId } from "../types.js";
 
 export interface StateSensorOptions {

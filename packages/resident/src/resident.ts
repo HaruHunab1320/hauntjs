@@ -1,16 +1,16 @@
 import type {
   CharacterDefinition,
-  PresenceEvent,
-  Perception,
-  ResidentAction,
-  RuntimeContext,
-  ResidentInterface,
   GuestId,
+  Perception,
+  PresenceEvent,
+  ResidentAction,
+  ResidentInterface,
+  RuntimeContext,
 } from "@hauntjs/core";
-import type { ModelProvider } from "./model/types.js";
-import type { SqliteMemoryStore } from "./memory/store.js";
-import { buildPrompt } from "./prompt.js";
 import { parseAllDecisions } from "./decision.js";
+import type { SqliteMemoryStore } from "./memory/store.js";
+import type { ModelProvider } from "./model/types.js";
+import { buildPrompt } from "./prompt.js";
 
 export interface ResidentOptions {
   character: CharacterDefinition;
@@ -73,7 +73,10 @@ export class Resident implements ResidentInterface {
     context: RuntimeContext,
   ): Promise<ResidentAction | ResidentAction[] | null> {
     const placeMemories = await this.memory.recall({ limit: 5 });
-    const guestMemories = new Map<GuestId, NonNullable<ReturnType<typeof this.memory.guestMemory.get>>>();
+    const guestMemories = new Map<
+      GuestId,
+      NonNullable<ReturnType<typeof this.memory.guestMemory.get>>
+    >();
     for (const guest of context.guestsInRoom) {
       const mem = this.memory.guestMemory.get(guest.id);
       if (mem) guestMemories.set(guest.id, mem);
@@ -105,7 +108,9 @@ export class Resident implements ResidentInterface {
     }
 
     // Auto-persist conversation context
-    const speakAction = actions.find((a): a is ResidentAction & { type: "speak" } => a.type === "speak");
+    const speakAction = actions.find(
+      (a): a is ResidentAction & { type: "speak" } => a.type === "speak",
+    );
     if (event.type === "guest.spoke" && speakAction) {
       await this.autoRememberConversation(event.guestId, event.text, speakAction.text, context);
     }

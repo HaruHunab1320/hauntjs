@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { Runtime, roomId } from "@hauntjs/core";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { Place2DAdapter } from "./adapter.js";
-import { ROOST_CONFIG } from "./world-config.js";
-import { Runtime } from "@hauntjs/core";
-import { roomId } from "@hauntjs/core";
 import type { ServerMessage } from "./protocol.js";
+import { ROOST_CONFIG } from "./world-config.js";
 
 const TEST_PORT = 9871;
 
@@ -21,7 +20,10 @@ function waitForMessage(ws: WebSocket): Promise<ServerMessage> {
 function collectMessages(ws: WebSocket, count: number): Promise<ServerMessage[]> {
   return new Promise((resolve, reject) => {
     const messages: ServerMessage[] = [];
-    const timeout = setTimeout(() => reject(new Error(`Expected ${count} messages, got ${messages.length}`)), 5000);
+    const timeout = setTimeout(
+      () => reject(new Error(`Expected ${count} messages, got ${messages.length}`)),
+      5000,
+    );
 
     ws.on("message", (data) => {
       messages.push(JSON.parse(data.toString()) as ServerMessage);

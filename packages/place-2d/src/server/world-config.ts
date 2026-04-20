@@ -1,5 +1,14 @@
-import { roomId, affordanceId, sensorId, presenceSensor, sightSensor, soundSensor, mutedAudioSensor, stateSensor } from "@hauntjs/core";
-import type { Room, Affordance } from "@hauntjs/core";
+import type { Affordance, Room } from "@hauntjs/core";
+import {
+  affordanceId,
+  mutedAudioSensor,
+  presenceSensor,
+  roomId,
+  sensorId,
+  sightSensor,
+  soundSensor,
+  stateSensor,
+} from "@hauntjs/core";
 
 // --- The Roost: Room definitions ---
 
@@ -82,7 +91,8 @@ const garden: Room = {
     }),
     soundSensor("garden.sound", roomId("garden"), {
       fidelity: { kind: "partial", reveals: ["identity", "content"] },
-      description: "Sound carries in the garden — slightly softened by the open air, but clear enough.",
+      description:
+        "Sound carries in the garden — slightly softened by the open air, but clear enough.",
     }),
     mutedAudioSensor("garden.parlor-sound", roomId("garden"), {
       confidence: 0.6,
@@ -101,7 +111,8 @@ const fireplace: Affordance = {
   roomId: roomId("lobby"),
   kind: "fireplace",
   name: "Fireplace",
-  description: "A stone fireplace with a blackened grate. There's a trick to the flue — you have to hold it open for three seconds before the draw catches.",
+  description:
+    "A stone fireplace with a blackened grate. There's a trick to the flue — you have to hold it open for three seconds before the draw catches.",
   state: { lit: false },
   actions: [
     {
@@ -125,7 +136,8 @@ const noticeBoard: Affordance = {
   roomId: roomId("lobby"),
   kind: "notice-board",
   name: "Notice Board",
-  description: "A cork board pinned with notes, schedules, and the occasional drawing. Some are fresh; others have yellowed at the edges.",
+  description:
+    "A cork board pinned with notes, schedules, and the occasional drawing. Some are fresh; others have yellowed at the edges.",
   state: { notes: [] },
   actions: [
     {
@@ -147,7 +159,8 @@ const desk: Affordance = {
   roomId: roomId("study"),
   kind: "desk",
   name: "Writing Desk",
-  description: "A heavy oak desk with a reading lamp and scattered papers. The bottom drawer sticks.",
+  description:
+    "A heavy oak desk with a reading lamp and scattered papers. The bottom drawer sticks.",
   state: { hasNote: false, noteContent: "" },
   actions: [
     {
@@ -170,7 +183,8 @@ const bookshelf: Affordance = {
   roomId: roomId("study"),
   kind: "bookshelf",
   name: "Bookshelf",
-  description: "Floor-to-ceiling shelves packed with books. Poetry, philosophy, a surprising amount of detective fiction.",
+  description:
+    "Floor-to-ceiling shelves packed with books. Poetry, philosophy, a surprising amount of detective fiction.",
   state: {},
   actions: [
     {
@@ -187,7 +201,8 @@ const piano: Affordance = {
   roomId: roomId("parlor"),
   kind: "piano",
   name: "Piano",
-  description: "An upright piano, slightly out of tune. The keys are ivory — real ivory, from before they stopped making them that way.",
+  description:
+    "An upright piano, slightly out of tune. The keys are ivory — real ivory, from before they stopped making them that way.",
   state: {},
   actions: [
     {
@@ -204,7 +219,8 @@ const fountain: Affordance = {
   roomId: roomId("garden"),
   kind: "fountain",
   name: "Fountain",
-  description: "A stone fountain with a simple basin. The water runs clear and steady — someone tends the pump.",
+  description:
+    "A stone fountain with a simple basin. The water runs clear and steady — someone tends the pump.",
   state: { running: true },
   actions: [
     {
@@ -231,18 +247,14 @@ const studyLamp: Affordance = {
       name: "Turn off the lamp",
       description: "Click the lamp off. The study goes dark.",
       availableWhen: (state) => state.on === true,
-      affects: [
-        { sensorId: sensorId("study.sight"), change: { enabled: false } },
-      ],
+      affects: [{ sensorId: sensorId("study.sight"), change: { enabled: false } }],
     },
     {
       id: "turn-on",
       name: "Turn on the lamp",
       description: "Click the lamp on. Light fills the study.",
       availableWhen: (state) => state.on === false,
-      affects: [
-        { sensorId: sensorId("study.sight"), change: { enabled: true } },
-      ],
+      affects: [{ sensorId: sensorId("study.sight"), change: { enabled: true } }],
     },
   ],
   sensable: true,
@@ -253,7 +265,8 @@ const parlorDoor: Affordance = {
   roomId: roomId("parlor"),
   kind: "door",
   name: "Parlor Door",
-  description: "A heavy wooden door between the parlor and the lobby. When closed, sound doesn't carry through.",
+  description:
+    "A heavy wooden door between the parlor and the lobby. When closed, sound doesn't carry through.",
   state: { open: true },
   actions: [
     {
@@ -261,18 +274,14 @@ const parlorDoor: Affordance = {
       name: "Close the door",
       description: "Pull the door shut. The parlor becomes quieter.",
       availableWhen: (state) => state.open === true,
-      affects: [
-        { sensorId: sensorId("parlor.adjacent-sound"), change: { enabled: false } },
-      ],
+      affects: [{ sensorId: sensorId("parlor.adjacent-sound"), change: { enabled: false } }],
     },
     {
       id: "open",
       name: "Open the door",
       description: "Push the door open. Sound flows between the rooms again.",
       availableWhen: (state) => state.open === false,
-      affects: [
-        { sensorId: sensorId("parlor.adjacent-sound"), change: { enabled: true } },
-      ],
+      affects: [{ sensorId: sensorId("parlor.adjacent-sound"), change: { enabled: true } }],
     },
   ],
   sensable: true,

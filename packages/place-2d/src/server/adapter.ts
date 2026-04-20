@@ -1,24 +1,25 @@
 import type {
+  ActionResult,
+  Affordance,
+  GuestId,
   Place,
   PlaceAdapter,
   ResidentAction,
-  ActionResult,
-  RuntimeInterface,
+  Room,
   RoomId,
-  GuestId,
+  RuntimeInterface,
 } from "@hauntjs/core";
 import {
-  createPlace,
-  addRoom,
   addAffordance,
+  addRoom,
   connectRooms,
-  getGuestsInRoom,
+  createPlace,
   getAffordance,
+  getGuestsInRoom,
   updateAffordanceState,
 } from "@hauntjs/core";
-import type { Room, Affordance } from "@hauntjs/core";
+import type { PublicAffordanceState, PublicPlaceState, PublicRoomState } from "./protocol.js";
 import { Place2DServer } from "./websocket.js";
-import type { PublicPlaceState, PublicRoomState, PublicAffordanceState } from "./protocol.js";
 
 export interface Place2DConfig {
   id: string;
@@ -82,8 +83,7 @@ export class Place2DAdapter implements PlaceAdapter {
       port: this.config.port ?? 3002,
       runtime,
       entryRoom: this.config.entryRoom,
-      buildPlaceState: (guestId, currentRoom) =>
-        this.buildPublicState(guestId, currentRoom),
+      buildPlaceState: (guestId, currentRoom) => this.buildPublicState(guestId, currentRoom),
     });
     await this.server.start();
   }
@@ -207,10 +207,7 @@ export class Place2DAdapter implements PlaceAdapter {
     return this.server;
   }
 
-  private buildPublicState(
-    _guestId: GuestId,
-    currentRoom: RoomId | null,
-  ): PublicPlaceState {
+  private buildPublicState(_guestId: GuestId, currentRoom: RoomId | null): PublicPlaceState {
     const place = this.runtime!.place;
     const rooms: PublicRoomState[] = [];
 
@@ -253,9 +250,10 @@ export class Place2DAdapter implements PlaceAdapter {
       name: place.name,
       rooms,
       currentRoom: currentRoom as string | null,
-      residentRoom: this.runtime!.resident.presenceMode === "host"
-        ? (currentRoom as string ?? this.runtime!.resident.currentRoom as string)
-        : (this.runtime!.resident.currentRoom as string),
+      residentRoom:
+        this.runtime!.resident.presenceMode === "host"
+          ? ((currentRoom as string) ?? (this.runtime!.resident.currentRoom as string))
+          : (this.runtime!.resident.currentRoom as string),
     };
   }
 }

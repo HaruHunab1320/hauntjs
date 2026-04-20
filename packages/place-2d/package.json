@@ -10,7 +10,7 @@
     "dev": "vite --config vite.config.ts",
     "dev:server": "tsc --build --watch",
     "test": "vitest run --config vitest.config.ts",
-    "lint": "eslint src/",
+    "lint": "biome check src/server/ src/shared/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

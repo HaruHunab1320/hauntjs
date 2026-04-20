@@ -1,4 +1,4 @@
-import type { System, PipelineState, SystemContext } from "./types.js";
+import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
  * Decides whether the resident should be invoked for this event.
@@ -11,11 +11,7 @@ import type { System, PipelineState, SystemContext } from "./types.js";
  *   (strict-by-default — unsensored events are invisible to the resident)
  */
 
-const SKIP_EVENTS = new Set([
-  "resident.spoke",
-  "resident.moved",
-  "resident.acted",
-]);
+const SKIP_EVENTS = new Set(["resident.spoke", "resident.moved", "resident.acted"]);
 
 export class AutonomySystem implements System {
   readonly name = "Autonomy";

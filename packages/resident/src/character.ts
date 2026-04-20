@@ -1,5 +1,5 @@
-import { z } from "zod";
 import type { CharacterDefinition } from "@hauntjs/core";
+import { z } from "zod";
 
 const VoiceSchema = z.object({
   register: z.enum(["formal", "warm", "clipped", "poetic"]),

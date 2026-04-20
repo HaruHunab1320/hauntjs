@@ -1,13 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { EventBus } from "./event-bus.js";
-import { roomId, guestId } from "./types.js";
 import type { PresenceEvent } from "./types.js";
+import { guestId, roomId } from "./types.js";
 
 function makeEvent(type: PresenceEvent["type"] = "tick"): PresenceEvent {
   if (type === "tick") return { type: "tick", at: new Date() };
 
   if (type === "guest.entered") {
-    return { type: "guest.entered", guestId: guestId("g1"), roomId: roomId("lobby"), at: new Date() };
+    return {
+      type: "guest.entered",
+      guestId: guestId("g1"),
+      roomId: roomId("lobby"),
+      at: new Date(),
+    };
   }
 
   if (type === "guest.spoke") {

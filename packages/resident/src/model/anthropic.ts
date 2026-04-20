@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type {
-  ModelProvider,
+  ChatMessage,
   ChatRequest,
   ChatResponse,
-  ChatMessage,
+  ModelProvider,
   ToolCall,
   ToolDefinition,
 } from "./types.js";
@@ -39,9 +39,7 @@ export class AnthropicProvider implements ModelProvider {
     return this.fromAnthropicResponse(response);
   }
 
-  private toAnthropicMessages(
-    messages: ChatMessage[],
-  ): Anthropic.MessageParam[] {
+  private toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageParam[] {
     return messages
       .filter((m) => m.role !== "system")
       .map((m): Anthropic.MessageParam => {
@@ -89,9 +87,7 @@ export class AnthropicProvider implements ModelProvider {
     }));
   }
 
-  private fromAnthropicResponse(
-    response: Anthropic.Message,
-  ): ChatResponse {
+  private fromAnthropicResponse(response: Anthropic.Message): ChatResponse {
     let content = "";
     const toolCalls: ToolCall[] = [];
 
@@ -109,10 +105,10 @@ export class AnthropicProvider implements ModelProvider {
 
     const finishReason =
       response.stop_reason === "tool_use"
-        ? "tool_use" as const
+        ? ("tool_use" as const)
         : response.stop_reason === "max_tokens"
-          ? "length" as const
-          : "stop" as const;
+          ? ("length" as const)
+          : ("stop" as const);
 
     return {
       content,

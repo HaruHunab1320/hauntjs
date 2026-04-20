@@ -1,16 +1,16 @@
-import Database from "better-sqlite3";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
-  MemoryStore,
+  GuestId,
+  GuestMemory,
   MemoryQuery,
   MemoryResult,
+  MemoryStore,
   PlaceMemoryEntry,
-  GuestMemory,
-  GuestId,
   PresenceEvent,
 } from "@hauntjs/core";
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import Database from "better-sqlite3";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCHEMA_PATH = join(__dirname, "..", "..", "src", "memory", "schema.sql");
@@ -42,8 +42,16 @@ export class SqliteMemoryStore implements MemoryStore {
   private loadFromDb(): void {
     // Load place memory
     const placeRows = this.db
-      .prepare("SELECT id, content, tags, created_at, importance FROM place_memory ORDER BY created_at DESC")
-      .all() as Array<{ id: number; content: string; tags: string; created_at: string; importance: number }>;
+      .prepare(
+        "SELECT id, content, tags, created_at, importance FROM place_memory ORDER BY created_at DESC",
+      )
+      .all() as Array<{
+      id: number;
+      content: string;
+      tags: string;
+      created_at: string;
+      importance: number;
+    }>;
 
     this.placeMemory = placeRows.map((row) => ({
       id: String(row.id),
@@ -81,9 +89,7 @@ export class SqliteMemoryStore implements MemoryStore {
     let results: PlaceMemoryEntry[] = [...this.placeMemory];
 
     if (query.tags && query.tags.length > 0) {
-      results = results.filter((entry) =>
-        query.tags!.some((tag) => entry.tags.includes(tag)),
-      );
+      results = results.filter((entry) => query.tags!.some((tag) => entry.tags.includes(tag)));
     }
 
     // Sort by importance descending
@@ -160,10 +166,24 @@ export class SqliteMemoryStore implements MemoryStore {
   }
 
   /** Returns all known guests from the database for pre-populating the place on startup. */
-  getKnownGuests(): Array<{ id: string; name: string; visitCount: number; loyaltyTier: string; firstSeen: Date; lastSeen: Date }> {
+  getKnownGuests(): Array<{
+    id: string;
+    name: string;
+    visitCount: number;
+    loyaltyTier: string;
+    firstSeen: Date;
+    lastSeen: Date;
+  }> {
     const rows = this.db
       .prepare("SELECT id, name, first_seen, last_seen, visit_count, loyalty_tier FROM guests")
-      .all() as Array<{ id: string; name: string; first_seen: string; last_seen: string; visit_count: number; loyalty_tier: string }>;
+      .all() as Array<{
+      id: string;
+      name: string;
+      first_seen: string;
+      last_seen: string;
+      visit_count: number;
+      loyalty_tier: string;
+    }>;
 
     return rows.map((row) => ({
       id: row.id,

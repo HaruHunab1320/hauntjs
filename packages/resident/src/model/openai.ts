@@ -1,9 +1,9 @@
 import OpenAI from "openai";
 import type {
-  ModelProvider,
+  ChatMessage,
   ChatRequest,
   ChatResponse,
-  ChatMessage,
+  ModelProvider,
   ToolCall,
   ToolDefinition,
 } from "./types.js";
@@ -43,9 +43,7 @@ export class OpenAIProvider implements ModelProvider {
     systemPrompt: string,
     messages: ChatMessage[],
   ): OpenAI.ChatCompletionMessageParam[] {
-    const result: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: systemPrompt },
-    ];
+    const result: OpenAI.ChatCompletionMessageParam[] = [{ role: "system", content: systemPrompt }];
 
     for (const m of messages) {
       if (m.role === "system") continue;
@@ -84,9 +82,7 @@ export class OpenAIProvider implements ModelProvider {
     return result;
   }
 
-  private toOpenAITools(
-    tools: ToolDefinition[],
-  ): OpenAI.ChatCompletionTool[] {
+  private toOpenAITools(tools: ToolDefinition[]): OpenAI.ChatCompletionTool[] {
     return tools.map((t) => ({
       type: "function" as const,
       function: {
@@ -97,9 +93,7 @@ export class OpenAIProvider implements ModelProvider {
     }));
   }
 
-  private fromOpenAIResponse(
-    response: OpenAI.ChatCompletion,
-  ): ChatResponse {
+  private fromOpenAIResponse(response: OpenAI.ChatCompletion): ChatResponse {
     const choice = response.choices[0];
     if (!choice) {
       return { content: "", finishReason: "error" };
@@ -120,10 +114,10 @@ export class OpenAIProvider implements ModelProvider {
 
     const finishReason =
       choice.finish_reason === "tool_calls"
-        ? "tool_use" as const
+        ? ("tool_use" as const)
         : choice.finish_reason === "length"
-          ? "length" as const
-          : "stop" as const;
+          ? ("length" as const)
+          : ("stop" as const);
 
     return {
       content: choice.message.content ?? "",

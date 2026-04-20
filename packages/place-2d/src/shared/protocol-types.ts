@@ -42,9 +42,18 @@ export type ServerMessage =
   | { type: "guest.spoke"; guestId: string; guestName: string; roomId: string; text: string }
   | { type: "resident.spoke"; text: string; roomId: string }
   | { type: "resident.moved"; from: string; to: string }
-  | { type: "affordance.changed"; affordanceId: string; roomId: string; newState: Record<string, unknown> }
+  | {
+      type: "affordance.changed";
+      affordanceId: string;
+      roomId: string;
+      newState: Record<string, unknown>;
+    }
   | { type: "error"; message: string }
-  | { type: "debug.snapshot"; sensors: DebugSensorInfo[]; recentPerceptions: DebugPerceptionInfo[] };
+  | {
+      type: "debug.snapshot";
+      sensors: DebugSensorInfo[];
+      recentPerceptions: DebugPerceptionInfo[];
+    };
 
 export interface DebugSensorInfo {
   id: string;

@@ -43,7 +43,7 @@ export type ClientMessage = z.infer<typeof ClientMessage>;
 
 export type {
   PublicAffordanceState,
-  PublicRoomState,
   PublicPlaceState,
+  PublicRoomState,
   ServerMessage,
 } from "../shared/protocol-types.js";

@@ -50,13 +50,7 @@ export function sensorId(id: string): SensorId {
 }
 
 /** The type of sensory information a sensor provides. */
-export type SensorModality =
-  | "sight"
-  | "sound"
-  | "presence"
-  | "state"
-  | "text"
-  | (string & {});  // extensible — adapters can define more
+export type SensorModality = "sight" | "sound" | "presence" | "state" | "text" | (string & {}); // extensible — adapters can define more
 
 /** How much detail the sensor reveals. */
 export type SensorFidelity =
@@ -145,9 +139,9 @@ export interface Guest {
 // --- Resident (minimal shape for core — full definition lives in @hauntjs/resident) ---
 
 export type MoodState = {
-  energy: number;   // 0-1
-  focus: number;    // 0-1
-  valence: number;  // -1 to 1
+  energy: number; // 0-1
+  focus: number; // 0-1
+  valence: number; // -1 to 1
 };
 
 export interface CharacterDefinition {
@@ -236,7 +230,13 @@ export type PresenceEvent =
   | { type: "guest.left"; guestId: GuestId; roomId: RoomId; at: Date }
   | { type: "guest.moved"; guestId: GuestId; from: RoomId; to: RoomId; at: Date }
   | { type: "guest.spoke"; guestId: GuestId; roomId: RoomId; text: string; at: Date }
-  | { type: "guest.approached"; guestId: GuestId; roomId: RoomId; affordanceId: AffordanceId; at: Date }
+  | {
+      type: "guest.approached";
+      guestId: GuestId;
+      roomId: RoomId;
+      affordanceId: AffordanceId;
+      at: Date;
+    }
   | {
       type: "affordance.changed";
       affordanceId: AffordanceId;

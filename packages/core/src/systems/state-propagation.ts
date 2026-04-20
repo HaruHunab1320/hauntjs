@@ -1,6 +1,6 @@
-import type { System, PipelineState, SystemContext } from "./types.js";
+import { enterRoom, leavePlace, moveGuest } from "../place.js";
 import type { GuestId, RoomId } from "../types.js";
-import { enterRoom, moveGuest, leavePlace } from "../place.js";
+import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
  * Applies the raw event to place state. Deterministic, no model calls.
@@ -54,19 +54,13 @@ export class StatePropagationSystem implements System {
     }
   }
 
-  private handleGuestLeft(
-    event: { guestId: GuestId },
-    ctx: SystemContext,
-  ): void {
+  private handleGuestLeft(event: { guestId: GuestId }, ctx: SystemContext): void {
     const guest = ctx.place.guests.get(event.guestId);
     if (!guest || !guest.currentRoom) return;
     leavePlace(ctx.place, event.guestId);
   }
 
-  private handleGuestMoved(
-    event: { guestId: GuestId; to: RoomId },
-    ctx: SystemContext,
-  ): void {
+  private handleGuestMoved(event: { guestId: GuestId; to: RoomId }, ctx: SystemContext): void {
     const guest = ctx.place.guests.get(event.guestId);
     if (!guest || !guest.currentRoom) return;
     if (guest.currentRoom === event.to) return;

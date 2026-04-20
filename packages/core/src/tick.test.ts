@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { TickScheduler } from "./tick.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { addGuest, addRoom, createPlace, enterRoom } from "./place.js";
 import { Runtime } from "./runtime.js";
-import { createPlace, addRoom, addGuest, enterRoom } from "./place.js";
-import { roomId, guestId } from "./types.js";
+import { TickScheduler } from "./tick.js";
 import type { PresenceEvent } from "./types.js";
+import { guestId, roomId } from "./types.js";
 
 function makeRuntime(): Runtime {
   const place = createPlace({ id: "test", name: "Test" });
@@ -44,7 +44,9 @@ describe("TickScheduler", () => {
     enterRoom(runtime.place, guestId("g1"), roomId("lobby"));
 
     const events: PresenceEvent[] = [];
-    runtime.eventBus.on("tick", (e) => { events.push(e); });
+    runtime.eventBus.on("tick", (e) => {
+      events.push(e);
+    });
 
     const scheduler = new TickScheduler(runtime, { intervalMs: 1000 });
     scheduler.start();
@@ -61,7 +63,9 @@ describe("TickScheduler", () => {
     await runtime.start();
 
     const events: PresenceEvent[] = [];
-    runtime.eventBus.on("tick", (e) => { events.push(e); });
+    runtime.eventBus.on("tick", (e) => {
+      events.push(e);
+    });
 
     const scheduler = new TickScheduler(runtime, { intervalMs: 1000 });
     scheduler.start();
@@ -77,7 +81,9 @@ describe("TickScheduler", () => {
     await runtime.start();
 
     const events: PresenceEvent[] = [];
-    runtime.eventBus.on("tick", (e) => { events.push(e); });
+    runtime.eventBus.on("tick", (e) => {
+      events.push(e);
+    });
 
     const scheduler = new TickScheduler(runtime, { intervalMs: 1000, tickWhenEmpty: true });
     scheduler.start();
@@ -97,7 +103,9 @@ describe("TickScheduler", () => {
     enterRoom(runtime.place, guestId("g1"), roomId("lobby"));
 
     const events: PresenceEvent[] = [];
-    runtime.eventBus.on("tick", (e) => { events.push(e); });
+    runtime.eventBus.on("tick", (e) => {
+      events.push(e);
+    });
 
     const scheduler = new TickScheduler(runtime, { intervalMs: 60000 });
     scheduler.start();
@@ -116,7 +124,9 @@ describe("TickScheduler", () => {
     enterRoom(runtime.place, guestId("g1"), roomId("lobby"));
 
     const events: PresenceEvent[] = [];
-    runtime.eventBus.on("tick", (e) => { events.push(e); });
+    runtime.eventBus.on("tick", (e) => {
+      events.push(e);
+    });
 
     const scheduler = new TickScheduler(runtime, { intervalMs: 1000 });
     scheduler.start();

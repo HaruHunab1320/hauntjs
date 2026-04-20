@@ -1,24 +1,24 @@
+import { EventBus } from "./event-bus.js";
+import { getAffordance, getGuestsInRoom } from "./place.js";
+import { ActionDispatchSystem } from "./systems/action-dispatch.js";
+import { AutonomySystem } from "./systems/autonomy-system.js";
+import { BroadcastSystem } from "./systems/broadcast-system.js";
+import { MemorySystem } from "./systems/memory-system.js";
+import { ResidentSystem } from "./systems/resident-system.js";
+import { SensorSystem } from "./systems/sensor-system.js";
+import { StatePropagationSystem } from "./systems/state-propagation.js";
+import type { PipelineState, System, SystemContext } from "./systems/types.js";
 import type {
+  ActionResult,
+  GuestId,
   Place,
   PresenceEvent,
   ResidentAction,
-  ActionResult,
-  ResidentState,
-  RuntimeInterface,
   ResidentInterface,
-  GuestId,
+  ResidentState,
   RoomId,
+  RuntimeInterface,
 } from "./types.js";
-import { EventBus } from "./event-bus.js";
-import type { System, PipelineState, SystemContext } from "./systems/types.js";
-import { StatePropagationSystem } from "./systems/state-propagation.js";
-import { SensorSystem } from "./systems/sensor-system.js";
-import { MemorySystem } from "./systems/memory-system.js";
-import { AutonomySystem } from "./systems/autonomy-system.js";
-import { ResidentSystem } from "./systems/resident-system.js";
-import { ActionDispatchSystem } from "./systems/action-dispatch.js";
-import { BroadcastSystem } from "./systems/broadcast-system.js";
-import { getGuestsInRoom, getAffordance } from "./place.js";
 
 export interface RuntimeOptions {
   place: Place;
@@ -156,9 +156,10 @@ export class Runtime implements RuntimeInterface {
     audience: GuestId[] | "all";
     roomId?: RoomId;
   }): ActionResult {
-    const roomId = action.roomId
-      ?? (this.resident.presenceMode === "host" ? this.resident.focusRoom : null)
-      ?? this.resident.currentRoom;
+    const roomId =
+      action.roomId ??
+      (this.resident.presenceMode === "host" ? this.resident.focusRoom : null) ??
+      this.resident.currentRoom;
     const room = this.place.rooms.get(roomId);
     if (!room) return { success: false, error: `Room "${roomId}" does not exist` };
 

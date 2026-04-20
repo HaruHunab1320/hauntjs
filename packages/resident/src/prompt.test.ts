@@ -1,23 +1,23 @@
-import { describe, it, expect } from "vitest";
-import { buildPrompt } from "./prompt.js";
+import type {
+  Affordance,
+  CharacterDefinition,
+  PresenceEvent,
+  ResidentState,
+  RuntimeContext,
+} from "@hauntjs/core";
 import {
-  roomId,
-  affordanceId,
-  guestId,
-  createPlace,
-  addRoom,
-  connectRooms,
   addAffordance,
   addGuest,
+  addRoom,
+  affordanceId,
+  connectRooms,
+  createPlace,
   enterRoom,
+  guestId,
+  roomId,
 } from "@hauntjs/core";
-import type {
-  CharacterDefinition,
-  RuntimeContext,
-  ResidentState,
-  Affordance,
-  PresenceEvent,
-} from "@hauntjs/core";
+import { describe, expect, it } from "vitest";
+import { buildPrompt } from "./prompt.js";
 
 function makeCharacter(): CharacterDefinition {
   return {
@@ -50,7 +50,12 @@ function makeContext(): RuntimeContext {
     description: "A stone fireplace",
     state: { lit: false },
     actions: [
-      { id: "light", name: "Light", description: "Light the fire", availableWhen: (s) => s.lit === false },
+      {
+        id: "light",
+        name: "Light",
+        description: "Light the fire",
+        availableWhen: (s) => s.lit === false,
+      },
     ],
     sensable: true,
   };
@@ -131,7 +136,12 @@ describe("buildPrompt", () => {
   it("includes place memories when provided", () => {
     const event: PresenceEvent = { type: "tick", at: new Date() };
     const memories = [
-      { content: "Takeshi likes whiskey.", tags: ["takeshi"], createdAt: new Date(), importance: 0.7 },
+      {
+        content: "Takeshi likes whiskey.",
+        tags: ["takeshi"],
+        createdAt: new Date(),
+        importance: 0.7,
+      },
     ];
 
     const request = buildPrompt(makeCharacter(), makeContext(), event, [], memories, new Map());

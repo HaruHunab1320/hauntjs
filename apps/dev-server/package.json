@@ -7,7 +7,7 @@
     "build": "tsc --build",
     "dev": "tsx watch src/main.ts",
     "test": "vitest run",
-    "lint": "eslint src/",
+    "lint": "biome check src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

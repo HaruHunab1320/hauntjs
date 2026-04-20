@@ -1,13 +1,13 @@
 import type {
-  Place,
-  Room,
   Affordance,
-  Guest,
-  RoomId,
   AffordanceId,
+  Guest,
   GuestId,
   LoyaltyTier,
+  Place,
   RelationshipState,
+  Room,
+  RoomId,
 } from "./types.js";
 
 export interface CreatePlaceOptions {
@@ -118,7 +118,8 @@ export function updateAffordanceState(
   if (!room) throw new Error(`Room "${roomId}" does not exist`);
 
   const affordance = room.affordances.get(affordanceId);
-  if (!affordance) throw new Error(`Affordance "${affordanceId}" does not exist in room "${roomId}"`);
+  if (!affordance)
+    throw new Error(`Affordance "${affordanceId}" does not exist in room "${roomId}"`);
 
   const prevState = { ...affordance.state };
   affordance.state = { ...affordance.state, ...update };
@@ -184,9 +185,7 @@ export function moveGuest(place: Place, guestId: GuestId, toRoomId: RoomId): voi
   if (!currentRoom) throw new Error(`Guest's current room "${guest.currentRoom}" does not exist`);
 
   if (!currentRoom.connectedTo.includes(toRoomId)) {
-    throw new Error(
-      `Room "${toRoomId}" is not connected to "${guest.currentRoom}"`,
-    );
+    throw new Error(`Room "${toRoomId}" is not connected to "${guest.currentRoom}"`);
   }
 
   const toRoom = place.rooms.get(toRoomId);

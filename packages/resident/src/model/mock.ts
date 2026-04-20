@@ -1,4 +1,4 @@
-import type { ModelProvider, ChatRequest, ChatResponse } from "./types.js";
+import type { ChatRequest, ChatResponse, ModelProvider } from "./types.js";
 
 export interface MockResponse {
   content: string;

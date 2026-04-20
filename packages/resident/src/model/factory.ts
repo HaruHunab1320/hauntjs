@@ -1,10 +1,11 @@
-import type { ModelProvider, ModelProviderConfig } from "./types.js";
 import { AnthropicProvider } from "./anthropic.js";
-import { OpenAIProvider } from "./openai.js";
 import { OllamaProvider } from "./ollama.js";
+import { OpenAIProvider } from "./openai.js";
+import type { ModelProvider, ModelProviderConfig } from "./types.js";
 
 export function createModelProvider(config?: ModelProviderConfig): ModelProvider {
-  const provider = config?.provider ?? (process.env.HAUNT_MODEL as ModelProviderConfig["provider"]) ?? "anthropic";
+  const provider =
+    config?.provider ?? (process.env.HAUNT_MODEL as ModelProviderConfig["provider"]) ?? "anthropic";
 
   switch (provider) {
     case "anthropic":
@@ -34,6 +35,8 @@ export function createModelProvider(config?: ModelProviderConfig): ModelProvider
       });
 
     default:
-      throw new Error(`Unknown model provider: "${provider}". Expected "anthropic", "openai", "ollama", or "gemini".`);
+      throw new Error(
+        `Unknown model provider: "${provider}". Expected "anthropic", "openai", "ollama", or "gemini".`,
+      );
   }
 }

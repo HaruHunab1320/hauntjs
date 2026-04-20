@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { affordanceId, roomId } from "@hauntjs/core";
+import { describe, expect, it } from "vitest";
 import { Place2DAdapter } from "./adapter.js";
 import { ROOST_CONFIG } from "./world-config.js";
-import { roomId, affordanceId } from "@hauntjs/core";
 
 describe("Place2DAdapter", () => {
   describe("mount", () => {
@@ -59,7 +59,9 @@ describe("Place2DAdapter", () => {
       const adapter = new Place2DAdapter(ROOST_CONFIG);
       const place = await adapter.mount();
 
-      const fireplace = place.rooms.get(roomId("lobby"))!.affordances.get(affordanceId("fireplace"))!;
+      const fireplace = place.rooms
+        .get(roomId("lobby"))!
+        .affordances.get(affordanceId("fireplace"))!;
       expect(fireplace.state.lit).toBe(false);
 
       const lightAction = fireplace.actions.find((a) => a.id === "light")!;

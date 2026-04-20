@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicProvider } from "./anthropic.js";
 
 // Mock the Anthropic SDK
@@ -58,7 +58,12 @@ describe("AnthropicProvider", () => {
         },
       ],
       stop_reason: "tool_use",
-      usage: { input_tokens: 150, output_tokens: 50, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+      usage: {
+        input_tokens: 150,
+        output_tokens: 50,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+      },
     });
 
     // Create a fresh provider that uses this instance

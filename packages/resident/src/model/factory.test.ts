@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createModelProvider } from "./factory.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AnthropicProvider } from "./anthropic.js";
-import { OpenAIProvider } from "./openai.js";
+import { createModelProvider } from "./factory.js";
 import { OllamaProvider } from "./ollama.js";
+import { OpenAIProvider } from "./openai.js";
 
 describe("createModelProvider", () => {
   const originalEnv = process.env;

@@ -1,6 +1,6 @@
-import type { System, PipelineState, SystemContext } from "./types.js";
 import { getGuestsInRoom } from "../place.js";
-import type { RuntimeContext, RoomId } from "../types.js";
+import type { RoomId, RuntimeContext } from "../types.js";
+import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
  * If the AutonomySystem decided to invoke, calls resident.perceive()

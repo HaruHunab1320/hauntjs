@@ -1,6 +1,6 @@
-import type { System, PipelineState, SystemContext } from "./types.js";
-import type { ResidentAction, ActionResult, PresenceEvent, GuestId, RoomId } from "../types.js";
-import { getGuestsInRoom, getAffordance } from "../place.js";
+import { getAffordance, getGuestsInRoom } from "../place.js";
+import type { ActionResult, GuestId, PresenceEvent, ResidentAction, RoomId } from "../types.js";
+import type { PipelineState, System, SystemContext } from "./types.js";
 
 /**
  * Applies resident actions to the place state and produces events.
@@ -47,9 +47,10 @@ export class ActionDispatchSystem implements System {
     ctx: SystemContext,
   ): ActionResult {
     // Host: default to focusRoom. Inhabitant: default to currentRoom.
-    const roomId = action.roomId
-      ?? (ctx.resident.presenceMode === "host" ? ctx.resident.focusRoom : null)
-      ?? ctx.resident.currentRoom;
+    const roomId =
+      action.roomId ??
+      (ctx.resident.presenceMode === "host" ? ctx.resident.focusRoom : null) ??
+      ctx.resident.currentRoom;
     const room = ctx.place.rooms.get(roomId);
     if (!room) return { success: false, error: `Room "${roomId}" does not exist` };
 
@@ -69,10 +70,7 @@ export class ActionDispatchSystem implements System {
     return { success: true, event };
   }
 
-  private handleMove(
-    action: { toRoom: RoomId },
-    ctx: SystemContext,
-  ): ActionResult {
+  private handleMove(action: { toRoom: RoomId }, ctx: SystemContext): ActionResult {
     // Host mode: treat move as focus shift (no connectivity check, no event)
     if (ctx.resident.presenceMode === "host") {
       const room = ctx.place.rooms.get(action.toRoom);
@@ -106,10 +104,7 @@ export class ActionDispatchSystem implements System {
     return { success: true, event };
   }
 
-  private handleFocus(
-    action: { roomId: RoomId },
-    ctx: SystemContext,
-  ): ActionResult {
+  private handleFocus(action: { roomId: RoomId }, ctx: SystemContext): ActionResult {
     const room = ctx.place.rooms.get(action.roomId);
     if (!room) return { success: false, error: `Room "${action.roomId}" does not exist` };
     ctx.resident.focusRoom = action.roomId;

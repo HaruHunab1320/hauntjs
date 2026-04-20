@@ -1,28 +1,35 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { Resident } from "./resident.js";
-import { MockModelProvider } from "./model/mock.js";
-import { SqliteMemoryStore } from "./memory/store.js";
-import {
-  roomId,
-  affordanceId,
-  guestId,
-  createPlace,
-  addRoom,
-  connectRooms,
-  addAffordance,
-  addGuest,
-  enterRoom,
-} from "@hauntjs/core";
-import type { RuntimeContext, ResidentState, Affordance, PresenceEvent, CharacterDefinition } from "@hauntjs/core";
-import { join } from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type {
+  Affordance,
+  CharacterDefinition,
+  PresenceEvent,
+  ResidentState,
+  RuntimeContext,
+} from "@hauntjs/core";
+import {
+  addAffordance,
+  addGuest,
+  addRoom,
+  affordanceId,
+  connectRooms,
+  createPlace,
+  enterRoom,
+  guestId,
+  roomId,
+} from "@hauntjs/core";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { SqliteMemoryStore } from "./memory/store.js";
+import { MockModelProvider } from "./model/mock.js";
+import { Resident } from "./resident.js";
 
 function makeCharacter(): CharacterDefinition {
   return {
     name: "Poe",
     archetype: "hospitable concierge",
-    systemPrompt: "You are Poe, the resident of The Roost. You tend to the place with quiet pride and warmth.",
+    systemPrompt:
+      "You are Poe, the resident of The Roost. You tend to the place with quiet pride and warmth.",
     voice: {
       register: "warm",
       quirks: [],
@@ -89,7 +96,11 @@ describe("Resident", () => {
     const model = new MockModelProvider({
       content: "",
       toolCalls: [
-        { id: "tc1", name: "speak", arguments: { text: "Welcome home, Takeshi.", audience: "all" } },
+        {
+          id: "tc1",
+          name: "speak",
+          arguments: { text: "Welcome home, Takeshi.", audience: "all" },
+        },
       ],
       finishReason: "tool_use",
     });
@@ -185,7 +196,11 @@ describe("Resident", () => {
   });
 
   it("adds events to working memory", async () => {
-    const model = new MockModelProvider({ content: "", toolCalls: [{ id: "tc1", name: "wait", arguments: {} }], finishReason: "tool_use" });
+    const model = new MockModelProvider({
+      content: "",
+      toolCalls: [{ id: "tc1", name: "wait", arguments: {} }],
+      finishReason: "tool_use",
+    });
     const resident = new Resident({ character: makeCharacter(), model, memory });
 
     const event: PresenceEvent = {

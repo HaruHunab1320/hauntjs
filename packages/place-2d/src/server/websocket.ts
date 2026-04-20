@@ -1,8 +1,8 @@
-import { WebSocketServer, WebSocket } from "ws";
-import type { RuntimeInterface, RoomId, GuestId } from "@hauntjs/core";
-import { guestId, roomId, addGuest, moveGuest, affordanceId } from "@hauntjs/core";
+import type { GuestId, RoomId, RuntimeInterface } from "@hauntjs/core";
+import { addGuest, affordanceId, guestId, moveGuest, roomId } from "@hauntjs/core";
+import { WebSocket, WebSocketServer } from "ws";
+import type { PublicPlaceState, ServerMessage } from "./protocol.js";
 import { ClientMessage } from "./protocol.js";
-import type { ServerMessage, PublicPlaceState } from "./protocol.js";
 
 interface GuestSession {
   ws: WebSocket;
@@ -264,9 +264,14 @@ export class Place2DServer {
 
     // For now, guests can trigger affordances — the runtime will handle state changes
     // In the future, this could go through the runtime as a guest action
-    const aff = this.options.runtime.place.rooms.get(session.currentRoom)?.affordances.get(affordanceId(affId));
+    const aff = this.options.runtime.place.rooms
+      .get(session.currentRoom)
+      ?.affordances.get(affordanceId(affId));
     if (!aff) {
-      this.send(session.ws, { type: "error", message: `Affordance "${affId}" not found in this room` });
+      this.send(session.ws, {
+        type: "error",
+        message: `Affordance "${affId}" not found in this room`,
+      });
       return;
     }
 
@@ -277,7 +282,10 @@ export class Place2DServer {
     }
 
     if (action.availableWhen && !action.availableWhen(aff.state)) {
-      this.send(session.ws, { type: "error", message: `Action "${actionId}" not available right now` });
+      this.send(session.ws, {
+        type: "error",
+        message: `Action "${actionId}" not available right now`,
+      });
       return;
     }
 
@@ -326,7 +334,9 @@ export class Place2DServer {
   private async handleApproach(session: GuestSession, affId: string): Promise<void> {
     if (!session.currentRoom) return;
 
-    const aff = this.options.runtime.place.rooms.get(session.currentRoom)?.affordances.get(affordanceId(affId));
+    const aff = this.options.runtime.place.rooms
+      .get(session.currentRoom)
+      ?.affordances.get(affordanceId(affId));
     if (!aff) return;
 
     await this.options.runtime.emit({
@@ -355,14 +365,16 @@ export class Place2DServer {
       });
 
       // Emit to runtime (fire and forget — the guest is gone)
-      this.options.runtime.emit({
-        type: "guest.left",
-        guestId: session.guestId,
-        roomId,
-        at: new Date(),
-      }).catch(() => {
-        // Guest already disconnected, ignore errors
-      });
+      this.options.runtime
+        .emit({
+          type: "guest.left",
+          guestId: session.guestId,
+          roomId,
+          at: new Date(),
+        })
+        .catch(() => {
+          // Guest already disconnected, ignore errors
+        });
     }
   }
 

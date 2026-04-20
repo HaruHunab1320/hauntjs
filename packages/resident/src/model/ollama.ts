@@ -1,8 +1,8 @@
 import type {
-  ModelProvider,
+  ChatMessage,
   ChatRequest,
   ChatResponse,
-  ChatMessage,
+  ModelProvider,
   ToolCall,
   ToolDefinition,
 } from "./types.js";
@@ -97,13 +97,8 @@ export class OllamaProvider implements ModelProvider {
     return this.fromOllamaResponse(data);
   }
 
-  private toOllamaMessages(
-    systemPrompt: string,
-    messages: ChatMessage[],
-  ): OllamaMessage[] {
-    const result: OllamaMessage[] = [
-      { role: "system", content: systemPrompt },
-    ];
+  private toOllamaMessages(systemPrompt: string, messages: ChatMessage[]): OllamaMessage[] {
+    const result: OllamaMessage[] = [{ role: "system", content: systemPrompt }];
 
     for (const m of messages) {
       if (m.role === "system") continue;

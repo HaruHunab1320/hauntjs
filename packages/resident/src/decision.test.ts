@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseDecision } from "./decision.js";
 import type { ChatResponse } from "./model/types.js";
 
@@ -48,9 +48,7 @@ describe("parseDecision", () => {
     const response: ChatResponse = {
       content: "",
       finishReason: "tool_use",
-      toolCalls: [
-        { id: "tc1", name: "move", arguments: { toRoom: "study" } },
-      ],
+      toolCalls: [{ id: "tc1", name: "move", arguments: { toRoom: "study" } }],
     };
 
     const action = parseDecision(response);

@@ -1,14 +1,18 @@
-import Fastify from "fastify";
 import { join } from "node:path";
-import { Runtime, TickScheduler, addGuest, guestId } from "@hauntjs/core";
 import type { ResidentState } from "@hauntjs/core";
-import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
-import { Resident, SqliteMemoryStore, createModelProvider } from "@hauntjs/resident";
+import { addGuest, guestId, Runtime, TickScheduler } from "@hauntjs/core";
 import { poe } from "@hauntjs/demo-roost";
+import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
+import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
+import Fastify from "fastify";
 
 const WS_PORT = Number(process.env.WS_PORT ?? 3002);
 const HTTP_PORT = Number(process.env.PORT ?? 3333);
-const MODEL_PROVIDER = (process.env.HAUNT_MODEL ?? "gemini") as "anthropic" | "openai" | "ollama" | "gemini";
+const MODEL_PROVIDER = (process.env.HAUNT_MODEL ?? "gemini") as
+  | "anthropic"
+  | "openai"
+  | "ollama"
+  | "gemini";
 const TICK_INTERVAL_MS = Number(process.env.TICK_INTERVAL ?? 90 * 1000); // 90 seconds default in dev
 
 async function start(): Promise<void> {
@@ -56,7 +60,9 @@ async function start(): Promise<void> {
     residentMind: residentMind,
     onGuestReturn: (guestId) => {
       const guest = place.guests.get(guestId);
-      console.log(`  [Roost] returning guest: ${guest?.name ?? guestId} (visit #${guest?.visitCount})`);
+      console.log(
+        `  [Roost] returning guest: ${guest?.name ?? guestId} (visit #${guest?.visitCount})`,
+      );
       tick.scheduler?.fireImmediate().catch(() => {});
     },
   });
@@ -95,10 +101,7 @@ async function start(): Promise<void> {
       );
     } else if (event.type === "resident.moved") {
       console.log(`  [Poe] moved: ${event.from} → ${event.to}`);
-      await adapter.applyAction(
-        { type: "move", toRoom: event.to },
-        place,
-      );
+      await adapter.applyAction({ type: "move", toRoom: event.to }, place);
     } else if (event.type === "resident.acted") {
       console.log(`  [Poe] acted: ${event.affordanceId}:${event.actionId}`);
       await adapter.applyAction(
@@ -109,7 +112,16 @@ async function start(): Promise<void> {
 
     // Send debug snapshot if debug mode is on
     if (process.env.HAUNT_DEBUG === "1" && adapter.getServer()) {
-      const sensors: Array<{ id: string; roomId: string; roomName: string; modality: string; name: string; enabled: boolean; fidelity: string; reach: string }> = [];
+      const sensors: Array<{
+        id: string;
+        roomId: string;
+        roomName: string;
+        modality: string;
+        name: string;
+        enabled: boolean;
+        fidelity: string;
+        reach: string;
+      }> = [];
       for (const room of place.rooms.values()) {
         for (const sensor of room.sensors.values()) {
           sensors.push({
@@ -176,7 +188,9 @@ async function start(): Promise<void> {
   console.log(`  Tick:      every ${TICK_INTERVAL_MS / 1000}s`);
   console.log(`  HTTP:      http://localhost:${HTTP_PORT}`);
   console.log(`  WebSocket: ws://localhost:${WS_PORT}`);
-  console.log(`  Client:    Run "pnpm --filter @hauntjs/place-2d dev" and open http://localhost:5173\n`);
+  console.log(
+    `  Client:    Run "pnpm --filter @hauntjs/place-2d dev" and open http://localhost:5173\n`,
+  );
 
   // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {

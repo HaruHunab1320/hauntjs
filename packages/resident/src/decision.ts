@@ -1,5 +1,5 @@
-import type { ResidentAction, GuestId } from "@hauntjs/core";
-import { guestId, roomId, affordanceId } from "@hauntjs/core";
+import type { GuestId, ResidentAction } from "@hauntjs/core";
+import { affordanceId, guestId, roomId } from "@hauntjs/core";
 import type { ChatResponse } from "./model/types.js";
 
 /**
@@ -37,10 +37,7 @@ export function parseAllDecisions(response: ChatResponse): ResidentAction[] {
   return actions;
 }
 
-function parseToolCall(
-  name: string,
-  args: Record<string, unknown>,
-): ResidentAction | null {
+function parseToolCall(name: string, args: Record<string, unknown>): ResidentAction | null {
   switch (name) {
     case "speak":
       return parseSpeakAction(args);

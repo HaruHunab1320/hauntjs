@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { MockModelProvider } from "./mock.js";
 import type { ChatRequest } from "./types.js";
 
@@ -27,10 +27,7 @@ describe("MockModelProvider", () => {
   });
 
   it("cycles through multiple responses", async () => {
-    const mock = new MockModelProvider([
-      { content: "First" },
-      { content: "Second" },
-    ]);
+    const mock = new MockModelProvider([{ content: "First" }, { content: "Second" }]);
     const r1 = await mock.chat(makeRequest());
     const r2 = await mock.chat(makeRequest());
     const r3 = await mock.chat(makeRequest());
@@ -42,9 +39,7 @@ describe("MockModelProvider", () => {
   it("returns tool calls when configured", async () => {
     const mock = new MockModelProvider({
       content: "",
-      toolCalls: [
-        { id: "tc1", name: "speak", arguments: { text: "Hello" } },
-      ],
+      toolCalls: [{ id: "tc1", name: "speak", arguments: { text: "Hello" } }],
       finishReason: "tool_use",
     });
     const response = await mock.chat(makeRequest());
@@ -54,10 +49,7 @@ describe("MockModelProvider", () => {
   });
 
   it("resets call history and index", async () => {
-    const mock = new MockModelProvider([
-      { content: "First" },
-      { content: "Second" },
-    ]);
+    const mock = new MockModelProvider([{ content: "First" }, { content: "Second" }]);
     await mock.chat(makeRequest());
     mock.reset();
     expect(mock.calls).toHaveLength(0);

@@ -1,22 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { addAffordance, addGuest, addRoom, connectRooms, createPlace } from "./place.js";
 import { Runtime } from "./runtime.js";
-import {
-  createPlace,
-  addRoom,
-  connectRooms,
-  addAffordance,
-  addGuest,
-} from "./place.js";
-import { roomId, affordanceId, guestId } from "./types.js";
-import type {
-  Place,
-  ResidentState,
-  ResidentAction,
-  PresenceEvent,
-  Affordance,
-  ResidentInterface,
-} from "./types.js";
 import { omniscientSensor } from "./sensors/omniscient.js";
+import type {
+  Affordance,
+  Place,
+  PresenceEvent,
+  ResidentAction,
+  ResidentInterface,
+  ResidentState,
+} from "./types.js";
+import { affordanceId, guestId, roomId } from "./types.js";
 
 function makeTestPlace(): Place {
   const place = createPlace({ id: "roost", name: "The Roost" });
@@ -78,10 +72,7 @@ function makeResident(): ResidentState {
   };
 }
 
-function makeRuntime(
-  place?: Place,
-  residentMind?: ResidentInterface,
-): Runtime {
+function makeRuntime(place?: Place, residentMind?: ResidentInterface): Runtime {
   return new Runtime({
     place: place ?? makeTestPlace(),
     resident: makeResident(),
@@ -93,9 +84,7 @@ describe("Runtime", () => {
   describe("lifecycle", () => {
     it("throws when emitting before start", async () => {
       const rt = makeRuntime();
-      await expect(
-        rt.emit({ type: "tick", at: new Date() }),
-      ).rejects.toThrow(/not running/);
+      await expect(rt.emit({ type: "tick", at: new Date() })).rejects.toThrow(/not running/);
     });
 
     it("starts and stops cleanly", async () => {
@@ -352,7 +341,9 @@ describe("Runtime", () => {
       await rt.start();
 
       const events: PresenceEvent[] = [];
-      rt.eventBus.on("*", (e) => { events.push(e); });
+      rt.eventBus.on("*", (e) => {
+        events.push(e);
+      });
 
       addGuest(rt.place, { id: guestId("g1"), name: "Takeshi" });
       await rt.emit({
@@ -389,7 +380,9 @@ describe("Runtime", () => {
       await rt.start();
 
       const events: PresenceEvent[] = [];
-      rt.eventBus.on("*", (e) => { events.push(e); });
+      rt.eventBus.on("*", (e) => {
+        events.push(e);
+      });
 
       // Add guest
       addGuest(rt.place, { id: guestId("takeshi"), name: "Takeshi" });

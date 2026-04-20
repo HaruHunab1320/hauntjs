@@ -1,4 +1,4 @@
-import type { Sensor, SensorId, RoomId, SensorFidelity, SensorReach } from "../types.js";
+import type { RoomId, Sensor, SensorFidelity, SensorId, SensorReach } from "../types.js";
 import { sensorId } from "../types.js";
 
 export interface TextSensorOptions {

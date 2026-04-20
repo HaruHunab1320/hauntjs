@@ -1,14 +1,14 @@
+import type { EventBus } from "../event-bus.js";
 import type {
+  ActionResult,
+  GuestId,
+  Perception,
   Place,
   PresenceEvent,
-  Perception,
   ResidentAction,
-  ActionResult,
-  ResidentState,
   ResidentInterface,
-  GuestId,
+  ResidentState,
 } from "../types.js";
-import type { EventBus } from "../event-bus.js";
 
 /**
  * The pipeline accumulator — flows through each system in order.
