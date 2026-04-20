@@ -271,6 +271,14 @@ function getActionStateUpdate(
       return { lit: false };
     case "leave-note":
       return { hasNote: true };
+    case "turn-on":
+      return { on: true };
+    case "turn-off":
+      return { on: false };
+    case "open":
+      return { open: true };
+    case "close":
+      return { open: false };
     default:
       return null;
   }

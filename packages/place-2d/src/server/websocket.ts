@@ -281,9 +281,25 @@ export class Place2DServer {
       return;
     }
 
+    // Apply sensor effects declared by this action
+    if (action.affects) {
+      for (const effect of action.affects) {
+        for (const room of this.options.runtime.place.rooms.values()) {
+          const sensor = room.sensors.get(effect.sensorId as never);
+          if (sensor) {
+            if ("enabled" in effect.change) {
+              sensor.enabled = effect.change.enabled;
+            } else if ("fidelity" in effect.change) {
+              sensor.fidelity = effect.change.fidelity;
+            }
+            break;
+          }
+        }
+      }
+    }
+
     // Emit affordance change event
     const prevState = { ...aff.state };
-    // Apply simple state changes
     const stateUpdate = getInteractionStateUpdate(actionId);
     if (stateUpdate) {
       Object.assign(aff.state, stateUpdate);
@@ -376,6 +392,14 @@ function getInteractionStateUpdate(actionId: string): Record<string, unknown> | 
       return { lit: false };
     case "leave-note":
       return { hasNote: true };
+    case "turn-on":
+      return { on: true };
+    case "turn-off":
+      return { on: false };
+    case "open":
+      return { open: true };
+    case "close":
+      return { open: false };
     default:
       return null;
   }

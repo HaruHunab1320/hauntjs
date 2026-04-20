@@ -1,4 +1,4 @@
-import { roomId, affordanceId, presenceSensor, sightSensor, soundSensor, mutedAudioSensor, stateSensor } from "@hauntjs/core";
+import { roomId, affordanceId, sensorId, presenceSensor, sightSensor, soundSensor, mutedAudioSensor, stateSensor } from "@hauntjs/core";
 import type { Room, Affordance } from "@hauntjs/core";
 
 // --- The Roost: Room definitions ---
@@ -216,6 +216,68 @@ const fountain: Affordance = {
   sensable: true,
 };
 
+// --- Sensor-affecting affordances ---
+
+const studyLamp: Affordance = {
+  id: affordanceId("study-lamp"),
+  roomId: roomId("study"),
+  kind: "lamp",
+  name: "Reading Lamp",
+  description: "A brass reading lamp on the desk. It casts a warm circle of light.",
+  state: { on: true },
+  actions: [
+    {
+      id: "turn-off",
+      name: "Turn off the lamp",
+      description: "Click the lamp off. The study goes dark.",
+      availableWhen: (state) => state.on === true,
+      affects: [
+        { sensorId: sensorId("study.sight"), change: { enabled: false } },
+      ],
+    },
+    {
+      id: "turn-on",
+      name: "Turn on the lamp",
+      description: "Click the lamp on. Light fills the study.",
+      availableWhen: (state) => state.on === false,
+      affects: [
+        { sensorId: sensorId("study.sight"), change: { enabled: true } },
+      ],
+    },
+  ],
+  sensable: true,
+};
+
+const parlorDoor: Affordance = {
+  id: affordanceId("parlor-door"),
+  roomId: roomId("parlor"),
+  kind: "door",
+  name: "Parlor Door",
+  description: "A heavy wooden door between the parlor and the lobby. When closed, sound doesn't carry through.",
+  state: { open: true },
+  actions: [
+    {
+      id: "close",
+      name: "Close the door",
+      description: "Pull the door shut. The parlor becomes quieter.",
+      availableWhen: (state) => state.open === true,
+      affects: [
+        { sensorId: sensorId("parlor.adjacent-sound"), change: { enabled: false } },
+      ],
+    },
+    {
+      id: "open",
+      name: "Open the door",
+      description: "Push the door open. Sound flows between the rooms again.",
+      availableWhen: (state) => state.open === false,
+      affects: [
+        { sensorId: sensorId("parlor.adjacent-sound"), change: { enabled: true } },
+      ],
+    },
+  ],
+  sensable: true,
+};
+
 // --- Export ---
 
 export const ROOST_ROOMS: Room[] = [lobby, study, parlor, garden];
@@ -225,7 +287,9 @@ export const ROOST_AFFORDANCES: Affordance[] = [
   noticeBoard,
   desk,
   bookshelf,
+  studyLamp,
   piano,
+  parlorDoor,
   fountain,
 ];
 

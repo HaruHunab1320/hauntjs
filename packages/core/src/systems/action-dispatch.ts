@@ -140,6 +140,11 @@ export class ActionDispatchSystem implements System {
       };
     }
 
+    // Apply sensor effects declared by this action
+    if (affordanceAction.affects) {
+      applySensorEffects(affordanceAction.affects, ctx);
+    }
+
     const event: PresenceEvent = {
       type: "resident.acted",
       affordanceId: affordance.id,
@@ -148,5 +153,28 @@ export class ActionDispatchSystem implements System {
     };
 
     return { success: true, event };
+  }
+}
+
+/** Apply sensor changes declared in AffordanceAction.affects */
+function applySensorEffects(
+  affects: import("../types.js").SensorAffect[],
+  ctx: SystemContext,
+): void {
+  for (const effect of affects) {
+    // Find the sensor across all rooms
+    for (const room of ctx.place.rooms.values()) {
+      const sensor = room.sensors.get(effect.sensorId as never);
+      if (sensor) {
+        if ("enabled" in effect.change) {
+          sensor.enabled = effect.change.enabled;
+          console.log(`  [Sensor] ${sensor.name} ${sensor.enabled ? "enabled" : "disabled"}`);
+        } else if ("fidelity" in effect.change) {
+          sensor.fidelity = effect.change.fidelity;
+          console.log(`  [Sensor] ${sensor.name} fidelity changed to ${sensor.fidelity.kind}`);
+        }
+        break;
+      }
+    }
   }
 }
