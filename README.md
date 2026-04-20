@@ -2,7 +2,7 @@
 
 > A TypeScript framework for building **places with minds** — inhabited, persistent, relational AI environments. Not chatbots. Not agent swarms. Places you enter, leave, and return to.
 
-**Status:** v0.1.0 — working proof of concept with a reference demo.
+**Status:** v0.2 — sensors, systems pipeline, and presence modes shipped.
 **Name:** `Haunt`. The double meaning is the thesis: a haunt is a place you frequent, and to haunt is to persistently inhabit.
 
 ---

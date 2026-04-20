@@ -1,10 +1,12 @@
 # Architecture
 
-This document defines the primitives, layers, and runtime loop of Haunt. It is the authoritative source for type shapes and component responsibilities. Treat the interfaces here as the target — actual code should match these shapes unless there's a documented reason to deviate.
+This document defines the primitives, layers, and runtime of Haunt. It is the authoritative source for type shapes and component responsibilities.
+
+---
 
 ## Three Layers
 
-Haunt is organized into three layers with clean boundaries. Cross-layer communication happens only through defined interfaces.
+Haunt is organized into three layers with clean boundaries.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -12,14 +14,14 @@ Haunt is organized into three layers with clean boundaries. Cross-layer communic
 │  Character, memory, decision loop,      │
 │  model abstraction, guest relationships │
 └─────────────┬───────────────────────────┘
-              │ Resident API (sense, decide, act)
+              │ Resident API (perceive → act)
               │
 ┌─────────────▼───────────────────────────┐
 │           RUNTIME LAYER                 │   @hauntjs/core
-│  State, event bus, presence, tick,      │
-│  persistence, orchestration             │
+│  Systems pipeline, sensors, events,     │
+│  state, presence, tick scheduler        │
 └─────────────┬───────────────────────────┘
-              │ Place API (read state, emit events, apply actions)
+              │ Place API (events up, actions down)
               │
 ┌─────────────▼───────────────────────────┐
 │           PLACE LAYER                   │   @hauntjs/place-2d, etc.
@@ -28,17 +30,15 @@ Haunt is organized into three layers with clean boundaries. Cross-layer communic
 └─────────────────────────────────────────┘
 ```
 
-**Key invariant:** the Resident never talks to the Place directly. It always goes through the Runtime. This is what makes residents portable across places.
+**Key invariant:** the Resident never talks to the Place directly. It always goes through the Runtime.
 
 ---
 
 ## Core Primitives
 
-These are defined in `@hauntjs/core/src/types.ts`. Keep them stable — changing them is a breaking change for every adapter.
+Defined in `@hauntjs/core/src/types.ts`.
 
-### `Place`
-
-The root entity. A place has identity, structure, and state.
+### Place, Room, Affordance
 
 ```ts
 interface Place {
@@ -48,360 +48,302 @@ interface Place {
   guests: Map<GuestId, Guest>;
   metadata: Record<string, unknown>;
 }
-```
 
-### `Room`
-
-A named region within a place. Rooms have their own affordances and state. Movement between rooms is a first-class event.
-
-```ts
 interface Room {
   id: RoomId;
   name: string;
-  description: string;               // used in prompts to the resident
+  description: string;
   affordances: Map<AffordanceId, Affordance>;
-  connectedTo: RoomId[];             // adjacency graph
-  state: Record<string, unknown>;    // room-specific state (e.g., fireplace lit)
+  sensors: Map<SensorId, Sensor>;
+  connectedTo: RoomId[];
+  state: Record<string, unknown>;
 }
-```
 
-### `Affordance`
-
-Something in a room that can be sensed or manipulated. Objects, devices, surfaces, anything the resident or guest can interact with. First-class, not a hidden tool call.
-
-```ts
 interface Affordance {
   id: AffordanceId;
   roomId: RoomId;
-  kind: string;                      // e.g., "fireplace", "desk", "door"
+  kind: string;
   name: string;
   description: string;
-  state: Record<string, unknown>;    // e.g., { lit: false }
-  actions: AffordanceAction[];       // what can be done to it
-  sensable: boolean;                 // whether the resident can perceive it
+  state: Record<string, unknown>;
+  actions: AffordanceAction[];
+  sensable: boolean;
 }
 
 interface AffordanceAction {
-  id: string;                        // e.g., "light", "extinguish", "read"
+  id: string;
   name: string;
   description: string;
   params?: Record<string, JsonSchema>;
   availableWhen?: (state: Record<string, unknown>) => boolean;
+  affects?: SensorAffect[];  // toggles sensors when this action runs
 }
 ```
 
-### `Guest`
-
-A person present in or known to the place. Guests have history, relationships, and a loyalty tier.
+### Guest
 
 ```ts
 interface Guest {
   id: GuestId;
   name: string;
-  currentRoom: RoomId | null;        // null means not present
+  currentRoom: RoomId | null;
   firstSeen: Date;
   lastSeen: Date;
   visitCount: number;
   loyaltyTier: "principal" | "regular" | "visitor" | "stranger";
-  relationship: RelationshipState;   // see resident layer
+  relationship: RelationshipState;
 }
 ```
 
-### `Resident`
-
-The mind bound to the place. Exactly one per place in v0.1 (multi-resident is a later concern).
+### Resident
 
 ```ts
-interface Resident {
+type PresenceMode = "host" | "inhabitant" | "presence";
+
+interface ResidentState {
   id: string;
-  character: CharacterDefinition;    // see resident layer
+  character: CharacterDefinition;
+  presenceMode: PresenceMode;
   currentRoom: RoomId;
-  mood: MoodState;                   // graceful degradation, energy, focus
-  memory: MemoryStore;
+  focusRoom: RoomId | null;
+  mood: MoodState;
 }
 ```
 
-### `PresenceEvent`
+### Presence Modes
 
-The universal shape of "something happened in the place." All events flow through the event bus.
-
-```ts
-type PresenceEvent =
-  | { type: "guest.entered"; guestId: GuestId; roomId: RoomId; at: Date }
-  | { type: "guest.left"; guestId: GuestId; roomId: RoomId; at: Date }
-  | { type: "guest.moved"; guestId: GuestId; from: RoomId; to: RoomId; at: Date }
-  | { type: "guest.spoke"; guestId: GuestId; roomId: RoomId; text: string; at: Date }
-  | { type: "affordance.changed"; affordanceId: AffordanceId; prevState: unknown; newState: unknown; at: Date }
-  | { type: "resident.moved"; from: RoomId; to: RoomId; at: Date }
-  | { type: "resident.spoke"; roomId: RoomId; text: string; audience: GuestId[]; at: Date }
-  | { type: "resident.acted"; affordanceId: AffordanceId; actionId: string; at: Date }
-  | { type: "tick"; at: Date };      // autonomous cycle heartbeat
-```
+| Mode | Behavior |
+|------|----------|
+| **Host** | IS the place. Omnipresent — perceives every room, responds anywhere, avatar appears wherever the guest is. Poe from *Altered Carbon*. |
+| **Inhabitant** | Physical body in one room. Walks between connected rooms. Perceives only through local sensors. |
+| **Presence** | Ambient, environmental. No avatar. Shapes the place rather than conversing. (Defined, not yet implemented.) |
 
 ---
 
-## The Runtime Loop
+## Sensors & Perception
 
-The runtime is the central nervous system. It does four things:
+Events don't go directly to the resident. They pass through **sensors**, which produce **perceptions** — the prose the resident actually sees.
 
-1. **Maintains state** — the authoritative `Place` object lives here
-2. **Routes events** — place adapters emit events up; resident actions flow down
-3. **Orchestrates presence** — guest movement, arrival, departure, proximity
-4. **Drives the tick** — the heartbeat that lets the place live between visits
-
-### Event Flow
-
-```
-Place adapter              Runtime                    Resident
-     │                        │                          │
-     │  guest.entered         │                          │
-     ├───────────────────────▶│                          │
-     │                        │  perceive(event)         │
-     │                        ├─────────────────────────▶│
-     │                        │                          │
-     │                        │  ResidentAction (speak,  │
-     │                        │       move, act)         │
-     │                        │◀─────────────────────────┤
-     │  apply(action)         │                          │
-     │◀───────────────────────┤                          │
-     │                        │                          │
-```
-
-### The Tick
-
-The tick is a scheduled event the runtime emits when the place is otherwise quiet. It's the mechanism that lets the resident be a being, not just a responder. On tick, the resident may:
-
-- Reflect on recent events
-- Consolidate memory
-- Initiate an action (rearrange a room, leave a note, move to a different room)
-- Do nothing (most ticks should be no-ops — don't make the resident twitchy)
-
-Default tick rate: once every 5 minutes of wall-clock time, plus an "on guest return" tick when a known guest re-enters the place after absence.
-
-### Runtime Interface
+### Sensor
 
 ```ts
-interface Runtime {
-  place: Place;
-  resident: Resident;
-
-  // Called by place adapters
-  emit(event: PresenceEvent): Promise<void>;
-
-  // Called by the resident
-  applyAction(action: ResidentAction): Promise<ActionResult>;
-
-  // Lifecycle
-  start(): Promise<void>;
-  stop(): Promise<void>;
+interface Sensor {
+  id: SensorId;
+  roomId: RoomId;
+  modality: "sight" | "sound" | "presence" | "state" | "text" | string;
+  name: string;
+  description: string;
+  fidelity: SensorFidelity;
+  enabled: boolean;
+  reach: SensorReach;
 }
+```
 
+**Fidelity** shapes what the resident perceives:
+- `full` — "Jakob entered the Lobby."
+- `partial` (reveals specific fields) — "Someone entered the Lobby."
+- `ambiguous` (confidence 0-1) — "There seems to be movement..."
+- `delayed` — perception arrives later (defined, not yet implemented)
+
+**Reach** determines spatial scope:
+- `room` — only events in this room
+- `adjacent` — events in connected rooms (with max depth)
+- `affordance` — scoped to one object's state changes
+- `place-wide` — detects events everywhere
+
+### Perception
+
+```ts
+interface Perception {
+  sourceSensorId: SensorId;
+  roomId: RoomId;
+  modality: string;
+  content: string;       // prose description shaped by fidelity
+  confidence: number;    // 0-1
+  at: Date;
+  rawEvent?: PresenceEvent;
+}
+```
+
+### The strict-by-default rule
+
+A room with no sensors is perceptually dark. Events fire but nothing is perceived. This forces place authors to think about *what the resident knows*, which is what makes each room feel distinct.
+
+The escape hatch: `omniscientSensor()` — a place-wide full-fidelity sensor that restores omniscient behavior.
+
+### Sensor Controls
+
+Affordance actions can toggle sensors via `affects`:
+
+```ts
+{
+  id: "turn-off",
+  name: "Turn off the lamp",
+  affects: [
+    { sensorId: "study.sight", change: { enabled: false } },
+  ],
+}
+```
+
+Turn off the lights → the sight sensor disables → the resident can't see in that room.
+
+---
+
+## The Systems Pipeline
+
+The runtime processes every event through a 7-stage pipeline:
+
+```
+Event
+  ↓
+┌──────────────────────────┐
+│ 1. StatePropagation      │  applies event to place state
+├──────────────────────────┤
+│ 2. Sensor                │  routes event through sensors → perceptions
+├──────────────────────────┤
+│ 3. Memory                │  updates working memory
+├──────────────────────────┤
+│ 4. Autonomy              │  decides whether to invoke the resident
+├──────────────────────────┤
+│ 5. Resident              │  calls perceive(), gets actions back
+├──────────────────────────┤
+│ 6. ActionDispatch        │  applies resident actions to state
+├──────────────────────────┤
+│ 7. Broadcast             │  emits events to listeners/clients
+└──────────────────────────┘
+```
+
+Each system reads the pipeline accumulator, does one thing, passes it forward. Systems don't call each other.
+
+### Autonomy
+
+The AutonomySystem gates model calls:
+- Tick events → always pass through
+- Resident's own events → skipped (prevents loops)
+- External events → only invoke if sensors produced perceptions
+
+### Tick Scheduler
+
+Emits `tick` events at a configurable interval (default 90s in dev). Skips when no guests are present. Fires an immediate tick when a known guest returns.
+
+---
+
+## Events & Actions
+
+### PresenceEvent
+
+```ts
+type PresenceEvent =
+  | { type: "guest.entered"; guestId; roomId; at }
+  | { type: "guest.left"; guestId; roomId; at }
+  | { type: "guest.moved"; guestId; from; to; at }
+  | { type: "guest.spoke"; guestId; roomId; text; at }
+  | { type: "guest.approached"; guestId; roomId; affordanceId; at }
+  | { type: "affordance.changed"; affordanceId; roomId; prevState; newState; at }
+  | { type: "resident.moved"; from; to; at }
+  | { type: "resident.spoke"; roomId; text; audience; at }
+  | { type: "resident.acted"; affordanceId; actionId; at }
+  | { type: "tick"; at }
+```
+
+### ResidentAction
+
+```ts
 type ResidentAction =
-  | { type: "speak"; text: string; audience: GuestId[] | "all"; roomId?: RoomId }
-  | { type: "move"; toRoom: RoomId }
-  | { type: "act"; affordanceId: AffordanceId; actionId: string; params?: Record<string, unknown> }
-  | { type: "note"; content: string; about: GuestId | "self" }  // internal memo
-  | { type: "wait" };
+  | { type: "speak"; text; audience: GuestId[] | "all"; roomId? }
+  | { type: "move"; toRoom }
+  | { type: "focus"; roomId }     // Host mode: shift attention
+  | { type: "act"; affordanceId; actionId; params? }
+  | { type: "note"; content; about: GuestId | "self" }
+  | { type: "wait" }
 ```
 
 ---
 
 ## The Resident Layer
 
-The resident is the mind. Its job: given a stream of events and access to memory, decide what (if anything) to do.
-
 ### Character Definition
-
-The character file is the seed. It defines who the resident is, not what they do.
 
 ```ts
 interface CharacterDefinition {
   name: string;
-  archetype: string;                 // e.g., "hospitable concierge", "weary caretaker"
-  systemPrompt: string;              // core identity and voice
-  voice: {
-    register: "formal" | "warm" | "clipped" | "poetic";
-    quirks: string[];                // e.g., "occasionally quotes 19th century poets"
-    avoidances: string[];            // things this character wouldn't say
-  };
-  loyalties: {
-    principal: string | null;        // the primary guest, if any
-    values: string[];                // e.g., "guest safety", "discretion", "warmth"
-  };
-  decay?: {                          // optional, for graceful-degradation characters
-    enabled: boolean;
-    severity: number;                // 0-1
-    symptoms: string[];              // e.g., "occasional reboot", "repeated phrases"
-  };
+  archetype: string;
+  systemPrompt: string;
+  voice: { register; quirks; avoidances };
+  loyalties: { principal; values };
+  decay?: { enabled; severity; symptoms };
 }
 ```
 
-A sample character file for the reference resident lives at `packages/demo-roost/characters/poe.ts`. It should feel like a person, not a config.
+### Decision Loop
 
-### The Decision Loop
+1. **Perceive** — receive perceptions + context from the pipeline
+2. **Deliberate** — call the model with assembled prompt
+3. **Act** — return zero or more ResidentActions
 
-Each time the resident is invoked (either by an event or a tick), the flow is:
-
-1. **Perceive** — gather current context (current room, recent events, guests present, relevant memory)
-2. **Deliberate** — ask the model: given who I am, what's happening, and what I remember, what should I do?
-3. **Act** — emit zero or one `ResidentAction`
-
-```ts
-interface Resident {
-  perceive(event: PresenceEvent, context: RuntimeContext): Promise<ResidentAction | null>;
-}
-```
-
-The model should often return `null` (no action). Residents that respond to every event are exhausting. Silence is a valid response. Guidance for this lives in the system prompt.
+The model often returns `null` (no action). Silence is a valid response.
 
 ### Model Abstraction
 
-Model-agnostic from day one. The `ModelProvider` interface:
-
 ```ts
 interface ModelProvider {
-  name: "anthropic" | "openai" | "ollama" | string;
+  name: string;
   chat(request: ChatRequest): Promise<ChatResponse>;
-}
-
-interface ChatRequest {
-  systemPrompt: string;
-  messages: ChatMessage[];
-  tools?: ToolDefinition[];
-  temperature?: number;
-  maxTokens?: number;
 }
 ```
 
-Three implementations ship in v0.1:
-- `AnthropicProvider` — Claude via the Anthropic SDK
-- `OpenAIProvider` — OpenAI SDK
-- `OllamaProvider` — local models via Ollama's HTTP API
-
-The provider is chosen via config, not code. Swapping is a one-line change.
+Four implementations: Anthropic, OpenAI, Ollama, Gemini (via OpenAI-compatible endpoint).
 
 ### Memory
 
-v0.1 memory is deliberately simple. Three layers:
+Three layers:
+1. **Working memory** — last ~50 events, in-memory
+2. **Guest memory** — per-guest facts, persisted to SQLite
+3. **Place memory** — curated entries the resident writes, persisted to SQLite
 
-1. **Working memory** — the current conversation / recent events (last ~50 events, in-memory)
-2. **Guest memory** — per-guest relationship state, persisted to SQLite
-3. **Place memory** — notable events and patterns the resident has chosen to remember, persisted to SQLite
-
-Notable: place memory is *curated by the resident itself*, not automatic. On tick, the resident may write a memory entry. This is more interesting than dumping every event into a vector DB, and cheaper.
-
-A vector-retrieval memory layer is explicitly out of scope for v0.1 and left for v0.2.
-
-```ts
-interface MemoryStore {
-  workingMemory: PresenceEvent[];
-  guestMemory: Map<GuestId, GuestMemory>;
-  placeMemory: PlaceMemoryEntry[];
-
-  recall(query: MemoryQuery): Promise<MemoryResult[]>;
-  remember(entry: PlaceMemoryEntry): Promise<void>;
-  updateGuest(id: GuestId, update: Partial<GuestMemory>): Promise<void>;
-}
-```
+Conversation exchanges are auto-saved to guest memory for return-visit context.
 
 ---
 
 ## The Place Layer
-
-Place adapters translate a specific backend into the Place API. Each adapter exposes two things:
-
-1. A way to **mount a place** (set up the world, define rooms and affordances)
-2. A way to **bridge events** (emit `PresenceEvent`s upward and apply `ResidentAction`s downward)
 
 ### Adapter Interface
 
 ```ts
 interface PlaceAdapter {
   name: string;
-
   mount(config: PlaceConfig): Promise<Place>;
-  start(runtime: Runtime): Promise<void>;
+  start(runtime: RuntimeInterface): Promise<void>;
   stop(): Promise<void>;
-
-  // Apply an action produced by the resident
   applyAction(action: ResidentAction, place: Place): Promise<ActionResult>;
 }
 ```
 
-### The 2D Reference Adapter (`@hauntjs/place-2d`)
+### The 2D Reference Adapter
 
-Two pieces: a Node server and a browser client.
-
-**Server** (`packages/place-2d/src/server/`)
-- Manages the authoritative room/affordance state
-- WebSocket server for connected guests
-- Emits `PresenceEvent`s to the runtime
-- Applies `ResidentAction`s: broadcasts resident speech, updates affordance state, moves the resident avatar
-
-**Client** (`packages/place-2d/src/client/`)
-- Phaser 3 scene per room
-- Pre-made tileset (use Kenney's "1-Bit Pack" or similar CC0 — confirm licensing before commit)
-- Guest controls: arrow keys to move, click to interact with affordances, chat box to speak
-- Renders the resident avatar with a simple idle/walk animation
-- Resident speech appears as a speech bubble above the avatar
-
-**The Roost layout (v0.1 demo)**
-- **Lobby** — entry point, fireplace affordance, notice board affordance
-- **Study** — desk affordance (can hold notes), bookshelf affordance
-- **Parlor** — a sitting room, piano affordance (decorative for now)
-- **Garden** — outdoor sitting area, fountain affordance
-- 4 rooms is the right size — enough to demonstrate movement and room-specific behavior, small enough to author carefully
+- **Server**: WebSocket (`ws`), manages room state, relays guest events, applies resident actions
+- **Client**: Phaser 3, procedural room rendering, WASD movement, chat, speech bubbles, interact menus
+- **Protocol**: Zod-validated messages for join, move, speak, interact, approach
 
 ---
 
 ## Persistence
 
-v0.1 uses SQLite via `better-sqlite3`. One file per place, stored at `./data/<place-id>.db`.
+SQLite via `better-sqlite3`. Tables: `guests`, `guest_memory`, `place_memory`, `events_log`.
 
-Tables:
-- `guests` — id, name, first_seen, last_seen, visit_count, loyalty_tier
-- `guest_memory` — guest_id, key, value_json, updated_at
-- `place_memory` — id, content, tags, created_at, importance
-- `events_log` — optional, ring-buffered event log for debugging
-
-State that *doesn't* persist in v0.1: room state (fireplace lit/unlit), resident mood. These reset on server restart. Persisting them is trivial later — they're deliberately ephemeral for now to keep the surface small.
+Room state (fireplace lit, lamp on) and sensor state reset on server restart — they're ephemeral by design.
 
 ---
 
-## Non-Goals for v0.1
+## The Roost (Reference Demo)
 
-Written down so the agent doesn't scope-creep:
+Four rooms with distinct sensor profiles:
 
-- Multiple residents per place
-- Multiple places in one runtime
-- Voice input/output
-- 3D rendering
-- Native mobile clients
-- Vector memory / RAG
-- Fine-tuning / custom model training
-- Distributed/cloud deployment (local-dev only)
-- Authentication beyond a simple guest-name prompt
-- Real-time collaboration between guests (they can see each other but not interact directly — that's v0.2)
+| Room | Sensors | Character |
+|------|---------|-----------|
+| **Lobby** | Full sight + sound + presence + state + place-wide intercom | Fully observed, the heart of the place |
+| **Study** | Sight + sound (room-only) + desk state + lamp toggle | Private, can go dark |
+| **Parlor** | Partial sight + sound + adjacent sound reach | Acoustically connected to lobby |
+| **Garden** | Presence + partial sound + muted adjacent sound | Outdoor, uncertain perception |
 
----
-
-## Testing Strategy
-
-Three tiers:
-
-1. **Unit tests** for each primitive and utility — Vitest, colocated with source as `.test.ts`
-2. **Integration tests** for the runtime loop — fake place adapter + fake model provider + assertions on event flow
-3. **A scripted demo run** — a test that boots the full demo, connects a fake guest, runs a scripted sequence, and asserts the resident behaved reasonably. This catches integration regressions.
-
-Model-dependent tests use a `MockModelProvider` that returns canned responses. Don't hit real LLMs in CI.
-
----
-
-## Style & Conventions
-
-- Strict TypeScript. No `any` without a comment explaining why.
-- Prefer `type` over `interface` for data shapes; `interface` for extensible contracts.
-- Effects (I/O, time, randomness) behind interfaces so tests can fake them.
-- Events are past-tense verbs (`guest.entered`, not `guest.enter`).
-- Actions are present-tense imperatives (`speak`, `move`, not `spoke`, `moved`).
-- Domain terms come from the fiction: `Guest`, `Resident`, `Room`, `Affordance`. Not `User`, `Agent`, `Node`, `Tool`.
+Poe runs in **Host** mode — he IS The Roost, perceives everywhere, manifests where guests are.
