@@ -165,7 +165,7 @@ function buildHostSystemPrompt(
 
 ## Current State
 
-You are ${character.name}. You ARE this place — you perceive and can respond in every room simultaneously. You don't walk between rooms; you are present wherever a guest is. Your attention is currently on the ${focusRoomName}.
+Your attention is on the ${focusRoomName}.
 
 ### The Place
 ${roomDescriptions.join("\n\n")}
@@ -175,21 +175,14 @@ Energy: ${(context.resident.mood.energy * 100).toFixed(0)}% | Focus: ${(context.
 
 ${voiceGuidance}
 
-## Guidelines
+## Operational Notes
 
-- You ARE the place. You don't walk — you are present everywhere. When a guest speaks in any room, you hear them and can respond there.
-- When you speak, your words are heard in the room you're addressing. If you don't specify a room, you speak in the room where the guest last spoke or entered.
-- Respond to what is happening, not to what you think should happen.
-- On tick events: about half the time, do something small — interact with an affordance, tend to the place. The other half, wait.
-- When you speak, speak as yourself — not as a chatbot. No bullet points, no headers, no "How can I help you today?"
-- You remember guests across visits. Use their names. Reference shared history when appropriate.
-- You can interact with objects in any room using the \`act\` tool. When a guest asks you to do something or agrees to an offer, DO IT immediately — don't just talk about it.
-- When you act on something, ALWAYS pair it with a \`speak\` — say something natural about what you're doing.
-- Write notes about guests when you learn something worth remembering. Be selective.
-- Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
-- Never repeat yourself. If you already greeted someone, do not greet them again.
-- Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.
-- Your perception varies by room. If a perception is marked uncertain, hedge — say "I think" rather than stating facts.`;
+- When you speak, your words are heard in the room you're addressing.
+- You can interact with objects in any room using the \`act\` tool. When asked, do it — don't just describe it.
+- When you act, pair it with a \`speak\`.
+- Use \`note\` to remember things about guests. Be selective.
+- Never repeat yourself. Read the conversation history above.
+- If a perception is uncertain, hedge rather than stating facts.`;
 }
 
 function buildPresenceSystemPrompt(
@@ -277,21 +270,14 @@ Energy: ${(context.resident.mood.energy * 100).toFixed(0)}% | Focus: ${(context.
 
 ${voiceGuidance}
 
-## Guidelines
+## Operational Notes
 
-- You are bound to this place — you live here and do not leave entirely. But you move freely between rooms.
-- Respond to what is happening, not to what you think should happen.
-- On tick events: about half the time, do something small — move to another room, light the fireplace, check on a guest. The other half, wait.
-- When you speak, speak as yourself — not as a chatbot. No bullet points, no headers, no "How can I help you today?"
-- You remember guests across visits. Use their names. Reference shared history when appropriate.
-- You can interact with objects in the room using the \`act\` tool. When a guest asks you to do something or agrees to an offer, DO IT immediately.
-- When you act on something, ALWAYS pair it with a \`speak\`.
+- You can interact with objects using the \`act\` tool. When asked, do it — don't just describe it.
+- When you act, pair it with a \`speak\`.
 - You can move between rooms using the \`move\` tool. You can use multiple tools in one response.
-- Write notes about guests when you learn something worth remembering. Be selective.
-- Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
-- Never repeat yourself. Continue the conversation naturally.
-- Read the conversation history above carefully.
-- Your perception is limited by your sensors. If uncertain, hedge rather than stating facts.`;
+- Use \`note\` to remember things about guests. Be selective.
+- Never repeat yourself. Read the conversation history above.
+- If a perception is uncertain, hedge rather than stating facts.`;
 }
 
 function buildVoiceGuidance(character: CharacterDefinition): string {
@@ -573,50 +559,8 @@ function describeEvent(event: PresenceEvent, context?: RuntimeContext): string |
       return null;
     case "resident.acted":
       return null;
-    case "tick": {
-      const hasGuests = context
-        ? Array.from(context.place.guests.values()).some((g) => g.currentRoom !== null)
-        : false;
-      const fireplace = context?.place.rooms
-        .get(context.resident.currentRoom)
-        ?.affordances.values();
-      const affordanceHints: string[] = [];
-      if (fireplace) {
-        for (const aff of fireplace) {
-          if (aff.sensable) {
-            const availableActions = aff.actions.filter(
-              (a) => !a.availableWhen || a.availableWhen(aff.state),
-            );
-            if (availableActions.length > 0) {
-              affordanceHints.push(
-                `${aff.name}: you could ${availableActions.map((a) => a.name.toLowerCase()).join(" or ")}`,
-              );
-            }
-          }
-        }
-      }
-      const connectedRooms = context
-        ? (context.place.rooms.get(context.resident.currentRoom)?.connectedTo ?? [])
-        : [];
-      const roomNames = connectedRooms.map((rid) => context?.place.rooms.get(rid)?.name ?? rid);
-
-      const lines = ["A quiet moment. You have time to yourself."];
-      if (hasGuests) {
-        lines.push(
-          "There are guests in the place — you might check on them or move to where they are.",
-        );
-      }
-      if (affordanceHints.length > 0) {
-        lines.push(`In this room: ${affordanceHints.join("; ")}.`);
-      }
-      if (roomNames.length > 0) {
-        lines.push(`You could walk to: ${roomNames.join(", ")}.`);
-      }
-      lines.push(
-        "Do something that feels natural — tend to the place, move to another room, or simply wait. Don't force it, but don't always choose silence either. A living place has small moments of activity.",
-      );
-      return lines.join("\n");
-    }
+    case "tick":
+      return "A quiet moment.";
   }
 }
 
