@@ -14,7 +14,7 @@ import type {
   Place,
   PresenceEvent,
   ResidentAction,
-  ResidentInterface,
+  ResidentMind,
   ResidentState,
   RuntimeInterface,
 } from "./types.js";
@@ -22,7 +22,7 @@ import type {
 export interface RuntimeOptions {
   place: Place;
   resident: ResidentState;
-  residentMind?: ResidentInterface;
+  residentMind?: ResidentMind;
   /** Called when a known guest (visitCount > 0) re-enters after absence. */
   onGuestReturn?: (guestId: GuestId) => void;
   /** Custom systems pipeline. If not provided, uses the default pipeline. */
@@ -50,7 +50,7 @@ export class Runtime implements RuntimeInterface {
   readonly eventBus: EventBus;
 
   private systems: System[];
-  private residentMind: ResidentInterface | null;
+  private residentMind: ResidentMind | null;
   private recentEvents: PresenceEvent[] = [];
   private running = false;
   private onGuestReturn: ((guestId: GuestId) => void) | null;
@@ -64,7 +64,7 @@ export class Runtime implements RuntimeInterface {
     this.systems = options.systems ?? createDefaultPipeline();
   }
 
-  setResidentMind(mind: ResidentInterface): void {
+  setResidentMind(mind: ResidentMind): void {
     this.residentMind = mind;
   }
 

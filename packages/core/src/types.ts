@@ -314,7 +314,7 @@ export interface RuntimeInterface {
 
 // --- Resident interface (what the runtime calls) ---
 
-export interface ResidentInterface {
+export interface ResidentMind {
   perceive(
     event: PresenceEvent,
     perceptions: Perception[],

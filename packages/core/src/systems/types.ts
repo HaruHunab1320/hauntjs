@@ -6,7 +6,7 @@ import type {
   Place,
   PresenceEvent,
   ResidentAction,
-  ResidentInterface,
+  ResidentMind,
   ResidentState,
 } from "../types.js";
 
@@ -38,7 +38,7 @@ export interface PipelineState {
 export interface SystemContext {
   place: Place;
   resident: ResidentState;
-  residentMind: ResidentInterface | null;
+  residentMind: ResidentMind | null;
   eventBus: EventBus;
   recentEvents: PresenceEvent[];
   onGuestReturn: ((guestId: GuestId) => void) | null;

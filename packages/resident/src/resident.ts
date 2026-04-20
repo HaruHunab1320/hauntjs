@@ -4,7 +4,7 @@ import type {
   Perception,
   PresenceEvent,
   ResidentAction,
-  ResidentInterface,
+  ResidentMind,
   RuntimeContext,
 } from "@hauntjs/core";
 import { parseAllDecisions } from "./decision.js";
@@ -29,7 +29,7 @@ const DELIBERATION_EVENTS = new Set([
   "tick",
 ]);
 
-export class Resident implements ResidentInterface {
+export class Resident implements ResidentMind {
   readonly character: CharacterDefinition;
   private model: ModelProvider;
   private memory: SqliteMemoryStore;

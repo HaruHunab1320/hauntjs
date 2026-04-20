@@ -71,7 +71,7 @@ export type {
   PresenceMode,
   RelationshipState,
   ResidentAction,
-  ResidentInterface,
+  ResidentMind,
   ResidentState,
   Room,
   RoomId,
