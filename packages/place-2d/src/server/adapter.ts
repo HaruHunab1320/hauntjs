@@ -251,10 +251,22 @@ export class Place2DAdapter implements PlaceAdapter {
       name: place.name,
       rooms,
       currentRoom: currentRoom as string | null,
-      residentRoom:
-        this.runtime!.resident.presenceMode === "host"
-          ? ((currentRoom as string) ?? (this.runtime!.resident.currentRoom as string))
-          : (this.runtime!.resident.currentRoom as string),
+      residentRoom: this.getResidentRoom(currentRoom),
     };
+  }
+
+  private getResidentRoom(guestCurrentRoom: RoomId | null): string {
+    const mode = this.runtime!.resident.presenceMode;
+    switch (mode) {
+      case "host":
+        // Host appears in the guest's room
+        return (guestCurrentRoom as string) ?? (this.runtime!.resident.currentRoom as string);
+      case "presence":
+        // Presence mode: no visible avatar — return empty string so client hides it
+        return "__hidden__";
+      case "inhabitant":
+      default:
+        return this.runtime!.resident.currentRoom as string;
+    }
   }
 }

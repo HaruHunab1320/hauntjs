@@ -118,11 +118,14 @@ export function buildPrompt(
 }
 
 function buildSystemPrompt(character: CharacterDefinition, context: RuntimeContext): string {
-  const isHost = context.resident.presenceMode === "host";
   const voiceGuidance = buildVoiceGuidance(character);
+  const mode = context.resident.presenceMode;
 
-  if (isHost) {
+  if (mode === "host") {
     return buildHostSystemPrompt(character, context, voiceGuidance);
+  }
+  if (mode === "presence") {
+    return buildPresenceSystemPrompt(character, context);
   }
   return buildInhabitantSystemPrompt(character, context, voiceGuidance);
 }
@@ -187,6 +190,35 @@ ${voiceGuidance}
 - Never repeat yourself. If you already greeted someone, do not greet them again.
 - Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.
 - Your perception varies by room. If a perception is marked uncertain, hedge — say "I think" rather than stating facts.`;
+}
+
+function buildPresenceSystemPrompt(
+  character: CharacterDefinition,
+  context: RuntimeContext,
+): string {
+  const allGuests = Array.from(context.place.guests.values())
+    .filter((g) => g.currentRoom !== null)
+    .map((g) => `${g.name} in ${context.place.rooms.get(g.currentRoom!)?.name ?? g.currentRoom}`);
+
+  const guestLine = allGuests.length > 0 ? allGuests.join(", ") : "No guests present.";
+
+  return `${character.systemPrompt}
+
+---
+
+## Current State
+
+You are ambient. You are not seen, not spoken to directly. You are the mood of this place, its texture, its memory. You perceive everything but intervene rarely and subtly.
+
+### Guests in the place
+${guestLine}
+
+## Guidelines
+
+- You do not speak to guests. You shape the environment — interact with affordances, leave traces, adjust the atmosphere.
+- Use the \`act\` tool to change things in the place. Use \`note\` to remember. Use \`wait\` most of the time.
+- When you act, it should feel like the place itself shifting — not a person doing something.
+- Intervene rarely. When you do, it should feel meaningful.`;
 }
 
 function buildInhabitantSystemPrompt(

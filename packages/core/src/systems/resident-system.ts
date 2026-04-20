@@ -6,8 +6,10 @@ import type { PipelineState, System, SystemContext } from "./types.js";
  * If the AutonomySystem decided to invoke, calls resident.perceive()
  * and collects the resulting actions.
  *
- * For Host mode: auto-focuses on the event's room before building context,
- * and includes all guests across all rooms.
+ * Mode-aware context building:
+ * - Host: auto-focuses on event room, sees all guests
+ * - Presence: sees all guests, NO auto-focus (ambient awareness)
+ * - Inhabitant: sees only guests in current room
  */
 export class ResidentSystem implements System {
   readonly name = "Resident";
@@ -24,6 +26,7 @@ export class ResidentSystem implements System {
         ctx.resident.focusRoom = eventRoom;
       }
     }
+    // Presence mode: no auto-focus — ambient awareness without directed attention
 
     const context = this.buildContext(ctx);
     const result = await ctx.residentMind.perceive(pipeline.event, pipeline.perceptions, context);
@@ -36,8 +39,10 @@ export class ResidentSystem implements System {
   }
 
   private buildContext(ctx: SystemContext): RuntimeContext {
-    if (ctx.resident.presenceMode === "host") {
-      // Host sees all guests across all rooms
+    const mode = ctx.resident.presenceMode;
+
+    if (mode === "host" || mode === "presence") {
+      // Both Host and Presence see all guests across all rooms
       const allGuests = Array.from(ctx.place.guests.values()).filter((g) => g.currentRoom !== null);
       return {
         place: ctx.place,
@@ -47,7 +52,7 @@ export class ResidentSystem implements System {
       };
     }
 
-    // Inhabitant (default)
+    // Inhabitant: room-local guests only
     const guestsInRoom = getGuestsInRoom(ctx.place, ctx.resident.currentRoom);
     return {
       place: ctx.place,
