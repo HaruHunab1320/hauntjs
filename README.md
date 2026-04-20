@@ -47,11 +47,14 @@ The filter: **does the experience degrade meaningfully if "place I'm in" becomes
 ## What You Get in v0.1
 
 - A **4-room 2D world** (The Roost) you can walk around in a browser
-- A **resident** (Poe) who greets you, responds to conversation, interacts with objects, and moves between rooms on his own
+- A **resident** (Poe) who IS the place — omnipresent, responds in any room, manifests where you are
+- **Sensor-mediated perception** — each room has different sensors shaping what the resident perceives. Turn off a light and the resident loses sight. Close a door and sound stops carrying.
+- **Three presence modes** — Host (omnipresent, like Poe in *Altered Carbon*), Inhabitant (physical body in one room), Presence (ambient, environmental)
 - **Memory that persists** — Poe remembers your name, your conversations, and what you talked about across sessions
 - **Spatial awareness** — Poe notices when you walk up to the fireplace, when you enter a room, when you leave
 - **Model-agnostic** — swap between Gemini, Anthropic, OpenAI, or Ollama with one env var
-- **Clean primitives** — Place, Room, Affordance, Guest, Resident, PresenceEvent — ready for new adapters
+- **Systems pipeline** — clean 7-stage runtime: StatePropagation → Sensor → Memory → Autonomy → Resident → ActionDispatch → Broadcast
+- **Clean primitives** — Place, Room, Affordance, Sensor, Guest, Resident, Perception — ready for new adapters
 
 ---
 
@@ -143,6 +146,7 @@ pnpm --filter @hauntjs/place-2d dev     # client (Vite + Phaser)
 
 - **[Writing a Character](docs/guides/writing-a-character.md)** — how to create a new resident personality
 - **[Writing a Room](docs/guides/writing-a-room.md)** — how to add rooms and affordances to a place
+- **[Writing Sensors](docs/guides/writing-a-sensor.md)** — how to shape what the resident perceives
 - **[Writing an Adapter](docs/guides/writing-an-adapter.md)** — how to connect a new backend (Minecraft, Discord, etc.)
 
 ---
