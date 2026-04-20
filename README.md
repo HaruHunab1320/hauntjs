@@ -44,17 +44,23 @@ The filter: **does the experience degrade meaningfully if "place I'm in" becomes
 
 ---
 
-## What You Get in v0.1
+## What You Get
 
-- A **4-room 2D world** (The Roost) you can walk around in a browser
-- A **resident** (Poe) who IS the place — omnipresent, responds in any room, manifests where you are
-- **Sensor-mediated perception** — each room has different sensors shaping what the resident perceives. Turn off a light and the resident loses sight. Close a door and sound stops carrying.
-- **Three presence modes** — Host (omnipresent, like Poe in *Altered Carbon*), Inhabitant (physical body in one room), Presence (ambient, environmental)
-- **Memory that persists** — Poe remembers your name, your conversations, and what you talked about across sessions
-- **Spatial awareness** — Poe notices when you walk up to the fireplace, when you enter a room, when you leave
-- **Model-agnostic** — swap between Gemini, Anthropic, OpenAI, or Ollama with one env var
+### Core Framework
+- **Places with minds** — rooms, affordances, sensors, guests, and a resident that perceives and acts
+- **Sensor-mediated perception** — each room has sensors that shape what the resident can see, hear, and know. Turn off a light and the resident loses sight. Close a door and sound stops carrying.
+- **Three presence modes** — **Host** (the resident IS the place, omnipresent — like Poe in *Altered Carbon*), **Inhabitant** (physical body in one room, walks between rooms), **Presence** (ambient, environmental — like The Board in *Control*)
 - **Systems pipeline** — clean 7-stage runtime: StatePropagation → Sensor → Memory → Autonomy → Resident → ActionDispatch → Broadcast
-- **Clean primitives** — Place, Room, Affordance, Sensor, Guest, Resident, Perception — ready for new adapters
+- **Memory that persists** — the resident remembers guest names, conversations, and relationships across sessions via SQLite
+- **Model-agnostic** — swap between Gemini, Anthropic, OpenAI, or Ollama with one env var
+- **Adapter architecture** — the same resident works in any place. Write a new adapter for Minecraft, Discord, a smart home, or anything with rooms and events.
+
+### The Reference Demo: The Roost
+- A **4-room 2D world** rendered in Phaser you can walk around in a browser
+- **Poe** — a hospitable concierge who IS The Roost. He perceives every room, responds wherever you are, lights the fireplace, tends to the place, remembers you across visits.
+- **Distinct room perception** — the Lobby is fully observed, the Study can go dark (turn off the lamp), the Parlor's door blocks sound when closed, the Garden has muffled hearing
+- **Interactive affordances** — fireplace, notice board, writing desk, bookshelf, piano, fountain, reading lamp, parlor door
+- **Multi-guest support** — open two browser tabs and both guests see each other and can talk to Poe
 
 ---
 
@@ -66,10 +72,12 @@ The filter: **does the experience degrade meaningfully if "place I'm in" becomes
 │  (character + memory + model + loyalties)   │
 └──────────────────┬──────────────────────────┘
                    │
-                   ▼ perceives everything, deliberates selectively
+                   ▼ perceives through sensors, deliberates selectively
 ┌─────────────────────────────────────────────┐
 │                  RUNTIME                    │  the nervous system
-│  (state, events, presence, autonomous tick) │
+│  7-stage systems pipeline                   │
+│  (state → sensors → memory → autonomy →    │
+│   resident → dispatch → broadcast)          │
 └──────────────────┬──────────────────────────┘
                    │
                    ▼ adapts
@@ -81,11 +89,13 @@ The filter: **does the experience degrade meaningfully if "place I'm in" becomes
          │ backed by
   ┌──────┴──────┬──────────┬──────────────┐
   │ 2D (Phaser) │ Minecraft│ Discord      │  place adapters
-  │  (v0.1)     │ (future) │ (future)     │
+  │  (shipped)  │ (future) │ (future)     │
   └─────────────┴──────────┴──────────────┘
 ```
 
 The resident never talks to the place directly — always through the runtime. This is what makes residents portable across places.
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full reference.
 
 ---
 
@@ -94,16 +104,16 @@ The resident never talks to the place directly — always through the runtime. T
 ```
 haunt/
 ├── packages/
-│   ├── core/               # Primitives, runtime loop, event bus, tick scheduler
+│   ├── core/               # Primitives, systems pipeline, sensors, event bus, tick scheduler
 │   ├── resident/           # Character model, mind, memory, model providers
 │   ├── place-2d/           # Phaser-based 2D place adapter (server + client)
 │   └── demo-roost/         # The Roost reference world + Poe character
 ├── apps/
 │   └── dev-server/         # Local dev harness — wires everything together
 ├── docs/
-│   ├── ARCHITECTURE.md     # Core primitives and interfaces
-│   ├── ROADMAP.md          # Phased build plan
-│   └── guides/             # How to write characters, rooms, adapters
+│   ├── ARCHITECTURE.md     # Core primitives, sensors, pipeline, presence modes
+│   ├── ROADMAP.md          # v0.1 build plan (complete)
+│   └── guides/             # How to write characters, rooms, sensors, adapters
 ├── turbo.json
 ├── pnpm-workspace.yaml
 └── README.md
@@ -115,11 +125,12 @@ haunt/
 
 ```bash
 HAUNT_MODEL=gemini       # or "anthropic", "openai", "ollama"
-GEMINI_API_KEY=...       # if using gemini (default)
+GEMINI_API_KEY=...       # if using gemini (default for dev-server)
 ANTHROPIC_API_KEY=...    # if using anthropic
 OPENAI_API_KEY=...       # if using openai
 OLLAMA_HOST=...          # if using ollama (defaults to localhost:11434)
 HAUNT_MODEL_NAME=...     # optional model name override
+HAUNT_DEBUG=1            # enable sensor debug overlay (press F2 in client)
 ```
 
 ---
@@ -129,7 +140,7 @@ HAUNT_MODEL_NAME=...     # optional model name override
 ```bash
 pnpm install             # install everything
 pnpm build               # build all packages (turbo)
-pnpm test                # run all tests
+pnpm test                # run all tests (147 tests)
 pnpm lint                # eslint + typecheck
 pnpm typecheck           # just TypeScript, no bundling
 ```
@@ -146,21 +157,17 @@ pnpm --filter @hauntjs/place-2d dev     # client (Vite + Phaser)
 
 - **[Writing a Character](docs/guides/writing-a-character.md)** — how to create a new resident personality
 - **[Writing a Room](docs/guides/writing-a-room.md)** — how to add rooms and affordances to a place
-- **[Writing Sensors](docs/guides/writing-a-sensor.md)** — how to shape what the resident perceives
-- **[Writing an Adapter](docs/guides/writing-an-adapter.md)** — how to connect a new backend (Minecraft, Discord, etc.)
+- **[Writing Sensors](docs/guides/writing-a-sensor.md)** — how to shape what the resident perceives (fidelity, reach, design patterns)
+- **[Writing an Adapter](docs/guides/writing-an-adapter.md)** — how to connect a new backend (Minecraft, Discord, smart home, etc.)
 
 ---
 
-## The Reference Demo: The Roost
+## What It Is Not
 
-The Roost is a small establishment — part hotel, part home — inhabited by Poe, a hospitable concierge archetype. Four rooms:
-
-- **Lobby** — fireplace, notice board. The entry point.
-- **Study** — writing desk, bookshelf. Quiet.
-- **Parlor** — piano. Connects the lobby to the garden.
-- **Garden** — fountain. Outdoor, cooler, quieter.
-
-Poe tends to the place. He lights the fire, wanders between rooms, notices when you approach things. He remembers you across visits. He speaks like a person, not a chatbot.
+- Not a chatbot framework. If you want session-based Q&A, use something else.
+- Not an agent-swarm framework. The default unit is a single resident in a single place.
+- Not a game engine. Haunt plugs into game engines, it doesn't replace them.
+- Not tied to a single LLM provider. Model-agnostic from day one.
 
 ---
 
@@ -168,14 +175,9 @@ Poe tends to the place. He lights the fire, wanders between rooms, notices when 
 
 - Poe feels like a person, not a chatbot in a hat
 - The Roost feels inhabited — things happen, things are remembered, things have weight
+- Each room feels different — not just different descriptions, but different *perception*
 - The primitives in `@hauntjs/core` are clean enough that writing a new adapter looks like a weekend project, not a fork
-
-## What It Is Not
-
-- Not a chatbot framework
-- Not an agent-swarm framework
-- Not a game engine
-- Not tied to a single LLM provider
+- A stranger can clone the repo and get the demo running from this README in under 10 minutes
 
 ---
 
