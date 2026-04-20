@@ -216,6 +216,28 @@ export class SqliteMemoryStore implements MemoryStore {
     }
   }
 
+  /** Save a Being's serialized state to SQLite. */
+  saveBeing(residentId: string, data: unknown): void {
+    this.db
+      .prepare(
+        `INSERT INTO being_state (resident_id, state_json, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(resident_id) DO UPDATE SET
+           state_json = excluded.state_json,
+           updated_at = excluded.updated_at`,
+      )
+      .run(residentId, JSON.stringify(data), new Date().toISOString());
+  }
+
+  /** Load a Being's serialized state from SQLite. Returns null if not found. */
+  loadBeing(residentId: string): unknown | null {
+    const row = this.db
+      .prepare("SELECT state_json FROM being_state WHERE resident_id = ?")
+      .get(residentId) as { state_json: string } | undefined;
+    if (!row) return null;
+    return JSON.parse(row.state_json);
+  }
+
   close(): void {
     this.db.close();
   }

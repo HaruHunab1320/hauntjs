@@ -214,6 +214,8 @@ export interface ResidentState {
   currentRoom: RoomId;
   focusRoom: RoomId | null;
   mood: MoodState;
+  /** Opaque inner-life state from @embersjs/core. Optional — residents without a Being use static mood. */
+  being?: unknown;
 }
 
 // --- Place ---

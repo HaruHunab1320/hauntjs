@@ -1,23 +1,29 @@
 import type { Affordance, CharacterDefinition, Guest, RuntimeContext } from "@hauntjs/core";
+import type { InnerSituationForPrompt } from "../prompt.js";
 
 /** Builds the system prompt based on the resident's presence mode. */
-export function buildSystemPrompt(character: CharacterDefinition, context: RuntimeContext): string {
+export function buildSystemPrompt(
+  character: CharacterDefinition,
+  context: RuntimeContext,
+  situation?: InnerSituationForPrompt | null,
+): string {
   const voiceGuidance = buildVoiceGuidance(character);
   const mode = context.resident.presenceMode;
 
   if (mode === "host") {
-    return buildHostSystemPrompt(character, context, voiceGuidance);
+    return buildHostSystemPrompt(character, context, voiceGuidance, situation);
   }
   if (mode === "presence") {
     return buildPresenceSystemPrompt(character, context);
   }
-  return buildInhabitantSystemPrompt(character, context, voiceGuidance);
+  return buildInhabitantSystemPrompt(character, context, voiceGuidance, situation);
 }
 
 function buildHostSystemPrompt(
   character: CharacterDefinition,
   context: RuntimeContext,
   voiceGuidance: string,
+  situation?: InnerSituationForPrompt | null,
 ): string {
   const focusRoom = context.resident.focusRoom
     ? context.place.rooms.get(context.resident.focusRoom)
@@ -53,8 +59,7 @@ Your attention is on the ${focusRoomName}.
 ### The Place
 ${roomDescriptions.join("\n\n")}
 
-### Your mood
-Energy: ${(context.resident.mood.energy * 100).toFixed(0)}% | Focus: ${(context.resident.mood.focus * 100).toFixed(0)}% | Valence: ${context.resident.mood.valence > 0 ? "positive" : context.resident.mood.valence < 0 ? "negative" : "neutral"}
+${buildMoodSection(context, situation)}
 
 ${voiceGuidance}
 
@@ -101,6 +106,7 @@ function buildInhabitantSystemPrompt(
   character: CharacterDefinition,
   context: RuntimeContext,
   voiceGuidance: string,
+  situation?: InnerSituationForPrompt | null,
 ): string {
   const room = context.place.rooms.get(context.resident.currentRoom);
   const roomName = room?.name ?? "unknown";
@@ -148,8 +154,7 @@ ${connectedRooms}
 ### Your perceptual reach
 ${perceptualReach}
 
-### Your mood
-Energy: ${(context.resident.mood.energy * 100).toFixed(0)}% | Focus: ${(context.resident.mood.focus * 100).toFixed(0)}% | Valence: ${context.resident.mood.valence > 0 ? "positive" : context.resident.mood.valence < 0 ? "negative" : "neutral"}
+${buildMoodSection(context, situation)}
 
 ${voiceGuidance}
 
@@ -248,4 +253,16 @@ export function describeGuest(guest: Guest): string {
   const tier = guest.loyaltyTier;
   const visits = guest.visitCount;
   return `- ${guest.name} (${guest.id}) — ${tier}, ${visits} visit${visits !== 1 ? "s" : ""}`;
+}
+
+/** Builds the mood/inner-state section. Uses Embers felt prose when available, falls back to static mood. */
+function buildMoodSection(
+  context: RuntimeContext,
+  situation?: InnerSituationForPrompt | null,
+): string {
+  if (situation) {
+    return `### Inner state\n${situation.felt}\n\nOrientation: ${situation.orientation}`;
+  }
+  const { mood } = context.resident;
+  return `### Your mood\nEnergy: ${(mood.energy * 100).toFixed(0)}% | Focus: ${(mood.focus * 100).toFixed(0)}% | Valence: ${mood.valence > 0 ? "positive" : mood.valence < 0 ? "negative" : "neutral"}`;
 }

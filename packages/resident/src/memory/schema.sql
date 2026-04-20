@@ -30,3 +30,9 @@ CREATE TABLE IF NOT EXISTS events_log (
   payload_json TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS being_state (
+  resident_id TEXT PRIMARY KEY,
+  state_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

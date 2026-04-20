@@ -10,6 +10,14 @@ import type {
 } from "@hauntjs/core";
 import { createLogger } from "@hauntjs/core";
 import { parseAllDecisions } from "./decision.js";
+import type { Being, InnerSituation } from "./embers.js";
+import {
+  embersAvailableCapabilities,
+  embersIntegrate,
+  embersMetabolize,
+  embersTickBeing,
+  embersWeightPerceptions,
+} from "./embers.js";
 import type { SqliteMemoryStore } from "./memory/store.js";
 import type { ModelProvider } from "./model/types.js";
 import { buildPrompt } from "./prompt.js";
@@ -38,6 +46,7 @@ export class Resident implements ResidentMind {
   private memory: SqliteMemoryStore;
   private log: Logger;
   private busy = false;
+  private lastTickAt = Date.now();
 
   constructor(options: ResidentOptions) {
     this.character = options.character;
@@ -54,11 +63,27 @@ export class Resident implements ResidentMind {
     // ALWAYS perceive: add every event to working memory regardless
     this.memory.addToWorkingMemory(event);
 
+    // Update inner life if a Being is present
+    const being = context.resident.being as Being | undefined;
+    if (being) {
+      const now = Date.now();
+      const dtMs = now - this.lastTickAt;
+      this.lastTickAt = now;
+
+      embersTickBeing(being, dtMs);
+      const result = embersIntegrate(being, event);
+      if (result.driveChanges.length > 0 || result.practiceChanges.length > 0) {
+        this.log.debug("inner life updated:", {
+          drives: result.driveChanges.length,
+          practices: result.practiceChanges.length,
+        });
+      }
+    }
+
     // Decide whether this event warrants deliberation (a model call)
     if (!DELIBERATION_EVENTS.has(event.type)) return null;
 
-    // Backpressure: if a model call is in flight, the event is still in working
-    // memory and will be visible in context on the next deliberation
+    // Backpressure
     if (this.busy) return null;
 
     this.busy = true;
@@ -77,7 +102,41 @@ export class Resident implements ResidentMind {
     perceptions: Perception[],
     context: RuntimeContext,
   ): Promise<ResidentAction | ResidentAction[] | null> {
-    const placeMemories = await this.memory.recall({ limit: 5 });
+    const being = context.resident.being as Being | undefined;
+
+    // Get inner situation from Embers if available
+    let situation: InnerSituation | null = null;
+    let activePerceptions = perceptions;
+
+    if (being) {
+      situation = embersMetabolize(being);
+      this.log.debug(`inner state: ${situation.orientation} — "${situation.felt.slice(0, 80)}"`);
+
+      // Weight perceptions by drive pressures
+      const weighted = embersWeightPerceptions(being, perceptions);
+      if (weighted.length > 0) {
+        // Sort by weight descending, map back to perceptions by index
+        const sortedIndices = weighted
+          .map((w, i) => ({ weight: w.weight, index: i }))
+          .sort((a, b) => b.weight - a.weight);
+        activePerceptions = sortedIndices.map((s) => perceptions[s.index]);
+      }
+
+      // Gate memory access based on capabilities
+      const caps = embersAvailableCapabilities(being);
+      const capIds = new Set(caps.map((c) => c.id));
+      if (!capIds.has("episodicMemory")) {
+        // Episodic memory gated — skip place memory recall
+        this.log.debug("episodic memory gated — skipping place memories");
+      }
+    }
+
+    // Recall memories (gated by capabilities)
+    const placeMemories =
+      being && !embersAvailableCapabilities(being).some((c) => c.id === "episodicMemory")
+        ? []
+        : await this.memory.recall({ limit: 5 });
+
     const guestMemories = new Map<
       GuestId,
       NonNullable<ReturnType<typeof this.memory.guestMemory.get>>
@@ -91,7 +150,7 @@ export class Resident implements ResidentMind {
       this.character,
       context,
       event,
-      perceptions,
+      activePerceptions,
       placeMemories.map((r) => ({
         content: r.content,
         tags: r.tags,
@@ -99,6 +158,7 @@ export class Resident implements ResidentMind {
         importance: r.importance,
       })),
       guestMemories,
+      situation,
     );
 
     const response = await this.model.chat(request);
@@ -106,13 +166,22 @@ export class Resident implements ResidentMind {
 
     if (actions.length === 0) return null;
 
+    // Integrate resident actions back into Embers
+    if (being) {
+      for (const action of actions) {
+        embersIntegrate(being, {
+          type: `resident.${action.type}` as PresenceEvent["type"],
+          at: new Date(),
+        } as PresenceEvent);
+      }
+    }
+
     for (const action of actions) {
       if (action.type === "note") {
         await this.persistNote(action);
       }
     }
 
-    // Auto-persist conversation context
     const speakAction = actions.find(
       (a): a is ResidentAction & { type: "speak" } => a.type === "speak",
     );

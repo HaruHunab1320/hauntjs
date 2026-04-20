@@ -1,9 +1,10 @@
 import { join } from "node:path";
 import type { ResidentState } from "@hauntjs/core";
 import { addGuest, guestId, Runtime, TickScheduler } from "@hauntjs/core";
-import { poe } from "@hauntjs/demo-roost";
+import { poe, poeBeing } from "@hauntjs/demo-roost";
 import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
 import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
+import { deserializeBeing, serializeBeing } from "@embersjs/core";
 import Fastify from "fastify";
 
 const WS_PORT = Number(process.env.WS_PORT ?? 3002);
@@ -25,7 +26,17 @@ async function start(): Promise<void> {
   // 2. Mount the place
   const place = await adapter.mount();
 
-  // 3. Create the resident state
+  // 3. Set up memory store (needed before Being restoration)
+  const dataDir = join(process.cwd(), "data");
+  await import("node:fs").then((fs) => fs.mkdirSync(dataDir, { recursive: true }));
+  const memory = new SqliteMemoryStore({ dbPath: join(dataDir, "the-roost.db") });
+
+  // 4. Restore or create Poe's inner life (Being from @embersjs/core)
+  const savedBeingData = memory.loadBeing("poe");
+  const being = savedBeingData ? deserializeBeing(savedBeingData as never) : poeBeing;
+  console.log(`  Inner life: ${savedBeingData ? "restored from memory" : "fresh being created"}`);
+
+  // 5. Create the resident state
   const residentState: ResidentState = {
     id: "poe",
     character: poe,
@@ -33,18 +44,14 @@ async function start(): Promise<void> {
     currentRoom: ROOST_CONFIG.residentStartRoom,
     focusRoom: null,
     mood: { energy: 0.8, focus: 0.7, valence: 0.5 },
+    being,
   };
 
-  // 4. Set up model provider
+  // 6. Set up model provider
   const model = createModelProvider({ provider: MODEL_PROVIDER });
   console.log(`  Model provider: ${model.name}`);
 
-  // 5. Set up memory store
-  const dataDir = join(process.cwd(), "data");
-  await import("node:fs").then((fs) => fs.mkdirSync(dataDir, { recursive: true }));
-  const memory = new SqliteMemoryStore({ dbPath: join(dataDir, "the-roost.db") });
-
-  // 6. Create the resident mind
+  // 7. Create the resident mind
   const residentMind = new Resident({
     character: poe,
     model,
@@ -150,6 +157,11 @@ async function start(): Promise<void> {
         memory.persistGuest(guest.id, guest.name, guest.visitCount, guest.loyaltyTier);
       }
     }
+
+    // Persist Being state on tick
+    if (event.type === "tick" && residentState.being) {
+      memory.saveBeing("poe", serializeBeing(residentState.being as never));
+    }
   });
 
   await runtime.start();
@@ -198,6 +210,11 @@ async function start(): Promise<void> {
     tick.scheduler?.stop();
     await adapter.stop();
     await runtime.stop();
+    // Persist Being state before closing
+    if (residentState.being) {
+      memory.saveBeing("poe", serializeBeing(residentState.being as never));
+      console.log("  Inner life persisted.");
+    }
     memory.close();
     await server.close();
     process.exit(0);

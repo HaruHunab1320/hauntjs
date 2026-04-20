@@ -14,8 +14,15 @@ import { ACTION_TOOLS } from "./prompt/tools.js";
 
 export { ACTION_TOOLS } from "./prompt/tools.js";
 
+/** The inner situation from Embers, if available. */
+export interface InnerSituationForPrompt {
+  felt: string;
+  orientation: string;
+}
+
 /**
- * Assembles a complete ChatRequest from character, context, event, perceptions, and memory.
+ * Assembles a complete ChatRequest from character, context, event, perceptions, memory,
+ * and optional inner situation from Embers.
  */
 export function buildPrompt(
   character: CharacterDefinition,
@@ -24,8 +31,9 @@ export function buildPrompt(
   perceptions: Perception[],
   placeMemories: PlaceMemoryEntry[],
   guestMemories: Map<GuestId, GuestMemory>,
+  situation?: InnerSituationForPrompt | null,
 ): ChatRequest {
-  const systemPrompt = buildSystemPrompt(character, context);
+  const systemPrompt = buildSystemPrompt(character, context, situation);
   const messages = buildMessages(context, event, perceptions, placeMemories, guestMemories);
 
   return {
