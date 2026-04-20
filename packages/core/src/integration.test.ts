@@ -1,28 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
+import { addAffordance, addGuest, addRoom, connectRooms, createPlace, enterRoom } from "./place.js";
+import { Runtime } from "./runtime.js";
 import { omniscientSensor } from "./sensors/omniscient.js";
 import { presenceSensor } from "./sensors/presence-sensor.js";
-import { soundSensor } from "./sensors/sound-sensor.js";
 import { sightSensor } from "./sensors/sight-sensor.js";
-import { Runtime } from "./runtime.js";
-import {
-  addAffordance,
-  addGuest,
-  addRoom,
-  connectRooms,
-  createPlace,
-  enterRoom,
-} from "./place.js";
-import { affordanceId, guestId, roomId } from "./types.js";
+import { soundSensor } from "./sensors/sound-sensor.js";
 import type {
   Affordance,
+  Perception,
   Place,
   PresenceEvent,
-  Perception,
   ResidentAction,
   ResidentMind,
   ResidentState,
   RuntimeContext,
 } from "./types.js";
+import { affordanceId, guestId, roomId } from "./types.js";
 
 function makeTestPlace(): Place {
   const place = createPlace({ id: "test", name: "Test Place" });
