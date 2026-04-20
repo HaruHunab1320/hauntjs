@@ -29,7 +29,7 @@ export function createModelProvider(config?: ModelProviderConfig): ModelProvider
     case "gemini":
       return new OpenAIProvider({
         apiKey: config?.apiKey ?? process.env.GEMINI_API_KEY,
-        model: config?.model ?? "gemini-2.5-flash",
+        model: config?.model ?? "gemini-3.1-flash-lite-preview",
         baseUrl: config?.baseUrl ?? "https://generativelanguage.googleapis.com/v1beta/openai/",
       });
 

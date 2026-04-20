@@ -14,6 +14,16 @@ const lobby: Room = {
     presenceSensor("lobby.presence", roomId("lobby"), { fidelity: { kind: "full" } }),
     sightSensor("lobby.sight", roomId("lobby")),
     soundSensor("lobby.sound", roomId("lobby")),
+    // Poe IS the place — he hears everything, everywhere
+    soundSensor("roost.intercom", roomId("lobby"), {
+      reach: { kind: "place-wide" },
+      description: "The Roost itself carries sound to Poe — he hears guests speak in any room.",
+    }),
+    presenceSensor("roost.awareness", roomId("lobby"), {
+      fidelity: { kind: "full" },
+      reach: { kind: "place-wide" },
+      description: "Poe is aware of who is present anywhere in The Roost.",
+    }),
     stateSensor("lobby.fireplace-state", roomId("lobby"), "fireplace"),
     stateSensor("lobby.board-state", roomId("lobby"), "notice-board"),
   ]),
@@ -49,16 +59,16 @@ const parlor: Room = {
       fidelity: { kind: "partial", reveals: ["presence", "identity"] },
     }),
     soundSensor("parlor.sound", roomId("parlor")),
-    soundSensor("parlor.lobby-sound", roomId("parlor"), {
+    soundSensor("parlor.adjacent-sound", roomId("parlor"), {
       reach: { kind: "adjacent", maxDepth: 1 },
-      description: "Sound carries between the parlor and lobby.",
+      description: "Sound carries between the parlor and its connected rooms.",
     }),
   ]),
   connectedTo: [roomId("lobby"), roomId("garden")],
   state: {},
 };
 
-// Garden — outdoor, sparser perception
+// Garden — outdoor, slightly muted but still perceptible
 const garden: Room = {
   id: roomId("garden"),
   name: "Garden",
@@ -67,11 +77,17 @@ const garden: Room = {
   affordances: new Map(),
   sensors: new Map([
     presenceSensor("garden.presence", roomId("garden"), {
-      description: "A sense of someone being out there — but hard to tell who.",
+      fidelity: { kind: "full" },
+      description: "You can see who is in the garden.",
     }),
-    mutedAudioSensor("garden.wind-sound", roomId("garden"), {
-      confidence: 0.3,
-      description: "Sound carries poorly outdoors — the wind interferes.",
+    soundSensor("garden.sound", roomId("garden"), {
+      fidelity: { kind: "partial", reveals: ["identity", "content"] },
+      description: "Sound carries in the garden — slightly softened by the open air, but clear enough.",
+    }),
+    mutedAudioSensor("garden.parlor-sound", roomId("garden"), {
+      confidence: 0.6,
+      reach: { kind: "adjacent", maxDepth: 1 },
+      description: "Faint sounds carry between the garden and parlor through the open doorway.",
     }),
   ]),
   connectedTo: [roomId("parlor")],

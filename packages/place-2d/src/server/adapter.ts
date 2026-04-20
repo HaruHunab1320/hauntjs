@@ -253,7 +253,9 @@ export class Place2DAdapter implements PlaceAdapter {
       name: place.name,
       rooms,
       currentRoom: currentRoom as string | null,
-      residentRoom: this.runtime!.resident.currentRoom as string,
+      residentRoom: this.runtime!.resident.presenceMode === "host"
+        ? (currentRoom as string ?? this.runtime!.resident.currentRoom as string)
+        : (this.runtime!.resident.currentRoom as string),
     };
   }
 }

@@ -25,7 +25,9 @@ async function start(): Promise<void> {
   const residentState: ResidentState = {
     id: "poe",
     character: poe,
+    presenceMode: "host",
     currentRoom: ROOST_CONFIG.residentStartRoom,
+    focusRoom: null,
     mood: { energy: 0.8, focus: 0.7, valence: 0.5 },
   };
 
@@ -103,6 +105,17 @@ async function start(): Promise<void> {
         { type: "act", affordanceId: event.affordanceId, actionId: event.actionId },
         place,
       );
+    }
+
+    // After Poe finishes speaking, check if there are unanswered guest messages
+    // and fire a catch-up tick so Poe responds promptly
+    if (event.type === "resident.spoke" || event.type === "resident.acted") {
+      const hasGuests = Array.from(place.guests.values()).some((g) => g.currentRoom !== null);
+      if (hasGuests) {
+        setTimeout(() => {
+          tick.scheduler?.fireImmediate().catch(() => {});
+        }, 500);
+      }
     }
 
     // Persist guest data on leave

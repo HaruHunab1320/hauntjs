@@ -17,6 +17,7 @@ export type {
   PlaceMemoryEntry,
   GuestMemory,
   MemoryStore,
+  PresenceMode,
   ResidentState,
   Place,
   PresenceEvent,

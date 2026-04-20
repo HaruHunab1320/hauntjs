@@ -207,10 +207,15 @@ export interface MemoryStore {
   updateGuest(id: GuestId, update: Partial<GuestMemory>): Promise<void>;
 }
 
+/** How the resident relates to physical space. */
+export type PresenceMode = "host" | "inhabitant" | "presence";
+
 export interface ResidentState {
   id: string;
   character: CharacterDefinition;
+  presenceMode: PresenceMode;
   currentRoom: RoomId;
+  focusRoom: RoomId | null;
   mood: MoodState;
 }
 
@@ -250,6 +255,7 @@ export type PresenceEvent =
 export type ResidentAction =
   | { type: "speak"; text: string; audience: GuestId[] | "all"; roomId?: RoomId }
   | { type: "move"; toRoom: RoomId }
+  | { type: "focus"; roomId: RoomId }
   | {
       type: "act";
       affordanceId: AffordanceId;

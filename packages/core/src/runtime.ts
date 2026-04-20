@@ -131,6 +131,8 @@ export class Runtime implements RuntimeInterface {
         return this.handleSpeak(action);
       case "move":
         return this.handleMove(action);
+      case "focus":
+        return this.handleFocus(action);
       case "act":
         return this.handleAct(action);
       case "note":
@@ -142,12 +144,21 @@ export class Runtime implements RuntimeInterface {
     }
   }
 
+  private handleFocus(action: { roomId: RoomId }): ActionResult {
+    const room = this.place.rooms.get(action.roomId);
+    if (!room) return { success: false, error: `Room "${action.roomId}" does not exist` };
+    this.resident.focusRoom = action.roomId;
+    return { success: true };
+  }
+
   private handleSpeak(action: {
     text: string;
     audience: GuestId[] | "all";
     roomId?: RoomId;
   }): ActionResult {
-    const roomId = action.roomId ?? this.resident.currentRoom;
+    const roomId = action.roomId
+      ?? (this.resident.presenceMode === "host" ? this.resident.focusRoom : null)
+      ?? this.resident.currentRoom;
     const room = this.place.rooms.get(roomId);
     if (!room) return { success: false, error: `Room "${roomId}" does not exist` };
 

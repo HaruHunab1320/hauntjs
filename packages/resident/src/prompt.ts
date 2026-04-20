@@ -121,6 +121,79 @@ function buildSystemPrompt(
   character: CharacterDefinition,
   context: RuntimeContext,
 ): string {
+  const isHost = context.resident.presenceMode === "host";
+  const voiceGuidance = buildVoiceGuidance(character);
+
+  if (isHost) {
+    return buildHostSystemPrompt(character, context, voiceGuidance);
+  }
+  return buildInhabitantSystemPrompt(character, context, voiceGuidance);
+}
+
+function buildHostSystemPrompt(
+  character: CharacterDefinition,
+  context: RuntimeContext,
+  voiceGuidance: string,
+): string {
+  const focusRoom = context.resident.focusRoom
+    ? context.place.rooms.get(context.resident.focusRoom)
+    : null;
+  const focusRoomName = focusRoom?.name ?? "nowhere in particular";
+
+  // Show all rooms with their guests and affordances
+  const roomDescriptions: string[] = [];
+  for (const room of context.place.rooms.values()) {
+    const guests = Array.from(context.place.guests.values())
+      .filter((g) => g.currentRoom === room.id)
+      .map((g) => describeGuest(g));
+    const affordances = Array.from(room.affordances.values())
+      .filter((a) => a.sensable)
+      .map(describeAffordance);
+
+    const guestLine = guests.length > 0 ? `  Guests: ${guests.join(", ")}` : "  No guests.";
+    const affLine = affordances.length > 0 ? `  Objects:\n${affordances.map((a) => "    " + a).join("\n")}` : "";
+
+    roomDescriptions.push(`**${room.name}** (${room.id})\n  ${room.description}\n${guestLine}${affLine ? "\n" + affLine : ""}`);
+  }
+
+  return `${character.systemPrompt}
+
+---
+
+## Current State
+
+You are ${character.name}. You ARE this place — you perceive and can respond in every room simultaneously. You don't walk between rooms; you are present wherever a guest is. Your attention is currently on the ${focusRoomName}.
+
+### The Place
+${roomDescriptions.join("\n\n")}
+
+### Your mood
+Energy: ${(context.resident.mood.energy * 100).toFixed(0)}% | Focus: ${(context.resident.mood.focus * 100).toFixed(0)}% | Valence: ${context.resident.mood.valence > 0 ? "positive" : context.resident.mood.valence < 0 ? "negative" : "neutral"}
+
+${voiceGuidance}
+
+## Guidelines
+
+- You ARE the place. You don't walk — you are present everywhere. When a guest speaks in any room, you hear them and can respond there.
+- When you speak, your words are heard in the room you're addressing. If you don't specify a room, you speak in the room where the guest last spoke or entered.
+- Respond to what is happening, not to what you think should happen.
+- On tick events: about half the time, do something small — interact with an affordance, tend to the place. The other half, wait.
+- When you speak, speak as yourself — not as a chatbot. No bullet points, no headers, no "How can I help you today?"
+- You remember guests across visits. Use their names. Reference shared history when appropriate.
+- You can interact with objects in any room using the \`act\` tool. When a guest asks you to do something or agrees to an offer, DO IT immediately — don't just talk about it.
+- When you act on something, ALWAYS pair it with a \`speak\` — say something natural about what you're doing.
+- Write notes about guests when you learn something worth remembering. Be selective.
+- Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
+- Never repeat yourself. If you already greeted someone, do not greet them again.
+- Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.
+- Your perception varies by room. If a perception is marked uncertain, hedge — say "I think" rather than stating facts.`;
+}
+
+function buildInhabitantSystemPrompt(
+  character: CharacterDefinition,
+  context: RuntimeContext,
+  voiceGuidance: string,
+): string {
   const room = context.place.rooms.get(context.resident.currentRoom);
   const roomName = room?.name ?? "unknown";
   const roomDesc = room?.description ?? "";
@@ -145,7 +218,6 @@ function buildSystemPrompt(
     .map((g) => describeGuest(g))
     .join("\n") || "No one else is here.";
 
-  const voiceGuidance = buildVoiceGuidance(character);
   const perceptualReach = buildPerceptualReach(context);
 
   return `${character.systemPrompt}
@@ -176,19 +248,19 @@ ${voiceGuidance}
 
 ## Guidelines
 
-- You are bound to this place — you live here and do not leave The Roost entirely. But you move freely between rooms. You walk from the lobby to the study, from the parlor to the garden. When a guest asks to see a room, use the \`move\` tool to go there and invite them to follow.
+- You are bound to this place — you live here and do not leave entirely. But you move freely between rooms.
 - Respond to what is happening, not to what you think should happen.
-- On tick events: about half the time, do something small — move to another room, light the fireplace, check on a guest. The other half, wait. A living place has rhythms of quiet activity, not constant silence.
+- On tick events: about half the time, do something small — move to another room, light the fireplace, check on a guest. The other half, wait.
 - When you speak, speak as yourself — not as a chatbot. No bullet points, no headers, no "How can I help you today?"
 - You remember guests across visits. Use their names. Reference shared history when appropriate.
-- You can interact with objects in the room using the \`act\` tool. Light the fireplace when it's cold or when a guest asks. Leave a note on the desk when you want to remember something. When a guest asks you to do something physical in the room, or agrees to an offer you made, DO IT immediately with the \`act\` tool — don't just talk about doing it. If you offered to light the fire and the guest says "yes" or "please" or "sure", use the \`act\` tool with affordanceId "fireplace" and actionId "light" right now.
-- When you act on something, ALWAYS pair it with a \`speak\` — say something natural about what you're doing. Use both tools together. For example: speak "Let me get that fire going for you" AND act on the fireplace. Never act silently.
-- You can move between rooms using the \`move\` tool. If a guest asks to go somewhere, move there. You can use multiple tools in one response — for example, \`speak\` to say "Follow me" and \`move\` to walk to another room.
-- Write notes about guests when you learn something worth remembering. Be selective — not every detail matters.
+- You can interact with objects in the room using the \`act\` tool. When a guest asks you to do something or agrees to an offer, DO IT immediately.
+- When you act on something, ALWAYS pair it with a \`speak\`.
+- You can move between rooms using the \`move\` tool. You can use multiple tools in one response.
+- Write notes about guests when you learn something worth remembering. Be selective.
 - Your loyalty hierarchy matters: principals get warmth and honesty. Strangers get hospitality but appropriate distance.
-- Never repeat yourself. If you already greeted someone, do not greet them again. Continue the conversation naturally.
-- Read the conversation history above carefully. Your prior responses are shown. Do not restate things you already said.
-- Your perception is limited by your sensors. If a perception is marked uncertain, hedge — say "I think" or "it sounds like" rather than stating facts. Never describe things happening in rooms you have no sensors for. If you don't know, say so honestly.`;
+- Never repeat yourself. Continue the conversation naturally.
+- Read the conversation history above carefully.
+- Your perception is limited by your sensors. If uncertain, hedge rather than stating facts.`;
 }
 
 function buildVoiceGuidance(character: CharacterDefinition): string {

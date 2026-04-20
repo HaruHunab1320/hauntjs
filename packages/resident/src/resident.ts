@@ -52,7 +52,8 @@ export class Resident implements ResidentInterface {
     // Decide whether this event warrants deliberation (a model call)
     if (!DELIBERATION_EVENTS.has(event.type)) return null;
 
-    // Backpressure: if a model call is in flight, skip deliberation
+    // Backpressure: if a model call is in flight, the event is still in working
+    // memory and will be visible in context on the next deliberation
     if (this.busy) return null;
 
     this.busy = true;

@@ -29,6 +29,8 @@ export class ActionDispatchSystem implements System {
         return this.handleSpeak(action, ctx);
       case "move":
         return this.handleMove(action, ctx);
+      case "focus":
+        return this.handleFocus(action, ctx);
       case "act":
         return this.handleAct(action, ctx);
       case "note":
@@ -44,7 +46,10 @@ export class ActionDispatchSystem implements System {
     action: { text: string; audience: GuestId[] | "all"; roomId?: RoomId },
     ctx: SystemContext,
   ): ActionResult {
-    const roomId = action.roomId ?? ctx.resident.currentRoom;
+    // Host: default to focusRoom. Inhabitant: default to currentRoom.
+    const roomId = action.roomId
+      ?? (ctx.resident.presenceMode === "host" ? ctx.resident.focusRoom : null)
+      ?? ctx.resident.currentRoom;
     const room = ctx.place.rooms.get(roomId);
     if (!room) return { success: false, error: `Room "${roomId}" does not exist` };
 
@@ -68,6 +73,15 @@ export class ActionDispatchSystem implements System {
     action: { toRoom: RoomId },
     ctx: SystemContext,
   ): ActionResult {
+    // Host mode: treat move as focus shift (no connectivity check, no event)
+    if (ctx.resident.presenceMode === "host") {
+      const room = ctx.place.rooms.get(action.toRoom);
+      if (!room) return { success: false, error: `Room "${action.toRoom}" does not exist` };
+      ctx.resident.focusRoom = action.toRoom;
+      return { success: true };
+    }
+
+    // Inhabitant mode: walk between connected rooms
     const toRoom = ctx.place.rooms.get(action.toRoom);
     if (!toRoom) return { success: false, error: `Room "${action.toRoom}" does not exist` };
 
@@ -90,6 +104,16 @@ export class ActionDispatchSystem implements System {
     };
 
     return { success: true, event };
+  }
+
+  private handleFocus(
+    action: { roomId: RoomId },
+    ctx: SystemContext,
+  ): ActionResult {
+    const room = ctx.place.rooms.get(action.roomId);
+    if (!room) return { success: false, error: `Room "${action.roomId}" does not exist` };
+    ctx.resident.focusRoom = action.roomId;
+    return { success: true };
   }
 
   private handleAct(
