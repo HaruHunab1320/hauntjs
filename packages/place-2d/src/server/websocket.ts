@@ -297,7 +297,7 @@ export class Place2DServer {
 
     // Emit affordance change event
     const prevState = { ...aff.state };
-    const stateUpdate = getStateUpdate(actionId);
+    const stateUpdate = getStateUpdate(actionId, action);
     if (stateUpdate) {
       Object.assign(aff.state, stateUpdate);
     }

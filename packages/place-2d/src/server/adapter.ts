@@ -167,7 +167,7 @@ export class Place2DAdapter implements PlaceAdapter {
         }
 
         // Apply state changes based on the action
-        const stateUpdate = getStateUpdate(action.actionId);
+        const stateUpdate = getStateUpdate(action.actionId, affordanceAction);
         if (stateUpdate) {
           const { newState } = updateAffordanceState(
             place,

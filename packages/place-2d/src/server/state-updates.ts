@@ -1,10 +1,20 @@
+import type { AffordanceAction } from "@hauntjs/core";
+
 /**
- * Maps affordance action IDs to state changes.
- * Shared between the WebSocket server (guest interactions) and the adapter (resident actions).
- *
- * TODO: This should be data-driven from affordance definitions, not hardcoded.
+ * Gets the state change for an affordance action.
+ * Prefers the data-driven `stateChange` field on the action definition.
+ * Falls back to legacy hardcoded mappings for backward compatibility.
  */
-export function getStateUpdate(actionId: string): Record<string, unknown> | null {
+export function getStateUpdate(
+  actionId: string,
+  action?: AffordanceAction,
+): Record<string, unknown> | null {
+  // Data-driven: use stateChange from the action definition if available
+  if (action?.stateChange) {
+    return action.stateChange;
+  }
+
+  // Legacy fallback for actions without stateChange
   switch (actionId) {
     case "light":
       return { lit: true };

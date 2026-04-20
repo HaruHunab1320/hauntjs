@@ -27,6 +27,9 @@ export interface AffordanceAction {
   description: string;
   params?: Record<string, JsonSchema>;
   availableWhen?: (state: Record<string, unknown>) => boolean;
+  /** State changes to apply to the affordance when this action runs. */
+  stateChange?: Record<string, unknown>;
+  /** Sensor effects to apply when this action runs. */
   affects?: SensorAffect[];
 }
 
