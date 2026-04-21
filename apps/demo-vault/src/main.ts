@@ -1,13 +1,7 @@
 import { join } from "node:path";
 import { deserializeBeing, metabolize, serializeBeing } from "@embersjs/core";
 import type { ResidentState } from "@hauntjs/core";
-import {
-  applyPhaseTransition,
-  guestId,
-  Runtime,
-  TickScheduler,
-  TimeSystem,
-} from "@hauntjs/core";
+import { applyPhaseTransition, Runtime, TickScheduler, TimeSystem } from "@hauntjs/core";
 import {
   GuestTrustTracker,
   kovacsConfig,
@@ -189,19 +183,24 @@ async function start(): Promise<void> {
             orientation: metabolized?.orientation ?? null,
             felt: metabolized?.felt ?? null,
             lastAction: event.type.startsWith("resident.") ? event.type : null,
-            drives: metabolized?.dominantDrives?.map((d: { id: string; name: string; level: number; feltPressure: number }) => ({
-              id: d.id,
-              name: d.name,
-              level: d.level,
-              pressure: d.feltPressure,
-            })) ?? [],
+            drives:
+              metabolized?.dominantDrives?.map(
+                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+                  id: d.id,
+                  name: d.name,
+                  level: d.level,
+                  pressure: d.feltPressure,
+                }),
+              ) ?? [],
           },
-          guests: trustTracker.getAllTrust().map((t) => ({
-            id: t.guestId,
-            name: t.guestId.replace("guest-", ""),
-            currentRoom: (place.guests.get(guestId(t.guestId))?.currentRoom as string) ?? null,
-            trustWithResident: t.level,
-          })),
+          guests: Array.from(place.guests.values())
+            .filter((g) => g.currentRoom !== null)
+            .map((g) => ({
+              id: g.id as string,
+              name: g.name,
+              currentRoom: g.currentRoom as string | null,
+              trustWithResident: trustTracker.getTrust(g.id),
+            })),
           sensors: Array.from(place.rooms.values()).flatMap((room) =>
             Array.from(room.sensors.values()).map((s) => ({
               id: s.id as string,
@@ -316,7 +315,9 @@ async function start(): Promise<void> {
 }
 
 /** Convert a PresenceEvent to a ServerMessage for spectator broadcast. */
-function eventToServerMessage(event: import("@hauntjs/core").PresenceEvent): import("@hauntjs/place-2d").ServerMessage {
+function eventToServerMessage(
+  event: import("@hauntjs/core").PresenceEvent,
+): import("@hauntjs/place-2d").ServerMessage {
   switch (event.type) {
     case "guest.entered":
       return {

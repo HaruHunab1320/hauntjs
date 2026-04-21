@@ -287,16 +287,8 @@ function handleMessageWithMap(msg: Record<string, unknown>): void {
     addLogEntry(msg);
   }
 
-  // Update map from individual events too
-  if (type === "guest.entered" || type === "guest.moved") {
-    const guestId = msg.guestId as string;
-    const room = (type === "guest.moved" ? msg.to : msg.roomId) as string;
-    const name = (msg.guestName as string) ?? guestId;
-    vaultMap.updateCharacter(guestId, name, room);
-  }
-  if (type === "guest.left") {
-    vaultMap.updateCharacter(msg.guestId as string, (msg.guestName as string) ?? "", null);
-  }
+  // Map positions are updated from telemetry only (authoritative source).
+  // Individual events update the log but not the map to avoid race conditions.
 }
 
 // Replace the original handler
