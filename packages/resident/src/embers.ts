@@ -122,6 +122,10 @@ function mapEventToInput(event: PresenceEvent): IntegrationInput | null {
       return {
         entry: { kind: "event", type: "quiet-moment" },
       };
+    case "time.phaseChanged":
+      return {
+        entry: { kind: "event", type: "time-shift" },
+      };
     default:
       return null;
   }

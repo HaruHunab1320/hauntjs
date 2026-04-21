@@ -53,7 +53,9 @@ export type ServerMessage =
       type: "debug.snapshot";
       sensors: DebugSensorInfo[];
       recentPerceptions: DebugPerceptionInfo[];
-    };
+    }
+  | { type: "time.phaseChanged"; from: string; to: string; inWorldHour: number; day: number }
+  | { type: "telemetry"; data: TelemetrySnapshot };
 
 export interface DebugSensorInfo {
   id: string;
@@ -73,4 +75,33 @@ export interface DebugPerceptionInfo {
   content: string;
   confidence: number;
   at: string;
+}
+
+// --- Telemetry (for spectator dashboard) ---
+
+export interface TelemetrySnapshot {
+  time: {
+    phase: string;
+    inWorldHour: number;
+    day: number;
+  };
+  resident: {
+    id: string;
+    name: string;
+    focusRoom: string | null;
+    orientation: string | null;
+    felt: string | null;
+    lastAction: string | null;
+    drives?: Array<{ id: string; name: string; level: number; pressure: number }>;
+  };
+  guests: Array<{
+    id: string;
+    name: string;
+    currentRoom: string | null;
+    goal?: string;
+    felt?: string | null;
+    lastAction?: string | null;
+    trustWithResident?: number;
+  }>;
+  sensors: DebugSensorInfo[];
 }

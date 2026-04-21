@@ -29,6 +29,7 @@ export interface Place2DServerOptions {
 
 export class Place2DServer {
   private wss: WebSocketServer | null = null;
+  private spectators = new Set<WebSocket>();
   private sessions = new Map<WebSocket, GuestSession>();
   private options: Place2DServerOptions;
 
@@ -84,6 +85,22 @@ export class Place2DServer {
         session.ws.send(payload);
       }
     }
+    // Also send to spectators
+    for (const ws of this.spectators) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(payload);
+      }
+    }
+  }
+
+  /** Broadcast a message only to spectator connections (not guests). */
+  broadcastToSpectators(message: ServerMessage): void {
+    const payload = JSON.stringify(message);
+    for (const ws of this.spectators) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(payload);
+      }
+    }
   }
 
   private send(ws: WebSocket, message: ServerMessage): void {
@@ -105,6 +122,12 @@ export class Place2DServer {
 
         const msg = parsed.data;
         const session = this.sessions.get(ws);
+
+        if (msg.type === "spectate") {
+          this.spectators.add(ws);
+          ws.once("close", () => this.spectators.delete(ws));
+          return;
+        }
 
         if (msg.type === "join") {
           await this.handleJoin(ws, msg.guestName);

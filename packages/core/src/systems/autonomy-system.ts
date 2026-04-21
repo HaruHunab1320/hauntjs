@@ -27,8 +27,8 @@ export class AutonomySystem implements System {
       return pipeline;
     }
 
-    // Tick events always pass through — they're internal heartbeats, not sensor-gated
-    if (pipeline.event.type === "tick") {
+    // Tick and time events always pass through — they're internal, not sensor-gated
+    if (pipeline.event.type === "tick" || pipeline.event.type === "time.phaseChanged") {
       pipeline.shouldDeliberate = true;
       return pipeline;
     }

@@ -29,12 +29,17 @@ export const ApproachMessage = z.object({
   affordanceId: z.string().min(1),
 });
 
+export const SpectateMessage = z.object({
+  type: z.literal("spectate"),
+});
+
 export const ClientMessage = z.discriminatedUnion("type", [
   JoinMessage,
   MoveMessage,
   SpeakMessage,
   InteractMessage,
   ApproachMessage,
+  SpectateMessage,
 ]);
 
 export type ClientMessage = z.infer<typeof ClientMessage>;
@@ -46,4 +51,5 @@ export type {
   PublicPlaceState,
   PublicRoomState,
   ServerMessage,
+  TelemetrySnapshot,
 } from "../shared/protocol-types.js";

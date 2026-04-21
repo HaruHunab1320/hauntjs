@@ -253,6 +253,7 @@ export type PresenceEvent =
   | { type: "resident.moved"; from: RoomId; to: RoomId; at: Date }
   | { type: "resident.spoke"; roomId: RoomId; text: string; audience: GuestId[]; at: Date }
   | { type: "resident.acted"; affordanceId: AffordanceId; actionId: string; at: Date }
+  | { type: "time.phaseChanged"; from: string; to: string; inWorldHour: number; day: number; at: Date }
   | { type: "tick"; at: Date };
 
 // --- Actions ---

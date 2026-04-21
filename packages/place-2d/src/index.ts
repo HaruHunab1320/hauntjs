@@ -11,6 +11,7 @@ export type {
   PublicPlaceState,
   PublicRoomState,
   PublicAffordanceState,
+  TelemetrySnapshot,
 } from "./server/protocol.js";
 
 // World config

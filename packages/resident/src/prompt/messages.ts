@@ -186,5 +186,7 @@ export function describeEvent(event: PresenceEvent, context?: RuntimeContext): s
       return null;
     case "tick":
       return "A quiet moment.";
+    case "time.phaseChanged":
+      return `The light shifts — ${event.to} settles over the place.`;
   }
 }
