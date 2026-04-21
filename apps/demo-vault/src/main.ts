@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { deserializeBeing, serializeBeing } from "@embersjs/core";
+import { deserializeBeing, metabolize, serializeBeing } from "@embersjs/core";
 import type { ResidentState } from "@hauntjs/core";
 import {
   applyPhaseTransition,
@@ -157,13 +157,17 @@ async function start(): Promise<void> {
       memory.saveBeing("poe-vault", serializeBeing(residentState.being as never));
     }
 
-    // Broadcast telemetry to spectators
+    // Broadcast ALL events to spectators (omniscient observer)
+    if (adapter.getServer() && event.type !== "tick") {
+      adapter.getServer()!.broadcastToSpectators(eventToServerMessage(event));
+    }
+
+    // Broadcast telemetry snapshot to spectators
     if (adapter.getServer()) {
       const metabolized = residentState.being
         ? (() => {
             try {
-              const { metabolize } = require("@embersjs/core");
-              return metabolize(residentState.being);
+              return metabolize(residentState.being as never);
             } catch {
               return null;
             }
@@ -185,6 +189,12 @@ async function start(): Promise<void> {
             orientation: metabolized?.orientation ?? null,
             felt: metabolized?.felt ?? null,
             lastAction: event.type.startsWith("resident.") ? event.type : null,
+            drives: metabolized?.dominantDrives?.map((d: { id: string; name: string; level: number; feltPressure: number }) => ({
+              id: d.id,
+              name: d.name,
+              level: d.level,
+              pressure: d.feltPressure,
+            })) ?? [],
           },
           guests: trustTracker.getAllTrust().map((t) => ({
             id: t.guestId,
@@ -303,6 +313,70 @@ async function start(): Promise<void> {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGUSR2", () => shutdown("SIGUSR2"));
+}
+
+/** Convert a PresenceEvent to a ServerMessage for spectator broadcast. */
+function eventToServerMessage(event: import("@hauntjs/core").PresenceEvent): import("@hauntjs/place-2d").ServerMessage {
+  switch (event.type) {
+    case "guest.entered":
+      return {
+        type: "guest.entered",
+        guestId: event.guestId as string,
+        guestName: event.guestId as string,
+        roomId: event.roomId as string,
+      };
+    case "guest.left":
+      return {
+        type: "guest.left",
+        guestId: event.guestId as string,
+        guestName: event.guestId as string,
+        roomId: event.roomId as string,
+      };
+    case "guest.moved":
+      return {
+        type: "guest.moved",
+        guestId: event.guestId as string,
+        guestName: event.guestId as string,
+        from: event.from as string,
+        to: event.to as string,
+      };
+    case "guest.spoke":
+      return {
+        type: "guest.spoke",
+        guestId: event.guestId as string,
+        guestName: event.guestId as string,
+        roomId: event.roomId as string,
+        text: event.text,
+      };
+    case "resident.spoke":
+      return {
+        type: "resident.spoke",
+        text: event.text,
+        roomId: event.roomId as string,
+      };
+    case "resident.moved":
+      return {
+        type: "resident.moved",
+        from: event.from as string,
+        to: event.to as string,
+      };
+    case "resident.acted":
+      return {
+        type: "resident.acted" as never,
+        affordanceId: event.affordanceId as string,
+        actionId: event.actionId,
+      } as never;
+    case "time.phaseChanged":
+      return {
+        type: "time.phaseChanged",
+        from: event.from,
+        to: event.to,
+        inWorldHour: event.inWorldHour,
+        day: event.day,
+      };
+    default:
+      return { type: "error", message: `Unknown event: ${event.type}` };
+  }
 }
 
 start().catch((err) => {

@@ -175,23 +175,33 @@ function addLogEntry(msg: Record<string, unknown>): void {
   let cls = "log-event";
 
   if (type === "guest.spoke") {
-    detail = `${msg.guestName}: "${(msg.text as string).slice(0, 60)}"`;
+    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    detail = `<strong>${name}</strong>: "${(msg.text as string).slice(0, 120)}"`;
     cls = "log-guest-speech";
   } else if (type === "resident.spoke") {
-    detail = `Poe: "${(msg.text as string).slice(0, 60)}"`;
+    detail = `<strong>Poe</strong>: "${(msg.text as string).slice(0, 120)}"`;
     cls = "log-speech";
   } else if (type === "guest.entered") {
-    detail = `${msg.guestName} enters ${msg.roomId}`;
+    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    detail = `▸ <strong>${name}</strong> arrives in ${prettifyRoom(msg.roomId as string)}`;
+    cls = "log-arrival";
   } else if (type === "guest.moved") {
-    detail = `${msg.guestName}: ${msg.from} → ${msg.to}`;
-  } else if (type === "guest.left") {
-    detail = `${msg.guestName} left`;
-  } else if (type === "time.phaseChanged") {
-    detail = `${msg.from} → ${msg.to}`;
+    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    detail = `↳ ${name} moves to ${prettifyRoom(msg.to as string)}`;
     cls = "log-event";
+  } else if (type === "guest.left") {
+    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    detail = `◂ ${name} has left`;
+    cls = "log-event";
+  } else if (type === "time.phaseChanged") {
+    detail = `⏱ Phase: ${capitalize(msg.from as string)} → <strong>${capitalize(msg.to as string)}</strong>`;
+    cls = "log-phase";
   } else if (type === "resident.acted") {
-    detail = `Poe: ${msg.affordanceId}:${msg.actionId}`;
-    cls = "log-speech";
+    detail = `⚡ Poe: ${msg.affordanceId} → ${msg.actionId}`;
+    cls = "log-action";
+  } else if (type === "resident.moved") {
+    detail = `↳ Poe shifts attention to ${prettifyRoom(msg.to as string)}`;
+    cls = "log-action";
   } else if (type === "tick") {
     return; // Don't log ticks
   } else {
@@ -204,13 +214,40 @@ function addLogEntry(msg: Record<string, unknown>): void {
   eventLog.prepend(entry);
 
   // Keep log manageable
-  while (eventLog.children.length > 100) {
+  while (eventLog.children.length > 200) {
     eventLog.removeChild(eventLog.lastChild!);
   }
 }
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function prettifyName(name: string): string {
+  return capitalize(name.replace("guest-", ""));
+}
+
+function prettifyRoom(roomId: string): string {
+  const names: Record<string, string> = {
+    foyer: "the Foyer",
+    gallery: "the Gallery",
+    library: "the Library",
+    conservatory: "the Conservatory",
+    archive: "the Archive",
+    "hidden-room": "the Hidden Room",
+  };
+  return names[roomId] ?? roomId;
+}
+
+// Track last known felt string to detect changes
+let lastPoeFelt = "";
+
+function logInnerThought(name: string, felt: string, cls: string): void {
+  const now = new Date().toLocaleTimeString();
+  const entry = document.createElement("div");
+  entry.className = `log-entry ${cls}`;
+  entry.innerHTML = `<span class="log-time">${now}</span> 💭 <em>${name}</em>: "${felt}"`;
+  eventLog.prepend(entry);
 }
 
 // --- Map ---
@@ -221,13 +258,19 @@ const originalUpdateTelemetry = updateTelemetry;
 const wrappedUpdateTelemetry = (data: TelemetryData): void => {
   originalUpdateTelemetry(data);
 
+  // Log Poe's inner state changes
+  if (data.resident.felt && data.resident.felt !== lastPoeFelt) {
+    lastPoeFelt = data.resident.felt;
+    logInnerThought("Poe", data.resident.felt, "log-thought");
+  }
+
   // Update map phase
   vaultMap.updatePhase(data.time.phase);
 
   // Update map characters
   vaultMap.updateCharacter("poe", "Poe", data.resident.focusRoom);
   for (const guest of data.guests) {
-    vaultMap.updateCharacter(guest.id, guest.name, guest.currentRoom);
+    vaultMap.updateCharacter(guest.id, prettifyName(guest.name), guest.currentRoom);
   }
 
   // Update map sensors
