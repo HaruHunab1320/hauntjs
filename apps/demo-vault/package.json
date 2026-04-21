@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc --build",
     "dev": "tsx watch src/main.ts",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
+    "dev:client": "vite --config vite.config.ts",
     "lint": "biome check src/",
     "typecheck": "tsc --noEmit"
   },
