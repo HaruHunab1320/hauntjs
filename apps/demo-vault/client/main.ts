@@ -1,3 +1,5 @@
+import { VaultMap } from "./scenes/vault-map.js";
+
 const WS_URL = `ws://${window.location.hostname}:4002`;
 
 interface TelemetryData {
@@ -73,7 +75,7 @@ function connect(): void {
   };
 }
 
-function handleMessage(msg: Record<string, unknown>): void {
+let handleMessage = (msg: Record<string, unknown>): void => {
   const type = msg.type as string;
 
   if (type === "telemetry") {
@@ -210,6 +212,52 @@ function addLogEntry(msg: Record<string, unknown>): void {
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+// --- Map ---
+const vaultMap = new VaultMap(document.getElementById("world-panel")!);
+
+// Wire telemetry to map
+const originalUpdateTelemetry = updateTelemetry;
+const wrappedUpdateTelemetry = (data: TelemetryData): void => {
+  originalUpdateTelemetry(data);
+
+  // Update map phase
+  vaultMap.updatePhase(data.time.phase);
+
+  // Update map characters
+  vaultMap.updateCharacter("poe", "Poe", data.resident.focusRoom);
+  for (const guest of data.guests) {
+    vaultMap.updateCharacter(guest.id, guest.name, guest.currentRoom);
+  }
+
+  // Update map sensors
+  vaultMap.updateSensors(data.sensors);
+};
+
+// Override the telemetry handler
+function handleMessageWithMap(msg: Record<string, unknown>): void {
+  const type = msg.type as string;
+  if (type === "telemetry") {
+    wrappedUpdateTelemetry(msg.data as TelemetryData);
+  }
+  if (type.includes(".") || type === "tick") {
+    addLogEntry(msg);
+  }
+
+  // Update map from individual events too
+  if (type === "guest.entered" || type === "guest.moved") {
+    const guestId = msg.guestId as string;
+    const room = (type === "guest.moved" ? msg.to : msg.roomId) as string;
+    const name = (msg.guestName as string) ?? guestId;
+    vaultMap.updateCharacter(guestId, name, room);
+  }
+  if (type === "guest.left") {
+    vaultMap.updateCharacter(msg.guestId as string, (msg.guestName as string) ?? "", null);
+  }
+}
+
+// Replace the original handler
+handleMessage = handleMessageWithMap;
 
 // --- Boot ---
 connect();
