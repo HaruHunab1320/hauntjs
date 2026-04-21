@@ -211,7 +211,13 @@ function addLogEntry(msg: Record<string, unknown>): void {
   const entry = document.createElement("div");
   entry.className = `log-entry ${cls}`;
   entry.innerHTML = `<span class="log-time">${now}</span> ${detail}`;
+
+  // Only auto-scroll if user is already at the top (not reading history)
+  const wasAtTop = eventLog.scrollTop <= 10;
   eventLog.prepend(entry);
+  if (wasAtTop) {
+    eventLog.scrollTop = 0;
+  }
 
   // Keep log manageable
   while (eventLog.children.length > 200) {
@@ -238,6 +244,23 @@ function prettifyRoom(roomId: string): string {
   };
   return names[roomId] ?? roomId;
 }
+
+// --- Copy stream button ---
+const copyBtn = document.getElementById("copy-stream")!;
+copyBtn.addEventListener("click", () => {
+  const entries = Array.from(eventLog.children)
+    .reverse()
+    .map((el) => el.textContent ?? "")
+    .join("\n");
+  navigator.clipboard.writeText(entries).then(() => {
+    copyBtn.textContent = "Copied!";
+    copyBtn.classList.add("copied");
+    setTimeout(() => {
+      copyBtn.textContent = "Copy";
+      copyBtn.classList.remove("copied");
+    }, 2000);
+  });
+});
 
 // Track last known felt string to detect changes
 let lastPoeFelt = "";

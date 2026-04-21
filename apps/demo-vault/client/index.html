@@ -136,6 +136,24 @@
     .log-phase { color: #ff9800; font-weight: bold; }
     .log-arrival { color: #4dd0e1; }
 
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copy-btn {
+      background: #1a1a2e;
+      color: #888;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .copy-btn:hover { color: #ccc; border-color: #555; }
+    .copy-btn.copied { color: #4caf50; border-color: #4caf50; }
+
     #world-title {
       position: absolute;
       top: 12px;
@@ -189,7 +207,10 @@
     </div>
 
     <div class="section" style="flex: 1; display: flex; flex-direction: column; min-height: 300px;">
-      <div class="section-title">Activity Stream</div>
+      <div class="section-header">
+        <div class="section-title">Activity Stream</div>
+        <button id="copy-stream" class="copy-btn">Copy</button>
+      </div>
       <div id="event-log" style="flex: 1; overflow-y: auto;"></div>
     </div>
   </div>
