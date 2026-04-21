@@ -27,8 +27,8 @@ const TICK_INTERVAL_MS = Number(process.env.TICK_INTERVAL ?? 60 * 1000); // 60s 
 const TIME_MS_PER_HOUR = Number(process.env.TIME_MS_PER_HOUR ?? 600000); // 10 min = 1 in-world hour
 
 // Model tiers
-const RICH_MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-2.5-flash";
-const FAST_MODEL = process.env.HAUNT_FAST_MODEL ?? "gemini-2.5-flash";
+const RICH_MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-3-flash-preview";
+const FAST_MODEL = process.env.HAUNT_FAST_MODEL ?? "gemini-3-flash-preview";
 
 // Guest arrival delays (real ms after start)
 const GUEST_ARRIVAL_SCHEDULE = [
