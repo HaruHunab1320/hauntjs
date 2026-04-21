@@ -15,11 +15,21 @@ export interface ConnectionToggle {
   connected: boolean;
 }
 
+export interface RoomOverride {
+  roomId: string;
+  /** New description for this phase. */
+  description?: string;
+  /** New name for this phase (the room "becomes" something else). */
+  name?: string;
+}
+
 export interface PhaseTransition {
   /** Sensors to enable/disable when entering this phase. */
   sensors?: SensorToggle[];
   /** Room connections to add/remove when entering this phase. */
   connections?: ConnectionToggle[];
+  /** Room description/name overrides for this phase. */
+  rooms?: RoomOverride[];
 }
 
 export type PhaseTransitionMap = Partial<Record<TimePhase, PhaseTransition>>;
@@ -76,6 +86,23 @@ export function applyPhaseTransition(
           targetRoom.connectedTo = targetRoom.connectedTo.filter((id) => id !== (toggle.roomId as RoomId));
         }
         log.debug(`disconnected ${toggle.roomId} ↔ ${toggle.connectedTo}`);
+      }
+    }
+  }
+
+  // Override room descriptions/names
+  if (transition.rooms) {
+    for (const override of transition.rooms) {
+      const room = place.rooms.get(override.roomId as RoomId);
+      if (!room) continue;
+
+      if (override.description) {
+        room.description = override.description;
+        log.debug(`${override.roomId} description updated`);
+      }
+      if (override.name) {
+        room.name = override.name;
+        log.debug(`${override.roomId} renamed to "${override.name}"`);
       }
     }
   }

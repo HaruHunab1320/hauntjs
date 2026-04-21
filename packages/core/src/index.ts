@@ -56,7 +56,7 @@ export type { TickSchedulerOptions } from "./tick.js";
 export { TimeSystem, getPhaseForHour } from "./time-system.js";
 export type { TimePhase, TimeState, TimeSystemOptions } from "./time-system.js";
 export { applyPhaseTransition } from "./phase-transitions.js";
-export type { PhaseTransitionMap, PhaseTransition, SensorToggle, ConnectionToggle } from "./phase-transitions.js";
+export type { PhaseTransitionMap, PhaseTransition, SensorToggle, ConnectionToggle, RoomOverride } from "./phase-transitions.js";
 // Tick scheduler
 export { TickScheduler } from "./tick.js";
 export type {
