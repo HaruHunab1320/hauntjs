@@ -309,6 +309,7 @@ export interface PlaceAdapter {
 export interface RuntimeInterface {
   place: Place;
   resident: ResidentState;
+  eventBus: import("./event-bus.js").EventBus;
   emit(event: PresenceEvent): Promise<void>;
   applyAction(action: ResidentAction): Promise<ActionResult>;
   start(): Promise<void>;

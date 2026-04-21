@@ -83,6 +83,22 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/guest-agent:
+    dependencies:
+      '@embersjs/core':
+        specifier: ^0.1.1
+        version: 0.1.1
+      '@hauntjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@hauntjs/resident':
+        specifier: workspace:*
+        version: link:../resident
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/place-2d:
     dependencies:
       '@hauntjs/core':
