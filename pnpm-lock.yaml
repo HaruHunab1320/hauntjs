@@ -30,6 +30,37 @@ importers:
         specifier: ^4.1.4
         version: 4.1.4(@types/node@25.6.0)(@vitest/coverage-v8@4.1.4)(vite@6.4.2(@types/node@25.6.0)(tsx@4.21.0))
 
+  apps/demo-vault:
+    dependencies:
+      '@embersjs/core':
+        specifier: ^0.1.1
+        version: 0.1.1
+      '@hauntjs/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@hauntjs/demo-vault':
+        specifier: workspace:*
+        version: link:../../packages/demo-vault
+      '@hauntjs/guest-agent':
+        specifier: workspace:*
+        version: link:../../packages/guest-agent
+      '@hauntjs/place-2d':
+        specifier: workspace:*
+        version: link:../../packages/place-2d
+      '@hauntjs/resident':
+        specifier: workspace:*
+        version: link:../../packages/resident
+      fastify:
+        specifier: ^5.2.0
+        version: 5.8.5
+    devDependencies:
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/dev-server:
     dependencies:
       '@embersjs/core':

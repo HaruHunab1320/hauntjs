@@ -1,0 +1,26 @@
+{
+  "name": "@hauntjs/demo-vault-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/main.ts",
+    "test": "vitest run",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hauntjs/core": "workspace:*",
+    "@hauntjs/resident": "workspace:*",
+    "@hauntjs/place-2d": "workspace:*",
+    "@hauntjs/guest-agent": "workspace:*",
+    "@hauntjs/demo-vault": "workspace:*",
+    "@embersjs/core": "^0.1.1",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
