@@ -166,20 +166,46 @@ function updateTelemetry(data: TelemetryData): void {
     trustPctEl.textContent = `${trustPct}%`;
   }
 
-  // Sensors — group by room
+  // Sensors — group by room, show occupants and active state
   const roomSensors = new Map<string, typeof data.sensors>();
   for (const s of data.sensors) {
     if (!roomSensors.has(s.roomName)) roomSensors.set(s.roomName, []);
     roomSensors.get(s.roomName)!.push(s);
   }
 
+  // Find which rooms have occupants
+  const roomOccupants = new Map<string, string[]>();
+  for (const g of data.guests) {
+    if (g.currentRoom) {
+      const roomName = prettifyRoom(g.currentRoom).replace("the ", "The ");
+      if (!roomOccupants.has(roomName)) roomOccupants.set(roomName, []);
+      roomOccupants.get(roomName)!.push(g.name);
+    }
+  }
+
   sensorGrid.innerHTML = Array.from(roomSensors.entries())
     .map(([roomName, sensors]) => {
-      const sensorList = sensors
-        .filter((s) => s.reach !== "place-wide") // Don't show global sensors
-        .map((s) => `<span class="${s.enabled ? "sensor-on" : "sensor-off"}">${s.modality}</span>`)
+      const occupants = roomOccupants.get(roomName) ?? [];
+      const hasOccupants = occupants.length > 0;
+      const localSensors = sensors.filter((s) => s.reach !== "place-wide");
+
+      const sensorList = localSensors
+        .map((s) => {
+          const active = s.enabled && hasOccupants;
+          const icon = s.modality === "sight" ? "👁" : s.modality === "sound" ? "🎙" : s.modality === "presence" ? "📡" : "📊";
+          const cls = !s.enabled ? "sensor-off" : active ? "sensor-active" : "sensor-on";
+          return `<span class="${cls}" title="${s.name}">${icon} ${s.modality}</span>`;
+        })
         .join(" ");
-      return `<div class="sensor-room"><strong>${roomName}</strong><br/>${sensorList || '<span class="sensor-off">none</span>'}</div>`;
+
+      const occupantLine = hasOccupants
+        ? `<div style="font-size:9px;color:#555;margin-top:2px">${occupants.join(", ")}</div>`
+        : "";
+
+      return `<div class="sensor-room ${hasOccupants ? "sensor-room-occupied" : ""}">
+        <strong>${roomName}</strong>${occupantLine}
+        <div style="margin-top:3px">${sensorList || '<span class="sensor-off">none</span>'}</div>
+      </div>`;
     })
     .join("");
 }

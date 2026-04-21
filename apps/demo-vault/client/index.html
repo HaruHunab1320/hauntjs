@@ -120,6 +120,9 @@
     }
     .sensor-on { color: #4caf50; }
     .sensor-off { color: #f44336; }
+    .sensor-active { color: #76ff03; animation: pulse 1.5s ease-in-out infinite; }
+    .sensor-room-occupied { border-color: #333 !important; background: #151520; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
     #event-log {
       max-height: 300px;
