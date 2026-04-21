@@ -154,6 +154,25 @@
     .copy-btn:hover { color: #ccc; border-color: #555; }
     .copy-btn.copied { color: #4caf50; border-color: #4caf50; }
 
+    .stream-tab {
+      background: #111;
+      color: #555;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .stream-tab:hover { color: #aaa; border-color: #444; }
+    .stream-tab.active { color: #e0e0e0; background: #1a1a2e; border-color: #444; }
+    .tab-poe.active { color: #e4a672; border-color: #e4a672; }
+    .tab-kovacs.active { color: #64b5f6; border-color: #64b5f6; }
+    .tab-raven.active { color: #ef5350; border-color: #ef5350; }
+    .tab-lira.active { color: #81c784; border-color: #81c784; }
+    .tab-marsh.active { color: #ffb74d; border-color: #ffb74d; }
+
     #world-title {
       position: absolute;
       top: 12px;
@@ -194,6 +213,7 @@
       <div id="poe-felt" class="felt-text">Waiting...</div>
       <div id="poe-drives"></div>
       <div id="poe-action" class="guest-meta">Last action: —</div>
+      <div id="poe-mini-stream" style="max-height:100px;overflow-y:auto;margin-top:6px;font-size:10px;color:#e4a672;border-top:1px solid #332a1a;padding-top:4px;opacity:0.8;"></div>
     </div>
 
     <div class="section">
@@ -208,8 +228,16 @@
 
     <div class="section" style="flex: 1; display: flex; flex-direction: column; min-height: 300px;">
       <div class="section-header">
-        <div class="section-title">Activity Stream</div>
+        <div class="section-title">Activity Streams</div>
         <button id="copy-stream" class="copy-btn">Copy</button>
+      </div>
+      <div id="stream-tabs" style="display: flex; gap: 2px; margin-bottom: 8px; flex-wrap: wrap;">
+        <button class="stream-tab active" data-stream="all">All</button>
+        <button class="stream-tab tab-poe" data-stream="poe">Poe</button>
+        <button class="stream-tab tab-kovacs" data-stream="kovacs">Kovacs</button>
+        <button class="stream-tab tab-raven" data-stream="raven">Raven</button>
+        <button class="stream-tab tab-lira" data-stream="lira">Lira</button>
+        <button class="stream-tab tab-marsh" data-stream="marsh">Marsh</button>
       </div>
       <div id="event-log" style="flex: 1; overflow-y: auto;"></div>
     </div>

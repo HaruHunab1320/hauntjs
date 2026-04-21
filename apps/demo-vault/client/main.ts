@@ -126,26 +126,45 @@ function updateTelemetry(data: TelemetryData): void {
     marsh: "guest-marsh",
   };
 
-  guestCards.innerHTML = data.guests
-    .map((g) => {
-      const cls = guestColorMap[g.name.toLowerCase()] ?? "";
-      const trustPct = Math.round((g.trustWithResident ?? 0) * 100);
-      const trustCls =
-        trustPct > 60 ? "drive-fill-high" : trustPct > 30 ? "drive-fill-mid" : "drive-fill-low";
-      return `<div class="guest-card ${cls}">
+  for (const g of data.guests) {
+    const name = g.name.toLowerCase();
+    const cls = guestColorMap[name] ?? "";
+    const trustPct = Math.round((g.trustWithResident ?? 0) * 100);
+    const trustCls =
+      trustPct > 60 ? "drive-fill-high" : trustPct > 30 ? "drive-fill-mid" : "drive-fill-low";
+
+    let card = document.getElementById(`guest-card-${name}`);
+    if (!card) {
+      // Create card with embedded mini-stream
+      card = document.createElement("div");
+      card.id = `guest-card-${name}`;
+      card.className = `guest-card ${cls}`;
+      card.innerHTML = `
         <div class="guest-name">${g.name}</div>
-        <div class="guest-meta">Room: ${g.currentRoom ?? "—"}</div>
-        ${g.felt ? `<div class="felt-text">${g.felt}</div>` : ""}
+        <div class="guest-meta" data-field="room">Room: —</div>
         <div class="trust-bar">
           <div class="drive-bar">
             <span class="drive-label">Trust</span>
-            <div class="drive-track"><div class="drive-fill ${trustCls}" style="width: ${trustPct}%"></div></div>
-            <span style="width:30px;text-align:right;color:#555;font-size:10px">${trustPct}%</span>
+            <div class="drive-track"><div class="drive-fill" data-field="trust-fill" style="width: 0%"></div></div>
+            <span data-field="trust-pct" style="width:30px;text-align:right;color:#555;font-size:10px">0%</span>
           </div>
         </div>
-      </div>`;
-    })
-    .join("");
+        <div data-field="mini-stream" style="max-height:80px;overflow-y:auto;margin-top:6px;font-size:10px;color:#888;border-top:1px solid #1a1a2e;padding-top:4px;"></div>
+      `;
+      guestCards.appendChild(card);
+    }
+
+    // Update fields
+    const roomEl = card.querySelector('[data-field="room"]') as HTMLElement;
+    roomEl.textContent = `Room: ${g.currentRoom ? prettifyRoom(g.currentRoom) : "—"}`;
+
+    const trustFill = card.querySelector('[data-field="trust-fill"]') as HTMLElement;
+    trustFill.style.width = `${trustPct}%`;
+    trustFill.className = `drive-fill ${trustCls}`;
+
+    const trustPctEl = card.querySelector('[data-field="trust-pct"]') as HTMLElement;
+    trustPctEl.textContent = `${trustPct}%`;
+  }
 
   // Sensors — group by room
   const roomSensors = new Map<string, typeof data.sensors>();
@@ -173,50 +192,73 @@ function addLogEntry(msg: Record<string, unknown>): void {
 
   let detail = "";
   let cls = "log-event";
+  let stream = "all"; // which character stream this belongs to
 
   if (type === "guest.spoke") {
-    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
-    detail = `<strong>${name}</strong>: "${(msg.text as string).slice(0, 120)}"`;
+    const rawName = (msg.guestName as string) ?? (msg.guestId as string);
+    const name = prettifyName(rawName);
+    stream = name.toLowerCase();
+    detail = `<strong>${name}</strong>: "${msg.text as string}"`;
     cls = "log-guest-speech";
   } else if (type === "resident.spoke") {
-    detail = `<strong>Poe</strong>: "${(msg.text as string).slice(0, 120)}"`;
+    stream = "poe";
+    detail = `<strong>Poe</strong>: "${msg.text as string}"`;
     cls = "log-speech";
   } else if (type === "guest.entered") {
-    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    const rawName = (msg.guestName as string) ?? (msg.guestId as string);
+    const name = prettifyName(rawName);
+    stream = name.toLowerCase();
     detail = `▸ <strong>${name}</strong> arrives in ${prettifyRoom(msg.roomId as string)}`;
     cls = "log-arrival";
   } else if (type === "guest.moved") {
-    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    const rawName = (msg.guestName as string) ?? (msg.guestId as string);
+    const name = prettifyName(rawName);
+    stream = name.toLowerCase();
     detail = `↳ ${name} moves to ${prettifyRoom(msg.to as string)}`;
     cls = "log-event";
   } else if (type === "guest.left") {
-    const name = prettifyName(msg.guestName as string ?? msg.guestId as string);
+    const rawName = (msg.guestName as string) ?? (msg.guestId as string);
+    const name = prettifyName(rawName);
+    stream = name.toLowerCase();
     detail = `◂ ${name} has left`;
     cls = "log-event";
   } else if (type === "time.phaseChanged") {
     detail = `⏱ Phase: ${capitalize(msg.from as string)} → <strong>${capitalize(msg.to as string)}</strong>`;
     cls = "log-phase";
   } else if (type === "resident.acted") {
+    stream = "poe";
     detail = `⚡ Poe: ${msg.affordanceId} → ${msg.actionId}`;
     cls = "log-action";
   } else if (type === "resident.moved") {
+    stream = "poe";
     detail = `↳ Poe shifts attention to ${prettifyRoom(msg.to as string)}`;
     cls = "log-action";
   } else if (type === "tick") {
-    return; // Don't log ticks
+    return;
   } else {
     detail = type;
   }
 
   const entry = document.createElement("div");
   entry.className = `log-entry ${cls}`;
+  entry.dataset.stream = stream;
   entry.innerHTML = `<span class="log-time">${now}</span> ${detail}`;
+
+  // Apply current filter
+  if (activeStream !== "all" && stream !== activeStream) {
+    entry.style.display = "none";
+  }
 
   // Only auto-scroll if user is already at the top (not reading history)
   const wasAtTop = eventLog.scrollTop <= 10;
   eventLog.prepend(entry);
   if (wasAtTop) {
     eventLog.scrollTop = 0;
+  }
+
+  // Also push to the character's mini-stream in their guest card
+  if (stream !== "all") {
+    pushToMiniStream(stream, now, detail);
   }
 
   // Keep log manageable
@@ -227,6 +269,33 @@ function addLogEntry(msg: Record<string, unknown>): void {
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Push an entry to a character's mini-stream (in their card or Poe section). */
+function pushToMiniStream(stream: string, time: string, detail: string): void {
+  let container: HTMLElement | null = null;
+
+  if (stream === "poe") {
+    container = document.getElementById("poe-mini-stream");
+  } else {
+    const card = document.getElementById(`guest-card-${stream}`);
+    if (card) {
+      container = card.querySelector('[data-field="mini-stream"]') as HTMLElement;
+    }
+  }
+
+  if (!container) return;
+
+  const el = document.createElement("div");
+  el.style.borderBottom = "1px solid rgba(255,255,255,0.03)";
+  el.style.padding = "1px 0";
+  el.innerHTML = `<span style="color:#444">${time}</span> ${detail}`;
+  container.prepend(el);
+
+  // Keep manageable
+  while (container.children.length > 30) {
+    container.removeChild(container.lastChild!);
+  }
 }
 
 function prettifyName(name: string): string {
@@ -262,6 +331,29 @@ copyBtn.addEventListener("click", () => {
   });
 });
 
+// --- Stream tabs (filter the combined log) ---
+let activeStream = "all";
+
+document.getElementById("stream-tabs")!.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest(".stream-tab") as HTMLElement | null;
+  if (!btn) return;
+
+  const stream = btn.dataset.stream ?? "all";
+  activeStream = stream;
+
+  // Update active tab
+  for (const tab of document.querySelectorAll(".stream-tab")) {
+    tab.classList.toggle("active", (tab as HTMLElement).dataset.stream === stream);
+  }
+
+  // Show/hide entries
+  for (const entry of eventLog.children) {
+    const el = entry as HTMLElement;
+    const entryStream = el.dataset.stream ?? "all";
+    el.style.display = (stream === "all" || entryStream === stream) ? "" : "none";
+  }
+});
+
 // Track last known felt string to detect changes
 let lastPoeFelt = "";
 
@@ -269,8 +361,16 @@ function logInnerThought(name: string, felt: string, cls: string): void {
   const now = new Date().toLocaleTimeString();
   const entry = document.createElement("div");
   entry.className = `log-entry ${cls}`;
+  entry.dataset.stream = name.toLowerCase();
   entry.innerHTML = `<span class="log-time">${now}</span> 💭 <em>${name}</em>: "${felt}"`;
+
+  if (activeStream !== "all" && name.toLowerCase() !== activeStream) {
+    entry.style.display = "none";
+  }
+
+  const wasAtTop = eventLog.scrollTop <= 10;
   eventLog.prepend(entry);
+  if (wasAtTop) eventLog.scrollTop = 0;
 }
 
 // --- Map ---

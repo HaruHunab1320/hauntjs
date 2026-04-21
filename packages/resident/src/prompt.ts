@@ -41,6 +41,5 @@ export function buildPrompt(
     messages,
     tools: ACTION_TOOLS,
     temperature: 0.7,
-    maxTokens: 1024,
   };
 }

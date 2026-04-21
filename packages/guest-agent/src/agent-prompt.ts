@@ -146,6 +146,5 @@ ${innerState}
     messages: merged,
     tools: GUEST_TOOLS,
     temperature: 0.8,
-    maxTokens: 512,
   };
 }
