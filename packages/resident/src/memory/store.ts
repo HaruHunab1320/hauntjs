@@ -238,6 +238,11 @@ export class SqliteMemoryStore implements MemoryStore {
     return JSON.parse(row.state_json);
   }
 
+  /** Expose the underlying database for cross-cutting concerns (e.g. event logging). */
+  getDb(): Database.Database {
+    return this.db;
+  }
+
   close(): void {
     this.db.close();
   }

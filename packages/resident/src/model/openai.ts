@@ -103,11 +103,15 @@ export class OpenAIProvider implements ModelProvider {
     if (choice.message.tool_calls) {
       for (const tc of choice.message.tool_calls) {
         if ("function" in tc) {
-          toolCalls.push({
-            id: tc.id,
-            name: tc.function.name,
-            arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
-          });
+          try {
+            toolCalls.push({
+              id: tc.id,
+              name: tc.function.name,
+              arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
+            });
+          } catch {
+            // Malformed JSON in tool arguments — skip this tool call
+          }
         }
       }
     }

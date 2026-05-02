@@ -57,7 +57,7 @@ export function buildGuestPrompt(
     : "none";
 
   const guestsHere = Array.from(place.guests.values())
-    .filter((g) => g.currentRoom === currentRoom && (g.id as string) !== config.id)
+    .filter((g) => g.currentRoom === currentRoom && (g.id as string) !== `guest-${config.id}`)
     .map((g) => g.name);
 
   const residentHere = "Poe"; // The resident is always "present" in Host mode
@@ -65,6 +65,9 @@ export function buildGuestPrompt(
   const innerState = situation
     ? `\n### Your inner state\n${situation.felt}\nOrientation: ${situation.orientation}`
     : "";
+
+  // Build a summary of topics already covered to prevent repetition
+  const topicSummary = buildTopicSummary(config, workingMemory);
 
   const systemPrompt = `${config.systemPrompt}
 
@@ -94,17 +97,22 @@ ${innerState}
 - Use the speak tool to talk, move tool to go somewhere, wait tool to observe.
 - Be patient. Real relationships take time. Don't rush.
 - Respond to what others say to you. Be social.
-- Choose ONE action per turn.`;
+- Choose ONE action per turn.
+- IMPORTANT: Do not repeat yourself. Review the conversation history carefully. If you already introduced yourself, asked a question, or made a point, do NOT say it again — move the conversation forward with new observations or questions.
+- If the conversation has been going in circles on the same topic, change the subject, explore a different room, or simply wait and observe. Stale conversations are a sign you should move on.
+- Keep your responses concise. A few sentences is usually enough. Long monologues slow the conversation.
+${topicSummary}`;
 
-  // Build message history from working memory
+  // Build message history from working memory — use full history for context
+
   const messages: ChatMessage[] = [];
-  const recentEvents = workingMemory.slice(-15);
+  const recentEvents = workingMemory.slice(-60);
 
   for (const event of recentEvents) {
     if (event.type === "guest.spoke") {
       const guest = place.guests.get(event.guestId);
       const name = guest?.name ?? event.guestId;
-      if ((event.guestId as string) === config.id) {
+      if ((event.guestId as string) === `guest-${config.id}`) {
         messages.push({ role: "assistant", content: event.text });
       } else {
         messages.push({ role: "user", content: `${name}: ${event.text}` });
@@ -147,4 +155,43 @@ ${innerState}
     tools: GUEST_TOOLS,
     temperature: 0.8,
   };
+}
+
+/**
+ * Builds a brief summary of what the agent has already said/asked,
+ * so the model knows not to repeat those topics.
+ */
+function buildTopicSummary(config: GuestAgentConfig, workingMemory: PresenceEvent[]): string {
+  const myId = `guest-${config.id}`;
+  const myMessages = workingMemory
+    .filter((e) => e.type === "guest.spoke" && (e.guestId as string) === myId)
+    .map((e) => (e as { text: string }).text);
+
+  if (myMessages.length === 0) return "";
+
+  // Count how many times we've spoken — signal conversation length
+  const msgCount = myMessages.length;
+
+  // Extract key phrases from recent messages to detect repetition
+  const recentSummaries = myMessages.slice(-10).map((text) => {
+    // Take the first sentence as a rough topic indicator
+    const firstSentence = text.split(/[.!?]/)[0]?.trim() ?? "";
+    return firstSentence.length > 80 ? firstSentence.slice(0, 80) + "..." : firstSentence;
+  });
+
+  let summary = `\n### Conversation awareness\nYou have spoken ${msgCount} times in this conversation.`;
+
+  if (msgCount > 5) {
+    summary += ` The conversation has been going for a while — avoid rehashing old ground.`;
+  }
+  if (msgCount > 15) {
+    summary += ` You have been talking for a LONG time. Consider moving to a different room, changing the subject entirely, or waiting silently. Repetitive conversations are boring — do something new.`;
+  }
+
+  summary += `\nYour recent statements (DO NOT repeat these):\n`;
+  for (const s of recentSummaries) {
+    summary += `- "${s}"\n`;
+  }
+
+  return summary;
 }

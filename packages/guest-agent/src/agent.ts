@@ -115,7 +115,7 @@ export class GuestAgent {
 
     // Store in working memory
     this.workingMemory.push(event);
-    if (this.workingMemory.length > 30) {
+    if (this.workingMemory.length > 200) {
       this.workingMemory.shift();
     }
 

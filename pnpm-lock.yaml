@@ -129,6 +129,9 @@ importers:
         specifier: workspace:*
         version: link:../resident
     devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

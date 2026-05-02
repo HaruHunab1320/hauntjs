@@ -12,12 +12,12 @@ interface RoomLayout {
 }
 
 const ROOM_LAYOUTS: Record<string, RoomLayout> = {
-  foyer: { x: 0, y: -200, w: 180, h: 180, image: "Foyer.png", label: "Foyer" },
-  gallery: { x: -220, y: -20, w: 180, h: 160, image: "Gallery.png", label: "Gallery" },
-  library: { x: 220, y: -20, w: 180, h: 160, image: "Library.png", label: "Library" },
-  conservatory: { x: -220, y: 180, w: 180, h: 180, image: "Conservatory.png", label: "Conservatory" },
-  archive: { x: 220, y: 180, w: 160, h: 140, image: "Archive.png", label: "Archive" },
-  "hidden-room": { x: 220, y: 360, w: 130, h: 130, image: "Hidden.png", label: "Hidden Room" },
+  foyer: { x: 0, y: -380, w: 360, h: 340, image: "Foyer.png", label: "Foyer" },
+  gallery: { x: -420, y: -20, w: 360, h: 320, image: "Gallery.png", label: "Gallery" },
+  library: { x: 420, y: -20, w: 360, h: 320, image: "Library.png", label: "Library" },
+  conservatory: { x: -420, y: 380, w: 360, h: 340, image: "Conservatory.png", label: "Conservatory" },
+  archive: { x: 420, y: 380, w: 320, h: 280, image: "Archive.png", label: "Archive" },
+  "hidden-room": { x: 420, y: 720, w: 260, h: 260, image: "Hidden.png", label: "Hidden Room" },
 };
 
 const CONNECTIONS = [
@@ -35,6 +35,14 @@ const CHAR_COLORS: Record<string, string> = {
   "guest-marsh": "#ffb74d",
 };
 
+const CHAR_SPRITES: Record<string, string> = {
+  poe: "Poe.png",
+  "guest-kovacs": "Kovacs.png",
+  "guest-raven": "Raven.png",
+  "guest-lira": "Lira.png",
+  "guest-marsh": "Marsh.png",
+};
+
 const CHAR_LABELS: Record<string, string> = {
   poe: "Poe",
   "guest-kovacs": "Kovacs",
@@ -43,7 +51,8 @@ const CHAR_LABELS: Record<string, string> = {
   "guest-marsh": "Marsh",
 };
 
-const CHAR_RADIUS = 10;
+const CHAR_RADIUS = 16;
+const SPRITE_SIZE = 48; // rendered size for character sprites
 
 interface CharacterState {
   id: string;
@@ -66,7 +75,9 @@ export class VaultMap {
   private cx = 0;
   private cy = 0;
   private roomImages = new Map<string, HTMLImageElement>();
+  private charImages = new Map<string, HTMLImageElement>();
   private imagesLoaded = false;
+  private scale = 1;
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement("canvas");
@@ -78,6 +89,13 @@ export class VaultMap {
     this.resize();
     window.addEventListener("resize", () => this.resize());
 
+    // Mouse wheel zoom
+    this.canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      this.scale = Math.min(2, Math.max(0.25, this.scale + delta));
+    }, { passive: false });
+
     // Load room images
     this.loadImages();
 
@@ -87,20 +105,30 @@ export class VaultMap {
 
   private loadImages(): void {
     let loaded = 0;
-    const total = Object.keys(ROOM_LAYOUTS).length;
+    const totalRooms = Object.keys(ROOM_LAYOUTS).length;
+    const totalChars = Object.keys(CHAR_SPRITES).length;
+    const total = totalRooms + totalChars;
+
+    const onLoad = () => {
+      loaded++;
+      if (loaded >= total) this.imagesLoaded = true;
+    };
 
     for (const [roomId, layout] of Object.entries(ROOM_LAYOUTS)) {
       const img = new Image();
-      img.onload = () => {
-        loaded++;
-        if (loaded >= total) this.imagesLoaded = true;
-      };
-      img.onerror = () => {
-        loaded++;
-        if (loaded >= total) this.imagesLoaded = true;
-      };
+      img.onload = onLoad;
+      img.onerror = onLoad;
       img.src = `./assets/${layout.image}`;
       this.roomImages.set(roomId, img);
+
+    }
+
+    for (const [charId, filename] of Object.entries(CHAR_SPRITES)) {
+      const img = new Image();
+      img.onload = onLoad;
+      img.onerror = onLoad;
+      img.src = `./assets/${filename}`;
+      this.charImages.set(charId, img);
     }
   }
 
@@ -108,8 +136,26 @@ export class VaultMap {
     const rect = this.canvas.parentElement!.getBoundingClientRect();
     this.canvas.width = rect.width;
     this.canvas.height = rect.height;
-    this.cx = rect.width / 2;
-    this.cy = rect.height / 2 - 40; // Shift up a bit to center the layout
+    // cx/cy are the center of the world in world-space (before scale).
+    // We'll apply the transform in render().
+    this.cx = 0;
+    this.cy = 0;
+
+    // Compute fit-to-view scale based on the bounding box of all rooms
+    this.fitToView(rect.width, rect.height);
+  }
+
+  private fitToView(viewW: number, viewH: number): void {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const layout of Object.values(ROOM_LAYOUTS)) {
+      minX = Math.min(minX, layout.x - layout.w / 2);
+      maxX = Math.max(maxX, layout.x + layout.w / 2);
+      minY = Math.min(minY, layout.y - layout.h / 2 - 20); // label space
+      maxY = Math.max(maxY, layout.y + layout.h / 2 + 30); // char labels
+    }
+    const worldW = maxX - minX + 60; // padding
+    const worldH = maxY - minY + 60;
+    this.scale = Math.min(viewW / worldW, viewH / worldH, 1);
   }
 
   updatePhase(phase: string): void {
@@ -129,22 +175,60 @@ export class VaultMap {
     if (room !== char.room) {
       char.room = room;
       if (room) {
-        const layout = ROOM_LAYOUTS[room];
-        if (layout) {
-          // Compute position within room (jitter for spacing)
-          const chars = Array.from(this.characters.values()).filter((c) => c.room === room);
-          const idx = chars.indexOf(char);
-          const offsetX = (idx - (chars.length - 1) / 2) * 22;
+        this.layoutCharactersInRoom(room);
+      }
+    }
+  }
 
-          char.targetX = this.cx + layout.x + offsetX;
-          char.targetY = this.cy + layout.y + 15;
+  /** Spread all characters in a room across the room area so they don't overlap. */
+  private layoutCharactersInRoom(room: string): void {
+    const layout = ROOM_LAYOUTS[room];
+    if (!layout) return;
 
-          // If this is the first placement, snap immediately
-          if (char.currentX === 0 && char.currentY === 0) {
-            char.currentX = char.targetX;
-            char.currentY = char.targetY;
-          }
-        }
+    const chars = Array.from(this.characters.values()).filter((c) => c.room === room);
+    const count = chars.length;
+    if (count === 0) return;
+
+    // Usable area inside the room (inset from edges)
+    const pad = SPRITE_SIZE + 8;
+    const roomCx = this.cx + layout.x;
+    const roomCy = this.cy + layout.y;
+
+    // Predefined positions within the room for up to 6 characters.
+    // Spread in a loose grid pattern so they never overlap.
+    const slots: Array<[number, number]> = [];
+    if (count === 1) {
+      slots.push([0, 0]);
+    } else if (count === 2) {
+      slots.push([-0.25, 0], [0.25, 0]);
+    } else if (count === 3) {
+      slots.push([0, -0.2], [-0.25, 0.2], [0.25, 0.2]);
+    } else if (count === 4) {
+      slots.push([-0.25, -0.2], [0.25, -0.2], [-0.25, 0.2], [0.25, 0.2]);
+    } else {
+      // 5+: two rows
+      const topCount = Math.ceil(count / 2);
+      const botCount = count - topCount;
+      for (let i = 0; i < topCount; i++) {
+        const frac = topCount === 1 ? 0 : (i / (topCount - 1)) - 0.5;
+        slots.push([frac * 0.5, -0.2]);
+      }
+      for (let i = 0; i < botCount; i++) {
+        const frac = botCount === 1 ? 0 : (i / (botCount - 1)) - 0.5;
+        slots.push([frac * 0.5, 0.2]);
+      }
+    }
+
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      const [fx, fy] = slots[i];
+      char.targetX = roomCx + fx * (layout.w - pad);
+      char.targetY = roomCy + fy * (layout.h - pad);
+
+      // Snap on first placement
+      if (char.currentX === 0 && char.currentY === 0) {
+        char.currentX = char.targetX;
+        char.currentY = char.targetY;
       }
     }
   }
@@ -156,12 +240,21 @@ export class VaultMap {
   }
 
   private render = (): void => {
-    const { ctx, cx, cy, canvas } = this;
+    const { ctx, canvas } = this;
     const isNight = this.phase === "night" || this.phase === "dusk";
 
-    // Clear
+    // Clear (full canvas, before transform)
     ctx.fillStyle = isNight ? "#030308" : "#080810";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Apply zoom: translate to center of canvas, then scale
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(this.scale, this.scale);
+
+    // In world space, cx=0, cy=0 is the origin
+    const cx = 0;
+    const cy = 0;
 
     // Draw connections
     ctx.strokeStyle = isNight ? "#0a0a18" : "#151525";
@@ -228,9 +321,9 @@ export class VaultMap {
 
       // Room label
       ctx.fillStyle = isNight ? "#333" : "#555";
-      ctx.font = "11px 'JetBrains Mono', monospace";
+      ctx.font = "13px 'JetBrains Mono', monospace";
       ctx.textAlign = "center";
-      ctx.fillText(layout.label, cx + layout.x, y - 4);
+      ctx.fillText(layout.label, cx + layout.x, y - 6);
     }
 
     // Animate and draw characters
@@ -244,35 +337,52 @@ export class VaultMap {
 
       const color = CHAR_COLORS[char.id] ?? "#cccccc";
       const label = CHAR_LABELS[char.id] ?? char.name;
+      const charImg = this.charImages.get(char.id);
 
-      // Shadow
+      // Shadow beneath character
       ctx.fillStyle = "rgba(0,0,0,0.3)";
       ctx.beginPath();
-      ctx.ellipse(char.currentX, char.currentY + CHAR_RADIUS + 2, CHAR_RADIUS * 0.8, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(char.currentX, char.currentY + SPRITE_SIZE / 2 + 2, SPRITE_SIZE * 0.35, 4, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Character circle with glow
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(char.currentX, char.currentY, CHAR_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      if (charImg && charImg.complete && charImg.naturalWidth > 0) {
+        // Draw sprite image
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.imageSmoothingEnabled = false; // keep pixel-art crisp
+        ctx.drawImage(
+          charImg,
+          char.currentX - SPRITE_SIZE / 2,
+          char.currentY - SPRITE_SIZE / 2,
+          SPRITE_SIZE,
+          SPRITE_SIZE,
+        );
+        ctx.imageSmoothingEnabled = true;
+        ctx.shadowBlur = 0;
+      } else {
+        // Fallback: colored circle with glow
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(char.currentX, char.currentY, CHAR_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
 
-      // Inner highlight
-      ctx.fillStyle = "rgba(255,255,255,0.2)";
-      ctx.beginPath();
-      ctx.arc(char.currentX - 2, char.currentY - 3, CHAR_RADIUS * 0.4, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.beginPath();
+        ctx.arc(char.currentX - 2, char.currentY - 3, CHAR_RADIUS * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Name label
       ctx.fillStyle = color;
-      ctx.font = "10px 'JetBrains Mono', monospace";
+      ctx.font = "11px 'JetBrains Mono', monospace";
       ctx.textAlign = "center";
-      ctx.fillText(label, char.currentX, char.currentY + CHAR_RADIUS + 14);
+      ctx.fillText(label, char.currentX, char.currentY + SPRITE_SIZE / 2 + 16);
     }
 
+    ctx.restore();
     requestAnimationFrame(this.render);
   };
 }

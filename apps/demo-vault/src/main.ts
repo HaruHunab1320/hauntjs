@@ -30,6 +30,10 @@ const TIME_MS_PER_HOUR = Number(process.env.TIME_MS_PER_HOUR ?? 600000); // 10 m
 const RICH_MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-3.1-pro-preview";
 const FAST_MODEL = process.env.HAUNT_FAST_MODEL ?? "gemini-3-flash-preview";
 
+// Simulation limits
+const MAX_IN_WORLD_DAYS = Number(process.env.MAX_DAYS ?? 3); // Stop after N in-world days
+const MAX_REAL_MINUTES = Number(process.env.MAX_REAL_MINUTES ?? 0); // 0 = no real-time limit
+
 // Guest arrival delays (real ms after start)
 const GUEST_ARRIVAL_SCHEDULE = [
   { config: marshConfig, delayMs: 3 * 60 * 1000 }, // Marsh: 3 min
@@ -69,7 +73,7 @@ async function start(): Promise<void> {
     character: poeVault,
     presenceMode: "host",
     currentRoom: VAULT_CONFIG.residentStartRoom,
-    focusRoom: null,
+    focusRoom: VAULT_CONFIG.residentStartRoom,
     mood: { energy: 0.8, focus: 0.7, valence: 0.5 },
     being,
   };
@@ -115,7 +119,7 @@ async function start(): Promise<void> {
 
   // 9. Set up trust tracking and transcript
   const trustTracker = new GuestTrustTracker(THE_SECRET);
-  const transcript = new TranscriptLogger();
+  const transcript = new TranscriptLogger(memory.getDb());
   transcript.setTimeSource(() => timeSystem.time);
 
   // 10. Wire event bus
@@ -126,9 +130,18 @@ async function start(): Promise<void> {
     // Track trust
     trustTracker.processEvent(event);
 
-    // Apply phase transitions
+    // Apply phase transitions and evict stranded guests
     if (event.type === "time.phaseChanged") {
-      applyPhaseTransition(place, event.to as never, VAULT_PHASE_TRANSITIONS);
+      const evictions = applyPhaseTransition(place, event.to as never, VAULT_PHASE_TRANSITIONS);
+      for (const eviction of evictions) {
+        await runtime.emit({
+          type: "guest.moved",
+          guestId: eviction.guestId,
+          from: eviction.from,
+          to: eviction.to,
+          at: new Date(),
+        });
+      }
     }
 
     // Broadcast resident actions to clients
@@ -219,6 +232,8 @@ async function start(): Promise<void> {
   });
 
   // 11. Process time on every tick
+  const startTime = Date.now();
+
   runtime.eventBus.on("tick", async () => {
     // Update time system
     const fakeState = {
@@ -243,6 +258,20 @@ async function start(): Promise<void> {
         .map((g) => g.id as string),
     );
     trustTracker.decayTrust(activeGuests);
+
+    // Check termination conditions
+    const time = timeSystem.time;
+    const realMinutes = (Date.now() - startTime) / 60_000;
+
+    if (MAX_IN_WORLD_DAYS > 0 && time.day > MAX_IN_WORLD_DAYS) {
+      console.log(`\n  ⏹ Simulation ended: reached day ${time.day} (limit: ${MAX_IN_WORLD_DAYS})`);
+      await shutdown("max-days");
+    }
+
+    if (MAX_REAL_MINUTES > 0 && realMinutes >= MAX_REAL_MINUTES) {
+      console.log(`\n  ⏹ Simulation ended: ${Math.round(realMinutes)} real minutes elapsed (limit: ${MAX_REAL_MINUTES})`);
+      await shutdown("max-time");
+    }
   });
 
   // 12. Start everything
@@ -303,9 +332,26 @@ async function start(): Promise<void> {
       memory.saveBeing("poe-vault", serializeBeing(residentState.being as never));
       console.log("  Being persisted.");
     }
+
+    // Log final trust scores and simulation summary as events
+    const trustSummary = trustTracker.getAllTrust();
+    transcript.log({
+      type: "tick" as never,
+      at: new Date(),
+      _meta: {
+        simulationEnd: true,
+        signal,
+        trustScores: trustSummary,
+        time: timeSystem.time,
+        transcriptLength: transcript.getTranscript().length,
+      },
+    } as never);
+
     memory.close();
     await server.close();
     console.log(`  Transcript: ${transcript.getTranscript().length} entries.`);
+    console.log(`  Trust scores: ${trustSummary.map((t) => `${t.guestId}: ${(t.level * 100).toFixed(0)}%`).join(", ")}`);
+    console.log(`  Run: tsx scripts/export-transcript.ts --stats  to review\n`);
     process.exit(0);
   };
 

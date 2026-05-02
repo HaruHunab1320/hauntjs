@@ -318,6 +318,96 @@ describe("Integration: full pipeline", () => {
     });
   });
 
+  describe("Host mode dead zones", () => {
+    it("does not perceive events in sensorless rooms even with place-wide sensors", async () => {
+      const perceiveCalls: Array<{ event: PresenceEvent; perceptions: Perception[] }> = [];
+      const mind: ResidentMind = {
+        perceive: vi.fn(async (event, perceptions, _ctx) => {
+          perceiveCalls.push({ event, perceptions });
+          return null;
+        }),
+      };
+
+      const place = makeTestPlace();
+      // Lobby has sensors (from makeTestPlace). Study has none.
+      // Add a place-wide omniscient sensor to the lobby
+      const lobbyRoom = place.rooms.get(roomId("lobby"))!;
+      const [omniId, omniSensor] = omniscientSensor("lobby.omni", roomId("lobby"));
+      lobbyRoom.sensors.set(omniId, omniSensor);
+
+      const rt = new Runtime({
+        place,
+        resident: makeResident("host"),
+        residentMind: mind,
+      });
+      await rt.start();
+
+      addGuest(rt.place, { id: guestId("g1"), name: "Takeshi" });
+      enterRoom(rt.place, guestId("g1"), roomId("study"));
+
+      // Guest speaks in study (no sensors) — even with a place-wide sensor
+      // in the lobby, the study is a dead zone and should produce no perceptions
+      await rt.emit({
+        type: "guest.spoke",
+        guestId: guestId("g1"),
+        roomId: roomId("study"),
+        text: "Can anyone hear me?",
+        at: new Date(),
+      });
+
+      // Autonomy system should have blocked deliberation (no perceptions)
+      expect(perceiveCalls).toHaveLength(0);
+
+      await rt.stop();
+    });
+
+    it("place-wide sensor still perceives events in rooms WITH sensors", async () => {
+      const perceiveCalls: Perception[][] = [];
+      const mind: ResidentMind = {
+        perceive: vi.fn(async (_event, perceptions) => {
+          perceiveCalls.push([...perceptions]);
+          return null;
+        }),
+      };
+
+      const place = makeTestPlace();
+      // Add a second room with sensors and a place-wide sensor in lobby
+      const garden = roomId("garden");
+      addRoom(place, { id: garden, name: "Garden", description: "A garden" });
+      connectRooms(place, roomId("lobby"), garden);
+      place.rooms.get(garden)!.sensors = new Map([
+        sightSensor("garden.sight", garden),
+      ]);
+
+      const lobbyRoom = place.rooms.get(roomId("lobby"))!;
+      const [omniId, omniSensor] = omniscientSensor("lobby.omni", roomId("lobby"));
+      lobbyRoom.sensors.set(omniId, omniSensor);
+
+      const rt = new Runtime({
+        place,
+        resident: makeResident("host"),
+        residentMind: mind,
+      });
+      await rt.start();
+
+      addGuest(rt.place, { id: guestId("g1"), name: "Takeshi" });
+      enterRoom(rt.place, guestId("g1"), garden);
+
+      await rt.emit({
+        type: "guest.entered",
+        guestId: guestId("g1"),
+        roomId: garden,
+        at: new Date(),
+      });
+
+      // Should perceive — the garden has sensors
+      expect(perceiveCalls).toHaveLength(1);
+      expect(perceiveCalls[0].length).toBeGreaterThan(0);
+
+      await rt.stop();
+    });
+  });
+
   describe("Sensor pipeline", () => {
     it("produces different perceptions based on sensor fidelity", async () => {
       const perceiveCalls: Perception[][] = [];

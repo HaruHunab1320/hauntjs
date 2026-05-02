@@ -99,6 +99,13 @@ function sensorReachesEvent(
 
     case "adjacent": {
       if (sensorRoomId === eventRoomId) return true;
+      // Adjacent sensors cannot reach into rooms with zero enabled sensors (dead zones)
+      const adjTarget = place.rooms.get(eventRoomId);
+      if (!adjTarget) return false;
+      const adjHasEnabledSensor = Array.from(adjTarget.sensors.values()).some(
+        (s) => s.enabled,
+      );
+      if (!adjHasEnabledSensor) return false;
       const maxDepth = sensor.reach.maxDepth ?? 1;
       return isWithinDepth(sensorRoomId, eventRoomId, maxDepth, place);
     }
@@ -110,8 +117,16 @@ function sensorReachesEvent(
       }
       return false;
 
-    case "place-wide":
-      return true;
+    case "place-wide": {
+      // A place-wide sensor can reach any room that has its own sensors.
+      // Rooms with zero enabled sensors are dead zones — truly imperceptible.
+      const targetRoom = place.rooms.get(eventRoomId);
+      if (!targetRoom) return false;
+      const hasEnabledSensor = Array.from(targetRoom.sensors.values()).some(
+        (s) => s.enabled,
+      );
+      return hasEnabledSensor;
+    }
 
     default:
       return false;

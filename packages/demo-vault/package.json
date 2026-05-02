@@ -13,12 +13,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@embersjs/core": "^0.1.1",
     "@hauntjs/core": "workspace:*",
-    "@hauntjs/resident": "workspace:*",
     "@hauntjs/guest-agent": "workspace:*",
-    "@embersjs/core": "^0.1.1"
+    "@hauntjs/resident": "workspace:*"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "typescript": "^5.7.0"
   }
 }

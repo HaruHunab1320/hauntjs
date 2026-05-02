@@ -28,13 +28,25 @@ export function parseAllDecisions(response: ChatResponse): ResidentAction[] {
     }
   }
 
-  // If there's also text content alongside tool calls, include it as speech
+  // If there's also text content alongside tool calls, include it as speech —
+  // but only if it looks like genuine dialogue, not raw tool call fragments.
   if (response.content && response.content.trim().length > 0 && actions.length === 0) {
-    actions.push({
-      type: "speak",
-      text: response.content.trim(),
-      audience: "all" as GuestId[] | "all",
-    });
+    const text = response.content.trim();
+    const looksLikeToolFragment =
+      text.includes("call:") ||
+      text.includes("default_api:") ||
+      /^\s*\*\s+Text:/.test(text) ||
+      /^\{?\s*"(type|audience|text)"/.test(text);
+
+    if (!looksLikeToolFragment) {
+      actions.push({
+        type: "speak",
+        text,
+        audience: "all" as GuestId[] | "all",
+      });
+    } else {
+      log.warn("Dropped response that looks like a raw tool fragment");
+    }
   }
 
   return actions;

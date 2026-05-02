@@ -1,5 +1,6 @@
 import type { PresenceEvent } from "@hauntjs/core";
 import type { TimeState } from "@hauntjs/core";
+import type Database from "better-sqlite3";
 
 export interface TranscriptEntry {
   realTime: string;
@@ -12,15 +13,27 @@ export interface TranscriptEntry {
 export class TranscriptLogger {
   private entries: TranscriptEntry[] = [];
   private timeState: (() => TimeState) | null = null;
+  private db: Database.Database | null;
+  private insertStmt: import("better-sqlite3").Statement<[string, string, string]> | null = null;
+
+  constructor(db?: Database.Database | null) {
+    this.db = db ?? null;
+    if (this.db) {
+      this.insertStmt = this.db.prepare(
+        "INSERT INTO events_log (event_type, payload_json, created_at) VALUES (?, ?, ?)",
+      );
+    }
+  }
 
   setTimeSource(getTime: () => TimeState): void {
     this.timeState = getTime;
   }
 
   log(event: PresenceEvent): void {
+    const now = new Date();
     const time = this.timeState?.();
     const entry: TranscriptEntry = {
-      realTime: new Date().toISOString().slice(11, 19),
+      realTime: now.toISOString().slice(11, 19),
       inWorldTime: time ? `Day ${time.day}, ${time.inWorldHour}:00` : "??",
       phase: time?.phase ?? "unknown",
       event: event.type,
@@ -28,6 +41,11 @@ export class TranscriptLogger {
     };
 
     this.entries.push(entry);
+
+    // Persist to SQLite if available
+    if (this.insertStmt) {
+      this.insertStmt.run(event.type, JSON.stringify(event), now.toISOString());
+    }
 
     // Print to console
     console.log(

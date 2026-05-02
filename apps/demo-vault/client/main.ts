@@ -417,7 +417,7 @@ const wrappedUpdateTelemetry = (data: TelemetryData): void => {
   vaultMap.updatePhase(data.time.phase);
 
   // Update map characters
-  vaultMap.updateCharacter("poe", "Poe", data.resident.focusRoom);
+  vaultMap.updateCharacter("poe", "Poe", data.resident.focusRoom ?? "foyer");
   for (const guest of data.guests) {
     vaultMap.updateCharacter(guest.id, prettifyName(guest.name), guest.currentRoom);
   }
