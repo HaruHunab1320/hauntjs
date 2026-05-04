@@ -4,6 +4,57 @@ The Vault proved the core thesis: architectural configuration produces emergent 
 
 Previous roadmaps (v0.1 and Phase 2) focused on building the framework primitives. This roadmap focuses on what the primitives enable.
 
+See [EXPERIMENTS.md](EXPERIMENTS.md) for the full catalogue of experiments we plan to run.
+
+---
+
+## Phase 0 — Deep Embers Integration
+
+**Goal:** Fully utilize @embersjs/core across all agents. The Vault used ~20% of Embers capabilities. Every experiment from here forward should use the full system.
+
+### 0.1 — Wire Practice Strengthening
+
+Map agent actions to practice strengthener events so practices actually grow during simulation:
+- Honest speech under pressure → strengthens Integrity
+- Quiet observation → strengthens Presence
+- Helping another agent → strengthens Service
+- Self-reflective statements → strengthens Witness
+- Noticing something positive → strengthens Gratitude
+- Acting with purpose → strengthens Creator Connection
+
+This requires detecting action types in the integration layer and sending the appropriate strengthener events to `integrate()`.
+
+### 0.2 — Orientation-Aware Prompting
+
+Use `metabolize().orientation` to adjust agent behavior:
+- **Clear** — reflective, considered, willing to engage deeply
+- **Held** — calm under pressure, grounded, steady
+- **Stretched** — reactive, shorter responses, focused on immediate needs
+- **Consumed** — overwhelmed, erratic, defensive, may withdraw
+
+Feed orientation into the system prompt so the model adjusts its voice.
+
+### 0.3 — Drive Trajectories in Telemetry
+
+Broadcast drive levels and practice depths in the spectator telemetry so we can watch inner states evolve in real time. Record drive trajectories in the DB for post-run analysis.
+
+### 0.4 — Capability Gating for Guests
+
+Give guest agents capabilities that unlock based on inner state:
+- Deep conversation only when safety/acceptance is above threshold
+- Ability to ask probing questions only when curiosity drive is dominant
+- Ability to move to restricted areas only when caution is satisfied
+
+### 0.5 — Rich Being Configurations
+
+Redesign all agent Beings around tensions rather than roles:
+- Every agent has at least one fragile tier-1 drive that can crash
+- Every agent has at least one drive with positive drift (mounting pressure)
+- Every agent has 2+ practices seeded at varying depths
+- Domination rules tuned so tier crashes produce visible behavioral shifts
+
+**Pause point.** Run the Vault with enriched Embers configs. Compare transcript quality to the original. The felt prose should be richer, behavior should show more arc, practices should visibly develop.
+
 ---
 
 ## Phase 1 — Experiment Infrastructure
@@ -196,9 +247,15 @@ Configurable per entity. The resident remembers everything. Some guests remember
 
 ## Open Questions
 
-- Can an AI agent achieve genuine meta-awareness of a simulated environment? The Labyrinth is the test.
-- Does architectural familiarity (a house vs. a vault) suppress or redirect philosophical emergence?
-- What happens when two minds share a body (layered residents)?
+- Can an AI agent achieve genuine meta-awareness of a simulated environment? (→ Experiment 3: The Threshold)
+- Does architectural familiarity (a house vs. a vault) suppress or redirect philosophical emergence? (→ Experiment 1: The Residency)
+- What happens when two minds share a body? (→ Phase 3.3: Layered Residents)
 - Is there a topology that produces *no* interesting emergence? What makes a space "dead"?
-- Can a resident develop genuine personality over many runs, or does it plateau?
-- What's the minimum configuration that produces interesting behavior? (One room? Two?)
+- Can a resident develop genuine personality over many runs, or does it plateau? (→ Experiment 7: The Return)
+- What's the minimum configuration that produces interesting behavior? (→ Experiment 6: The Void)
+- What social structures emerge from drive topology alone, without any narrative? (→ Experiment 1: The Residency)
+- Can agents develop a shared language through affordance manipulation alone? (→ Experiment 2: The Mirror)
+- Does a resident whose drives drift away from its purpose produce a "decline" narrative? (→ Experiment 4: The Drift)
+- At what group size do emergent dynamics break down into noise? (→ Experiment 5: The Congregation)
+- Do Embers practices produce measurably different behavior over time, or is the effect too subtle for LLMs to express?
+- Is drive tension (conflicting drives within one agent) more generative than drive alignment (complementary drives)?
