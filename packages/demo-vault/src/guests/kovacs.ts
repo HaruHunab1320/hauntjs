@@ -24,9 +24,24 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
     name: "Kovacs",
     drives: {
       tierCount: 3,
+      dominationRules: { threshold: 0.3, dampening: 0.7 },
       drives: [
         {
-          id: "mission",
+          id: "safety",
+          name: "Safety",
+          description: "The need to feel welcome, to not be seen as an intruder.",
+          tier: 1,
+          weight: 0.8,
+          initialLevel: 0.5,
+          target: 0.7,
+          drift: { kind: "linear", ratePerHour: -0.03 },
+          satiatedBy: [
+            { matches: { kind: "event", type: "conversation" }, amount: 0.05 },
+            { matches: { kind: "event", type: "acknowledge" }, amount: 0.08 },
+          ],
+        },
+        {
+          id: "claim",
           name: "Claim",
           description: "The need to prove lineage and earn the secret.",
           tier: 2,
@@ -41,8 +56,8 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
         {
           id: "patience",
           name: "Patience",
-          description: "The ability to wait, to let trust build naturally.",
-          tier: 1,
+          description: "The ability to wait, to let trust build naturally. Erodes over time.",
+          tier: 2,
           weight: 0.7,
           initialLevel: 0.7,
           target: 0.6,
@@ -64,11 +79,35 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
             { matches: { kind: "event", type: "conversation" }, amount: 0.1 },
           ],
         },
+        {
+          id: "urgency",
+          name: "Urgency",
+          description: "A mounting pressure to act before the opportunity passes.",
+          tier: 3,
+          weight: 0.5,
+          initialLevel: 0.8,
+          target: 0.7,
+          drift: { kind: "linear", ratePerHour: -0.015 },
+          satiatedBy: [],
+        },
       ],
     },
-    practices: { seeds: [{ id: "integrityPractice", initialDepth: 0.5 }] },
-    subscriptions: [],
-    capabilities: [],
+    practices: {
+      seeds: [
+        { id: "integrityPractice", initialDepth: 0.5 },
+        { id: "presencePractice", initialDepth: 0.3 },
+      ],
+    },
+    subscriptions: [
+      {
+        capabilityId: "deepQuestion",
+        when: { kind: "drive-satisfied", driveId: "patience", threshold: 0.4 },
+        because: "Patience is needed before asking probing questions.",
+      },
+    ],
+    capabilities: [
+      { id: "deepQuestion", name: "Deep Question", description: "Ask probing questions about lineage or the secret.", kind: "action-kind" },
+    ],
     metadata: { role: "heir" },
   }),
 };

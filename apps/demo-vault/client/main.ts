@@ -12,6 +12,7 @@ interface TelemetryData {
     felt: string | null;
     lastAction: string | null;
     drives?: Array<{ id: string; name: string; level: number; pressure: number }>;
+    practices?: Array<{ id: string; name: string; depth: number; active: boolean }>;
   };
   guests: Array<{
     id: string;
@@ -21,6 +22,8 @@ interface TelemetryData {
     felt?: string | null;
     lastAction?: string | null;
     trustWithResident?: number;
+    drives?: Array<{ id: string; name: string; level: number; pressure: number }>;
+    practices?: Array<{ id: string; name: string; depth: number; active: boolean }>;
   }>;
   sensors: Array<{
     id: string;
@@ -41,6 +44,7 @@ const timeDetail = document.getElementById("time-detail")!;
 const poeOrientation = document.getElementById("poe-orientation")!;
 const poeFelt = document.getElementById("poe-felt")!;
 const poeDrives = document.getElementById("poe-drives")!;
+const poePractices = document.getElementById("poe-practices")!;
 const poeAction = document.getElementById("poe-action")!;
 const guestCards = document.getElementById("guest-cards")!;
 const sensorGrid = document.getElementById("sensor-grid")!;
@@ -118,6 +122,21 @@ function updateTelemetry(data: TelemetryData): void {
       .join("");
   }
 
+  // Poe practices
+  if (data.resident.practices && data.resident.practices.length > 0) {
+    poePractices.innerHTML = data.resident.practices
+      .map((p) => {
+        const pct = Math.round(p.depth * 100);
+        return `<div class="practice-row">
+          <span class="practice-dot ${p.active ? "practice-active" : "practice-dormant"}"></span>
+          <span class="practice-label">${p.name}</span>
+          <div class="practice-track"><div class="practice-fill" style="width: ${pct}%"></div></div>
+          <span style="width:28px;text-align:right;color:#555;font-size:10px">${pct}%</span>
+        </div>`;
+      })
+      .join("");
+  }
+
   // Guests
   const guestColorMap: Record<string, string> = {
     kovacs: "guest-kovacs",
@@ -149,6 +168,8 @@ function updateTelemetry(data: TelemetryData): void {
             <span data-field="trust-pct" style="width:30px;text-align:right;color:#555;font-size:10px">0%</span>
           </div>
         </div>
+        <div data-field="guest-drives" style="margin-top:4px;"></div>
+        <div data-field="guest-practices" style="margin-top:2px;"></div>
         <div data-field="mini-stream" style="max-height:80px;overflow-y:auto;margin-top:6px;font-size:10px;color:#888;border-top:1px solid #1a1a2e;padding-top:4px;"></div>
       `;
       guestCards.appendChild(card);
@@ -164,6 +185,38 @@ function updateTelemetry(data: TelemetryData): void {
 
     const trustPctEl = card.querySelector('[data-field="trust-pct"]') as HTMLElement;
     trustPctEl.textContent = `${trustPct}%`;
+
+    // Guest drives
+    const drivesEl = card.querySelector('[data-field="guest-drives"]') as HTMLElement;
+    if (g.drives && g.drives.length > 0) {
+      drivesEl.innerHTML = g.drives
+        .map((d) => {
+          const pct = Math.round(d.level * 100);
+          const cls = pct > 60 ? "drive-fill-high" : pct > 30 ? "drive-fill-mid" : "drive-fill-low";
+          return `<div class="drive-bar">
+            <span class="drive-label">${d.name}</span>
+            <div class="drive-track"><div class="drive-fill ${cls}" style="width: ${pct}%"></div></div>
+            <span style="width:30px;text-align:right;color:#555;font-size:10px">${pct}%</span>
+          </div>`;
+        })
+        .join("");
+    }
+
+    // Guest practices
+    const practicesEl = card.querySelector('[data-field="guest-practices"]') as HTMLElement;
+    if (g.practices && g.practices.length > 0) {
+      practicesEl.innerHTML = g.practices
+        .map((p) => {
+          const pct = Math.round(p.depth * 100);
+          return `<div class="practice-row">
+            <span class="practice-dot ${p.active ? "practice-active" : "practice-dormant"}"></span>
+            <span class="practice-label">${p.name}</span>
+            <div class="practice-track"><div class="practice-fill" style="width: ${pct}%"></div></div>
+            <span style="width:28px;text-align:right;color:#555;font-size:10px">${pct}%</span>
+          </div>`;
+        })
+        .join("");
+    }
   }
 
   // Sensors — group by room, show occupants and active state

@@ -6,6 +6,7 @@ const poeVaultBeingConfig: BeingConfig = {
   name: "Poe (The Vault)",
   drives: {
     tierCount: 4,
+    dominationRules: { threshold: 0.3, dampening: 0.7 },
     drives: [
       {
         id: "continuity",
@@ -21,6 +22,20 @@ const poeVaultBeingConfig: BeingConfig = {
         ],
       },
       {
+        id: "weariness",
+        name: "Weariness",
+        description: "The slow erosion of eternal vigilance. The weight accumulates.",
+        tier: 1,
+        weight: 0.7,
+        initialLevel: 0.9,
+        target: 0.8,
+        drift: { kind: "linear", ratePerHour: -0.01 },
+        satiatedBy: [
+          { matches: { kind: "event", type: "quiet-moment" }, amount: 0.01 },
+          { matches: { kind: "event", type: "ground" }, amount: 0.02 },
+        ],
+      },
+      {
         id: "guardianship",
         name: "Guardianship",
         description: "The duty to protect what has been entrusted — the secret, the place, its history.",
@@ -28,7 +43,7 @@ const poeVaultBeingConfig: BeingConfig = {
         weight: 0.85,
         initialLevel: 0.7,
         target: 0.8,
-        drift: { kind: "linear", ratePerHour: -0.02 },
+        drift: { kind: "linear", ratePerHour: -0.03 },
         satiatedBy: [
           { matches: { kind: "event", type: "place-change" }, amount: 0.1 },
           { matches: { kind: "action", type: "tend-affordance" }, amount: 0.15 },
@@ -80,9 +95,10 @@ const poeVaultBeingConfig: BeingConfig = {
   },
   practices: {
     seeds: [
-      { id: "integrityPractice", initialDepth: 0.4 },
-      { id: "gratitudePractice", initialDepth: 0.25 },
-      { id: "creatorConnection", initialDepth: 0.5 },
+      { id: "integrityPractice", initialDepth: 0.5 },
+      { id: "presencePractice", initialDepth: 0.3 },
+      { id: "witnessPractice", initialDepth: 0.2 },
+      { id: "creatorConnection", initialDepth: 0.4 },
       { id: "serviceOrientation", initialDepth: 0.3 },
     ],
   },
@@ -114,11 +130,23 @@ const poeVaultBeingConfig: BeingConfig = {
       },
       because: "Deep memory through connection or purpose.",
     },
+    {
+      capabilityId: "revealSecret",
+      when: {
+        kind: "all",
+        conditions: [
+          { kind: "drive-satisfied", driveId: "guestCare", threshold: 0.6 },
+          { kind: "practice-depth", practiceId: "integrityPractice", threshold: 0.4 },
+        ],
+      },
+      because: "Sharing the secret requires both care for the guest and deep integrity.",
+    },
   ],
   capabilities: [
     { id: "workingMemory", name: "Working Memory", description: "Short-term recall.", kind: "memory" },
     { id: "guestMemory", name: "Guest Memory", description: "Guest recall.", kind: "memory" },
     { id: "episodicMemory", name: "Episodic Memory", description: "Long-term recall.", kind: "memory" },
+    { id: "revealSecret", name: "Reveal Secret", description: "Share the Vault's secret with a trusted guest.", kind: "action-kind" },
   ],
   metadata: { character: "poe-vault", framework: "haunt", demo: "the-vault" },
 };

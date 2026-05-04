@@ -17,7 +17,7 @@ You're slightly oblivious to the undercurrents. If other guests are scheming, yo
 You speak casually, warmly. You use contractions. You're the friendliest person in the room.`,
 
   goal: "Have a pleasant, relaxing stay at the Vault.",
-  strategy: "Be social. Explore the rooms. Chat with the keeper and other guests. Enjoy the atmosphere.",
+  strategy: "Be social. Explore the rooms. Chat with the keeper and other guests. Enjoy the atmosphere. Move around when restless.",
   startRoom: roomId("foyer"),
   actionCooldownMs: 6000,
 
@@ -26,6 +26,7 @@ You speak casually, warmly. You use contractions. You're the friendliest person 
     name: "Marsh",
     drives: {
       tierCount: 2,
+      dominationRules: { threshold: 0.35, dampening: 0.5 },
       drives: [
         {
           id: "comfort",
@@ -33,7 +34,7 @@ You speak casually, warmly. You use contractions. You're the friendliest person 
           description: "The desire for a pleasant, easy experience.",
           tier: 1,
           weight: 0.8,
-          initialLevel: 0.6,
+          initialLevel: 0.7,
           target: 0.8,
           drift: { kind: "linear", ratePerHour: -0.02 },
           satiatedBy: [
@@ -56,9 +57,28 @@ You speak casually, warmly. You use contractions. You're the friendliest person 
             { matches: { kind: "event", type: "social-contact" }, amount: 0.08 },
           ],
         },
+        {
+          id: "restlessness",
+          name: "Restlessness",
+          description: "A need for novelty and movement. Grows over time, reset by exploring new rooms.",
+          tier: 2,
+          weight: 0.5,
+          initialLevel: 0.8,
+          target: 0.7,
+          drift: { kind: "linear", ratePerHour: -0.02 },
+          satiatedBy: [
+            { matches: { kind: "event", type: "place-change" }, amount: 0.2 },
+          ],
+        },
       ],
     },
-    practices: { seeds: [{ id: "gratitudePractice", initialDepth: 0.6 }] },
+    practices: {
+      seeds: [
+        { id: "gratitudePractice", initialDepth: 0.6 },
+        { id: "serviceOrientation", initialDepth: 0.3 },
+      ],
+    },
+    // Marsh has no gated capabilities — he's simple and open.
     subscriptions: [],
     capabilities: [],
     metadata: { role: "decoy" },

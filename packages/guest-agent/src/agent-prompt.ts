@@ -1,6 +1,7 @@
 import type { Place, PresenceEvent, RoomId } from "@hauntjs/core";
 import type { ChatMessage, ChatRequest } from "@hauntjs/resident";
-import type { InnerSituation } from "@embersjs/core";
+import type { InnerSituation, Subscription } from "@embersjs/core";
+import { availableCapabilities } from "@embersjs/core";
 import type { GuestAgentConfig } from "./agent-types.js";
 
 const GUEST_TOOLS = [
@@ -62,9 +63,10 @@ export function buildGuestPrompt(
 
   const residentHere = "Poe"; // The resident is always "present" in Host mode
 
-  const innerState = situation
-    ? `\n### Your inner state\n${situation.felt}\nOrientation: ${situation.orientation}`
-    : "";
+  const innerState = situation ? buildInnerStateSection(situation) : "";
+
+  // Build capability awareness from Embers Being (if present)
+  const capabilitySection = config.being ? buildCapabilitySection(config.being) : "";
 
   // Build a summary of topics already covered to prevent repetition
   const topicSummary = buildTopicSummary(config, workingMemory);
@@ -90,7 +92,7 @@ The resident (${residentHere}) is present.
 
 ### Connected rooms
 ${connectedRooms}
-${innerState}
+${innerState}${capabilitySection}
 
 ## Rules
 - You are a guest in this place. Act naturally — don't announce your goal.
@@ -194,4 +196,119 @@ function buildTopicSummary(config: GuestAgentConfig, workingMemory: PresenceEven
   }
 
   return summary;
+}
+
+/** Builds the capabilities section from an Embers Being's capability/subscription state. */
+function buildCapabilitySection(being: import("@embersjs/core").Being): string {
+  const allCapabilities = being.capabilities;
+  const subscriptions = being.subscriptions;
+
+  // No capabilities defined — skip the section entirely
+  if (allCapabilities.length === 0) return "";
+
+  const available = availableCapabilities(being);
+  const availableIds = new Set(available.map((c) => c.id));
+
+  const unlockedLines: string[] = [];
+  const lockedLines: string[] = [];
+
+  for (const cap of allCapabilities) {
+    if (availableIds.has(cap.id)) {
+      unlockedLines.push(`- ${cap.name}: ${cap.description}`);
+    } else {
+      const sub = subscriptions.find((s) => s.capabilityId === cap.id);
+      const hint = sub ? unlockHint(sub) : "";
+      lockedLines.push(`- ${cap.name}${hint ? ` (${hint})` : ""}`);
+    }
+  }
+
+  const lines: string[] = ["\n### Current capabilities"];
+  if (unlockedLines.length > 0) {
+    lines.push("You can:");
+    lines.push(...unlockedLines);
+  }
+  if (lockedLines.length > 0) {
+    lines.push("Not yet available:");
+    lines.push(...lockedLines);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Produce a human-readable hint about what might unlock a locked capability.
+ * Uses the subscription's `because` field if present, otherwise derives a
+ * generic hint from the access condition kind.
+ */
+function unlockHint(sub: Subscription): string {
+  if (sub.because) return sub.because;
+
+  switch (sub.when.kind) {
+    case "drive-satisfied":
+      return "you need to feel more settled first";
+    case "practice-depth":
+      return "you need more experience first";
+    case "tier-satisfied":
+      return "your basic needs must be met first";
+    case "never":
+      return "not available right now";
+    case "always":
+      return "";
+    case "any":
+    case "all":
+      return "conditions haven't been met yet";
+    default:
+      return "";
+  }
+}
+
+/** Returns orientation-specific behavioral guidance. */
+function orientationGuidance(orientation: string): string {
+  switch (orientation) {
+    case "clear":
+      return "You feel settled and clear-minded. You can engage deeply, reflect carefully, and take your time with responses.";
+    case "held":
+      return "You feel the weight of your duties but are grounded. You remain steady and purposeful even under pressure.";
+    case "stretched":
+      return "You feel pulled in multiple directions. Keep responses focused and brief. Address what's most pressing.";
+    case "consumed":
+      return "You feel overwhelmed. Your responses may be shorter, more guarded, or defensive. You may need to withdraw or seek quiet.";
+    default:
+      return "";
+  }
+}
+
+/** Builds the inner state section from an Embers InnerSituation. */
+function buildInnerStateSection(situation: InnerSituation): string {
+  const lines: string[] = [
+    "\n### Your inner state",
+    situation.felt,
+    `Orientation: ${situation.orientation}`,
+  ];
+
+  // Orientation-specific behavioral guidance
+  const guidance = orientationGuidance(situation.orientation);
+  if (guidance) {
+    lines.push(guidance);
+  }
+
+  // Top dominant drives (up to 3) so the model knows what's pushing the character
+  if (situation.dominantDrives.length > 0) {
+    const topDrives = situation.dominantDrives.slice(0, 3);
+    const driveDescriptions = topDrives.map(
+      (d) => `${d.name} (pressure: ${(d.feltPressure * 100).toFixed(0)}%) — ${d.felt}`,
+    );
+    lines.push(`Driving needs: ${driveDescriptions.join("; ")}`);
+  }
+
+  // Active practices
+  const activePractices = situation.practiceState.filter((p) => p.active);
+  if (activePractices.length > 0) {
+    const practiceDescriptions = activePractices.map(
+      (p) => `${p.name} (depth ${p.depth.toFixed(1)})`,
+    );
+    lines.push(`Active practices: ${practiceDescriptions.join(", ")}`);
+  }
+
+  return lines.join("\n");
 }

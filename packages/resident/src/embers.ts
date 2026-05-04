@@ -30,13 +30,26 @@ export function embersTickBeing(being: Being, dtMs: number): void {
   tick(being, dtMs);
 }
 
-/** Map a Haunt PresenceEvent to an Embers IntegrationInput and process it. */
+/** Map a Haunt PresenceEvent to Embers IntegrationInputs and process them all. */
 export function embersIntegrate(being: Being, event: PresenceEvent): IntegrationResult {
-  const input = mapEventToInput(event);
-  if (!input) {
-    return { driveChanges: [], practiceChanges: [] };
+  const ctx = buildPressureContext(being);
+  const allChanges: IntegrationResult = { driveChanges: [], practiceChanges: [] };
+
+  // Primary integration (the base event/action mapping)
+  const primary = mapEventToInput(event);
+  if (primary) {
+    const result = integrate(being, { ...primary, context: ctx });
+    mergeResults(allChanges, result);
   }
-  return integrate(being, input);
+
+  // Practice-strengthening integrations
+  const extras = mapEventToPracticeInputs(event);
+  for (const extra of extras) {
+    const result = integrate(being, { ...extra, context: ctx });
+    mergeResults(allChanges, result);
+  }
+
+  return allChanges;
 }
 
 /** Get the Being's current inner situation — felt prose string + orientation. */
@@ -75,6 +88,42 @@ export function embersSerialize(being: Being): SerializedBeing {
 export function embersDeserialize(data: SerializedBeing): Being {
   return deserializeBeing(data);
 }
+
+// ---------------------------------------------------------------------------
+// Pressure context
+// ---------------------------------------------------------------------------
+
+const DOMINATION_THRESHOLD = 0.3;
+
+/** Check whether any drive is below the domination threshold. */
+function buildPressureContext(being: Being): IntegrationInput["context"] {
+  const pressingDriveIds: string[] = [];
+  for (const [id, drive] of being.drives.drives) {
+    if (drive.level < DOMINATION_THRESHOLD) {
+      pressingDriveIds.push(id);
+    }
+  }
+  return pressingDriveIds.length > 0
+    ? { pressured: true, pressingDriveIds }
+    : { pressured: false, pressingDriveIds: [] };
+}
+
+/** Merge an IntegrationResult into an accumulator (mutates `into`). */
+function mergeResults(into: IntegrationResult, from: IntegrationResult): void {
+  // IntegrationResult fields are readonly arrays, so we rebuild via cast
+  (into as { driveChanges: IntegrationResult["driveChanges"] }).driveChanges = [
+    ...into.driveChanges,
+    ...from.driveChanges,
+  ];
+  (into as { practiceChanges: IntegrationResult["practiceChanges"] }).practiceChanges = [
+    ...into.practiceChanges,
+    ...from.practiceChanges,
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Primary event → integration mapping (drives)
+// ---------------------------------------------------------------------------
 
 /**
  * Map a Haunt PresenceEvent to an Embers IntegrationInput.
@@ -129,4 +178,60 @@ function mapEventToInput(event: PresenceEvent): IntegrationInput | null {
     default:
       return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Practice-strengthening event mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Map a Haunt PresenceEvent to additional IntegrationInputs that target
+ * practice strengtheners. These complement the primary mapping above.
+ *
+ * The insight: we can't detect nuanced acts like "honest-admission" from event
+ * type alone, but we CAN map structural patterns to practice-relevant types:
+ *
+ * - resident.spoke with guests present  → tend-guest (Service)
+ * - resident.acted on affordances        → connect-to-purpose (Creator Connection)
+ * - tick when no guests present          → ground (Presence) + self-observe (Witness)
+ * - guest.spoke directed at resident     → acknowledge (Gratitude)
+ * - resident.moved                       → unprompted-care (Service, contextual)
+ */
+function mapEventToPracticeInputs(event: PresenceEvent): IntegrationInput[] {
+  const inputs: IntegrationInput[] = [];
+
+  switch (event.type) {
+    case "resident.spoke":
+      // Speaking to guests = tending to them (serviceOrientation)
+      if (event.audience.length > 0) {
+        inputs.push({ entry: { kind: "action", type: "tend-guest" } });
+      }
+      break;
+
+    case "resident.acted":
+      // Acting on affordances = connecting to purpose (creatorConnection)
+      inputs.push({ entry: { kind: "action", type: "connect-to-purpose" } });
+      break;
+
+    case "tick":
+      // Quiet moments alone = grounding (presencePractice) + self-observation (witnessPractice)
+      // These fire on every tick; the pressure requirement on `ground` means
+      // it only strengthens presencePractice when the being is under pressure.
+      inputs.push({ entry: { kind: "event", type: "ground" } });
+      inputs.push({ entry: { kind: "event", type: "self-observe" } });
+      break;
+
+    case "guest.spoke":
+      // A guest speaking = opportunity to acknowledge (gratitudePractice)
+      inputs.push({ entry: { kind: "event", type: "acknowledge" } });
+      break;
+
+    case "resident.moved":
+      // Moving toward guests = unprompted care (serviceOrientation)
+      // We emit the type; the practice strengthener will only fire if matched.
+      inputs.push({ entry: { kind: "action", type: "unprompted-care" } });
+      break;
+  }
+
+  return inputs;
 }

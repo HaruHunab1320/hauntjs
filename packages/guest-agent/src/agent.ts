@@ -125,9 +125,10 @@ export class GuestAgent {
       tick(this.config.being, now - this.lastTickAt);
       this.lastTickAt = now;
 
-      const input = this.mapEventToEmbers(event);
-      if (input) {
-        integrate(this.config.being, input);
+      const ctx = this.buildPressureContext();
+      const inputs = this.mapEventToEmbers(event);
+      for (const input of inputs) {
+        integrate(this.config.being, { ...input, context: ctx });
       }
     }
 
@@ -264,18 +265,63 @@ export class GuestAgent {
     }
   }
 
-  private mapEventToEmbers(event: PresenceEvent): { entry: { kind: "event" | "action"; type: string } } | null {
+  private static readonly DOMINATION_THRESHOLD = 0.3;
+
+  private buildPressureContext(): { pressured?: boolean; pressingDriveIds?: string[] } {
+    const being = this.config.being;
+    if (!being) return {};
+    const pressingDriveIds: string[] = [];
+    for (const [id, drive] of being.drives.drives) {
+      if (drive.level < GuestAgent.DOMINATION_THRESHOLD) {
+        pressingDriveIds.push(id);
+      }
+    }
+    return pressingDriveIds.length > 0
+      ? { pressured: true, pressingDriveIds }
+      : { pressured: false, pressingDriveIds: [] };
+  }
+
+  private mapEventToEmbers(event: PresenceEvent): Array<{ entry: { kind: "event" | "action"; type: string } }> {
+    const inputs: Array<{ entry: { kind: "event" | "action"; type: string } }> = [];
+
     switch (event.type) {
       case "guest.spoke":
-        return { entry: { kind: "event", type: "conversation" } };
+        inputs.push({ entry: { kind: "event", type: "conversation" } });
+        // Our own speech = acknowledge (gratitude) + potential tend-guest (service)
+        if ((event.guestId as string) === (this.id as string)) {
+          inputs.push({ entry: { kind: "action", type: "acknowledge" } });
+        }
+        break;
+
       case "resident.spoke":
-        return { entry: { kind: "event", type: "conversation" } };
+        inputs.push({ entry: { kind: "event", type: "conversation" } });
+        // Resident speaking to us = opportunity to acknowledge (gratitude)
+        inputs.push({ entry: { kind: "event", type: "acknowledge" } });
+        break;
+
       case "guest.entered":
-        return { entry: { kind: "event", type: "social-contact" } };
+        inputs.push({ entry: { kind: "event", type: "social-contact" } });
+        // Another guest entering = notice-positive (gratitude)
+        if ((event.guestId as string) !== (this.id as string)) {
+          inputs.push({ entry: { kind: "event", type: "notice-positive" } });
+        }
+        break;
+
+      case "tick":
+        // Quiet moment = grounding (presence, requires pressure) + self-observe (witness)
+        inputs.push({ entry: { kind: "event", type: "ground" } });
+        inputs.push({ entry: { kind: "event", type: "self-observe" } });
+        break;
+
       case "time.phaseChanged":
-        return { entry: { kind: "event", type: "time-shift" } };
-      default:
-        return null;
+        inputs.push({ entry: { kind: "event", type: "time-shift" } });
+        break;
+
+      case "guest.left":
+        inputs.push({ entry: { kind: "event", type: "social-contact" } });
+        break;
     }
+
+    return inputs;
   }
 }

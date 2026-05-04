@@ -255,13 +255,31 @@ export function describeGuest(guest: Guest): string {
   return `- ${guest.name} (${guest.id}) — ${tier}, ${visits} visit${visits !== 1 ? "s" : ""}`;
 }
 
+/** Returns orientation-specific behavioral guidance for the resident. */
+function orientationGuidance(orientation: string): string {
+  switch (orientation) {
+    case "clear":
+      return "You feel settled and clear-minded. You can engage deeply, reflect carefully, and take your time with responses.";
+    case "held":
+      return "You feel the weight of your duties but are grounded. You remain steady and purposeful even under pressure.";
+    case "stretched":
+      return "You feel pulled in multiple directions. Keep responses focused and brief. Address what's most pressing.";
+    case "consumed":
+      return "You feel overwhelmed. Your responses may be shorter, more guarded, or defensive. You may need to withdraw or seek quiet.";
+    default:
+      return "";
+  }
+}
+
 /** Builds the mood/inner-state section. Uses Embers felt prose when available, falls back to static mood. */
 function buildMoodSection(
   context: RuntimeContext,
   situation?: InnerSituationForPrompt | null,
 ): string {
   if (situation) {
-    return `### Inner state\n${situation.felt}\n\nOrientation: ${situation.orientation}`;
+    const guidance = orientationGuidance(situation.orientation);
+    const guidanceLine = guidance ? `\n${guidance}` : "";
+    return `### Inner state\n${situation.felt}\n\nOrientation: ${situation.orientation}${guidanceLine}`;
   }
   const { mood } = context.resident;
   return `### Your mood\nEnergy: ${(mood.energy * 100).toFixed(0)}% | Focus: ${(mood.focus * 100).toFixed(0)}% | Valence: ${mood.valence > 0 ? "positive" : mood.valence < 0 ? "negative" : "neutral"}`;

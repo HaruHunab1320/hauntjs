@@ -93,6 +93,7 @@ export interface TelemetrySnapshot {
     felt: string | null;
     lastAction: string | null;
     drives?: Array<{ id: string; name: string; level: number; pressure: number }>;
+    practices?: Array<{ id: string; name: string; depth: number; active: boolean }>;
   };
   guests: Array<{
     id: string;
@@ -102,6 +103,8 @@ export interface TelemetrySnapshot {
     felt?: string | null;
     lastAction?: string | null;
     trustWithResident?: number;
+    drives?: Array<{ id: string; name: string; level: number; pressure: number }>;
+    practices?: Array<{ id: string; name: string; depth: number; active: boolean }>;
   }>;
   sensors: DebugSensorInfo[];
 }

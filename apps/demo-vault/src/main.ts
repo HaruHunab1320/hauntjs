@@ -123,6 +123,8 @@ async function start(): Promise<void> {
   transcript.setTimeSource(() => timeSystem.time);
 
   // 10. Wire event bus
+  let telemetryTickCount = 0;
+
   runtime.eventBus.on("*", async (event) => {
     // Log everything
     transcript.log(event);
@@ -205,15 +207,55 @@ async function start(): Promise<void> {
                   pressure: d.feltPressure,
                 }),
               ) ?? [],
+            practices:
+              metabolized?.practiceState?.map(
+                (p: { id: string; name: string; depth: number; active: boolean }) => ({
+                  id: p.id,
+                  name: p.name,
+                  depth: p.depth,
+                  active: p.active,
+                }),
+              ) ?? [],
           },
           guests: Array.from(place.guests.values())
             .filter((g) => g.currentRoom !== null)
-            .map((g) => ({
-              id: g.id as string,
-              name: g.name,
-              currentRoom: g.currentRoom as string | null,
-              trustWithResident: trustTracker.getTrust(g.id),
-            })),
+            .map((g) => {
+              // Find the matching agent to access its Being
+              const agent = agents.find((a) => a.id === g.id);
+              const guestBeing = agent?.config.being;
+              let guestMetabolized: ReturnType<typeof metabolize> | null = null;
+              if (guestBeing) {
+                try {
+                  guestMetabolized = metabolize(guestBeing as never);
+                } catch {
+                  // Being may not be ready yet
+                }
+              }
+              return {
+                id: g.id as string,
+                name: g.name,
+                currentRoom: g.currentRoom as string | null,
+                trustWithResident: trustTracker.getTrust(g.id),
+                drives:
+                  guestMetabolized?.dominantDrives?.map(
+                    (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+                      id: d.id,
+                      name: d.name,
+                      level: d.level,
+                      pressure: d.feltPressure,
+                    }),
+                  ) ?? [],
+                practices:
+                  guestMetabolized?.practiceState?.map(
+                    (p: { id: string; name: string; depth: number; active: boolean }) => ({
+                      id: p.id,
+                      name: p.name,
+                      depth: p.depth,
+                      active: p.active,
+                    }),
+                  ) ?? [],
+              };
+            }),
           sensors: Array.from(place.rooms.values()).flatMap((room) =>
             Array.from(room.sensors.values()).map((s) => ({
               id: s.id as string,
@@ -228,6 +270,81 @@ async function start(): Promise<void> {
           ),
         },
       });
+    }
+
+    // Persist drive/practice snapshots to DB every 5 ticks
+    if (event.type === "tick") {
+      telemetryTickCount++;
+      if (telemetryTickCount % 5 === 0) {
+        const snapshotAgents: Array<{
+          id: string;
+          name: string;
+          drives: Array<{ id: string; name: string; level: number; pressure: number }>;
+          practices: Array<{ id: string; name: string; depth: number; active: boolean }>;
+        }> = [];
+
+        // Resident snapshot
+        if (residentState.being) {
+          try {
+            const resMeta = metabolize(residentState.being as never);
+            snapshotAgents.push({
+              id: residentState.id,
+              name: poeVault.name,
+              drives: resMeta.dominantDrives.map(
+                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+                  id: d.id, name: d.name, level: d.level, pressure: d.feltPressure,
+                }),
+              ),
+              practices: resMeta.practiceState.map(
+                (p: { id: string; name: string; depth: number; active: boolean }) => ({
+                  id: p.id, name: p.name, depth: p.depth, active: p.active,
+                }),
+              ),
+            });
+          } catch { /* skip if metabolize fails */ }
+        }
+
+        // Guest snapshots
+        for (const agent of agents) {
+          const guestBeing = agent.config.being;
+          if (!guestBeing) continue;
+          try {
+            const gMeta = metabolize(guestBeing as never);
+            snapshotAgents.push({
+              id: agent.id as string,
+              name: agent.name,
+              drives: gMeta.dominantDrives.map(
+                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+                  id: d.id, name: d.name, level: d.level, pressure: d.feltPressure,
+                }),
+              ),
+              practices: gMeta.practiceState.map(
+                (p: { id: string; name: string; depth: number; active: boolean }) => ({
+                  id: p.id, name: p.name, depth: p.depth, active: p.active,
+                }),
+              ),
+            });
+          } catch { /* skip if metabolize fails */ }
+        }
+
+        if (snapshotAgents.length > 0) {
+          const db = memory.getDb();
+          if (db) {
+            const stmt = db.prepare(
+              "INSERT INTO events_log (event_type, payload_json, created_at) VALUES (?, ?, ?)",
+            );
+            stmt.run(
+              "telemetry.snapshot",
+              JSON.stringify({
+                tick: telemetryTickCount,
+                time: timeSystem.time,
+                agents: snapshotAgents,
+              }),
+              new Date().toISOString(),
+            );
+          }
+        }
+      }
     }
   });
 
