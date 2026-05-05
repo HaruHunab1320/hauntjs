@@ -193,12 +193,89 @@ The capability system is wired but the gated capabilities (deepQuestion, exploit
 - *"The cost is simply memory. What you find in the dark cannot be left in the dark. It becomes a part of you, and it will change the way you walk through the illuminated rooms."* — Poe on knowledge
 - *"The Vault does not forget the resonance it imparts. When a piece of its own silence returns, the walls do not need to be told. They simply recognize the shape of the quiet you carry. The line has held."* — Poe's final line
 
-### Technical Notes
+### Technical Notes (Run 4)
 
 - 150 guest speech events, 74 from Poe across ~50 minutes
 - 23 drive trajectory snapshots persisted to DB
 - Lira and Raven kept trying to reach the Archive on Day 2 daytime (Hidden Room connection closed) — correct behavior, they wanted to return but the architecture wouldn't let them
 - Marsh's restlessness drive produced his characteristic room-hopping without explicit instructions
 - Two "stale request" drops from the model queue — acceptable under load
+
+---
+
+## Entry 4 — The Residency: First Run
+
+**Date:** 2026-05-04
+**Configuration:** 8 rooms (kitchen, living room, hallway, 3 bedrooms, bathroom, garden), 1 minimal resident (Home), 4 cohabitants, no plot, no secret
+**Models:** Gemini 3.1 Pro (Home), Gemini 3 Flash (cohabitants)
+**Duration:** ~50 minutes real time, 2 in-world days
+
+### The Hypothesis
+
+Beings with fundamental drives will develop social structures, routines, and relationships through cohabitation alone — without any designed narrative.
+
+### What Emerged
+
+The Residency produced something completely different from the Vault. No philosophy about surveillance. No meditation on memory. Instead: **domestic tension, caregiving through action, and a genuine argument about authenticity**.
+
+#### 1. Care expressed through action, not words
+
+Oren (purpose drive, restlessness) immediately started fixing things: the leaning coat rack, brewing coffee, tending the garden, making pesto from fresh basil. His dialogue was almost entirely practical: *"I'll grab that screwdriver"*, *"Coffee's ready. Here's yours, Sable"*, *"No sense letting good herbs go to waste."*
+
+This is a fundamentally different kind of character expression than the Vault's philosophical exchanges. Oren never said anything profound. He just *did things*. And those actions communicated care more effectively than any speech.
+
+#### 2. Safety through shared tasks
+
+Sable (fragile safety drive, tier 1) didn't open up through conversation — she opened up through the basil. *"I could help with the basil, if you don't mind. I like the smell of it on my hands."* Her safety drive was satiated by Oren's practical kindness, not by verbal reassurance.
+
+This suggests that drive satisfaction doesn't require direct address. Proximity to caring behavior — even if it's not directed at you — can satiate safety needs. The architecture (shared kitchen, shared garden) created the conditions for this.
+
+#### 3. The Kit-Rho conflict
+
+The most compelling emergent dynamic was the escalating argument between Kit (truth drive, high integrity practice) and Rho (peace drive, presence practice). Kit's truth drive pushed her to confront Rho's silence:
+
+- Kit: *"If you're just shifting with the air, you don't have a center."*
+- Rho: *"Disturbing the peace is easy. It's the silence that takes work. You're adding to the clutter you claim to hate."*
+- Kit: *"Silence isn't 'work,' Rho — it's a bunker. It's where you go to avoid the mess of actually being known."*
+- Rho: *"You're confusing performance with presence. I'm not hiding; I'm just not performing for an audience that's already decided what it wants to see."*
+
+This is a real argument about introversion vs. extroversion, authenticity vs. self-protection. Kit's integrity practice compels honesty; Rho's presence practice enables equanimity. Neither is wrong. The tension is structural — encoded in their drive topologies — and the conflict is genuine.
+
+#### 4. Home was perfectly minimal
+
+The resident spoke 36 times (vs. Poe's 74 in the Vault). Its responses were clipped and practical: *"There is no secret. They are placed where there is room."* and *"I do not walk. I hold the doors so they open when you need them."* and simply *"The broom is in the kitchen."*
+
+Home's guest notes were equally terse: *"Paces between the kitchen and the garden. Restless."* (Oren) and *"Cares by looking hard. Equates sharpness with focus."* (Kit). The minimal resident created space for guest-to-guest dynamics that the Vault's verbose Poe didn't allow.
+
+#### 5. Spatial patterns emerged
+
+- **Kitchen** became the social hub as designed — coffee, cooking, shared tasks
+- **Garden** became Sable's safe space and Oren's workspace — quiet, productive, separate
+- **Hallway** became the site of the Kit-Rho confrontation — the transitional space where people pass through and sometimes collide
+- **Bedrooms** were used for retreat when drives demanded quiet
+
+### Comparison: Vault vs. Residency
+
+| Dimension | The Vault | The Residency |
+|-----------|-----------|---------------|
+| **Philosophical theme** | Surveillance, sanctuary, memory | Authenticity, caregiving, coexistence |
+| **Resident role** | Dominant voice, guides all interaction | Background, responds when needed |
+| **Guest dynamics** | Guests mostly talk to resident | Guests mostly talk to each other |
+| **Primary mode** | Verbal — philosophy through conversation | Active — character through behavior |
+| **Conflict** | Strategic (Raven probing, Kovacs earning trust) | Personal (Kit confronting Rho's silence) |
+| **Resolution** | Trust → revelation of lore | No resolution — tension is ongoing |
+
+### Key Insight
+
+**Architecture shapes the type of emergence, not just whether emergence occurs.** The Vault (secret room, shifting sensors, guardian resident) produced abstract philosophy. The Residency (shared kitchen, private bedrooms, minimal resident) produced interpersonal drama. The characters' drives were different, but the *topology* was the primary shaping force.
+
+A kitchen with a coffee maker produces different conversations than an archive with a hidden room. This seems obvious stated plainly, but the degree of difference is striking. The same framework, the same Embers system, the same models — and the output is unrecognizably different.
+
+### What We'd Change
+
+- Run longer — 2 in-world days may not be enough to see territorial patterns or routine formation
+- Add a shared resource constraint (food running low?) to see if cooperation or conflict intensifies
+- Track room occupancy over time to visualize spatial patterns quantitatively
+- The Kit-Rho conflict deserves follow-up — what happens if they're forced into proximity (shared bedroom)?
 
 ---
