@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Residency — Spectator Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a14;
+      color: #d0d0d0;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+    }
+
+    #world-panel {
+      width: 60%;
+      height: 100vh;
+      position: relative;
+      border-right: 1px solid #1a1a2e;
+    }
+
+    #telemetry-panel {
+      width: 40%;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 16px;
+      background: #0d0d1a;
+      font-size: 12px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section {
+      margin-bottom: 16px;
+      border: 1px solid #1a1a2e;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    #time-bar {
+      background: #1a1a2e;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #time-phase {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .phase-dawn { color: #e4a672; }
+    .phase-day { color: #f0d080; }
+    .phase-dusk { color: #c07040; }
+    .phase-night { color: #4060a0; }
+
+    #home-section { border-color: #c9a86c; }
+    #home-section .section-title { color: #c9a86c; }
+
+    .felt-text {
+      font-style: italic;
+      color: #aaa;
+      margin: 8px 0;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 4px;
+    }
+
+    .drive-bar {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+    }
+    .drive-label { width: 100px; color: #888; font-size: 11px; }
+    .drive-track { flex: 1; height: 8px; background: #1a1a2e; border-radius: 4px; overflow: hidden; }
+    .drive-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+    .drive-fill-high { background: #4caf50; }
+    .drive-fill-mid { background: #ff9800; }
+    .drive-fill-low { background: #f44336; }
+
+    .practice-row {
+      display: flex;
+      align-items: center;
+      margin: 2px 0;
+      font-size: 10px;
+    }
+    .practice-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .practice-active { background: #7c4dff; }
+    .practice-dormant { background: #333; }
+    .practice-label { width: 90px; color: #777; font-size: 10px; }
+    .practice-track { flex: 1; height: 4px; background: #1a1a2e; border-radius: 2px; overflow: hidden; }
+    .practice-fill { height: 100%; border-radius: 2px; background: #7c4dff; transition: width 0.5s; }
+
+    .guest-card {
+      border: 1px solid #1a1a2e;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .guest-name { font-weight: bold; margin-bottom: 4px; }
+    .guest-sable .guest-name { color: #b39ddb; }
+    .guest-oren .guest-name { color: #ff8a65; }
+    .guest-kit .guest-name { color: #4dd0e1; }
+    .guest-rho .guest-name { color: #aed581; }
+    .guest-meta { color: #666; font-size: 11px; }
+
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .sensor-room {
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: #111;
+      font-size: 11px;
+    }
+    .sensor-on { color: #4caf50; }
+    .sensor-off { color: #f44336; }
+    .sensor-active { color: #76ff03; animation: pulse 1.5s ease-in-out infinite; }
+    .sensor-room-occupied { border-color: #333 !important; background: #151520; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    #event-log {
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    .log-entry { padding: 2px 0; border-bottom: 1px solid #0a0a14; }
+    .log-time { color: #555; }
+    .log-event { color: #888; }
+    .log-speech { color: #c9a86c; }
+    .log-guest-speech { color: #b39ddb; }
+    .log-thought { color: #9575cd; font-style: italic; }
+    .log-action { color: #66bb6a; }
+    .log-phase { color: #ff9800; font-weight: bold; }
+    .log-arrival { color: #4dd0e1; }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copy-btn {
+      background: #1a1a2e;
+      color: #888;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .copy-btn:hover { color: #ccc; border-color: #555; }
+    .copy-btn.copied { color: #4caf50; border-color: #4caf50; }
+
+    .stream-tab {
+      background: #111;
+      color: #555;
+      border: 1px solid #222;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .stream-tab:hover { color: #aaa; border-color: #444; }
+    .stream-tab.active { color: #e0e0e0; background: #1a1a2e; border-color: #444; }
+    .tab-home.active { color: #c9a86c; border-color: #c9a86c; }
+    .tab-sable.active { color: #b39ddb; border-color: #b39ddb; }
+    .tab-oren.active { color: #ff8a65; border-color: #ff8a65; }
+    .tab-kit.active { color: #4dd0e1; border-color: #4dd0e1; }
+    .tab-rho.active { color: #aed581; border-color: #aed581; }
+
+    #world-title {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: #666;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #connection-status {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 11px;
+      z-index: 10;
+    }
+    .connected { color: #4caf50; }
+    .disconnected { color: #f44336; }
+  </style>
+</head>
+<body>
+  <div id="world-panel">
+    <div id="world-title">THE RESIDENCY</div>
+    <div id="connection-status" class="disconnected">disconnected</div>
+  </div>
+
+  <div id="telemetry-panel">
+    <div id="time-bar">
+      <span id="time-phase" class="phase-dawn">Dawn</span>
+      <span id="time-detail">Day 1 — Hour 6</span>
+    </div>
+
+    <div id="home-section" class="section">
+      <div class="section-title">Home — The Resident</div>
+      <div id="home-orientation">Orientation: —</div>
+      <div id="home-felt" class="felt-text">Waiting...</div>
+      <div id="home-drives"></div>
+      <div id="home-practices" style="margin-top:4px;"></div>
+      <div id="home-action" class="guest-meta">Last action: —</div>
+      <div id="home-mini-stream" style="max-height:100px;overflow-y:auto;margin-top:6px;font-size:10px;color:#c9a86c;border-top:1px solid #2a2818;padding-top:4px;opacity:0.8;"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Residents</div>
+      <div id="guest-cards"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sensors</div>
+      <div id="sensor-grid" class="sensor-grid"></div>
+    </div>
+
+    <div class="section" style="flex: 1; display: flex; flex-direction: column; min-height: 300px;">
+      <div class="section-header">
+        <div class="section-title">Activity Streams</div>
+        <button id="copy-stream" class="copy-btn">Copy</button>
+      </div>
+      <div id="stream-tabs" style="display: flex; gap: 2px; margin-bottom: 8px; flex-wrap: wrap;">
+        <button class="stream-tab active" data-stream="all">All</button>
+        <button class="stream-tab tab-home" data-stream="home">Home</button>
+        <button class="stream-tab tab-sable" data-stream="sable">Sable</button>
+        <button class="stream-tab tab-oren" data-stream="oren">Oren</button>
+        <button class="stream-tab tab-kit" data-stream="kit">Kit</button>
+        <button class="stream-tab tab-rho" data-stream="rho">Rho</button>
+      </div>
+      <div id="event-log" style="flex: 1; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "@hauntjs/demo-residency",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsc --build --watch",
+    "test": "vitest run",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@embersjs/core": "^0.1.1",
+    "@hauntjs/core": "workspace:*",
+    "@hauntjs/guest-agent": "workspace:*",
+    "@hauntjs/resident": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "typescript": "^5.7.0"
+  }
+}
