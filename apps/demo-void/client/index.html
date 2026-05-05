@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Void — Spectator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #050508;
+      color: #999;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    #container {
+      max-width: 640px;
+      width: 100%;
+    }
+
+    #time-bar {
+      text-align: center;
+      margin-bottom: 32px;
+      color: #555;
+      font-size: 11px;
+    }
+
+    #orientation {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+
+    #felt {
+      text-align: center;
+      font-style: italic;
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 32px;
+      line-height: 1.6;
+      min-height: 40px;
+    }
+
+    #room {
+      text-align: center;
+      color: #444;
+      font-size: 11px;
+      margin-bottom: 24px;
+    }
+
+    #drives {
+      margin-bottom: 24px;
+    }
+
+    .drive-bar {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+    }
+    .drive-label { width: 120px; color: #555; font-size: 11px; }
+    .drive-track { flex: 1; height: 6px; background: #111; border-radius: 3px; overflow: hidden; }
+    .drive-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .drive-fill-high { background: #4caf50; }
+    .drive-fill-mid { background: #ff9800; }
+    .drive-fill-low { background: #f44336; }
+    .drive-pct { width: 35px; text-align: right; color: #444; font-size: 10px; }
+
+    #practices {
+      margin-bottom: 32px;
+    }
+    .practice-row {
+      display: flex;
+      align-items: center;
+      margin: 3px 0;
+    }
+    .practice-dot {
+      width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;
+    }
+    .practice-active { background: #9575cd; }
+    .practice-dormant { background: #333; }
+    .practice-label { width: 140px; color: #555; font-size: 10px; }
+    .practice-track { flex: 1; height: 4px; background: #111; border-radius: 2px; overflow: hidden; }
+    .practice-fill { height: 100%; background: #7e57c2; border-radius: 2px; transition: width 0.5s; }
+
+    #log {
+      border-top: 1px solid #151520;
+      padding-top: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    .log-entry { padding: 4px 0; color: #555; border-bottom: 1px solid #0a0a10; }
+    .log-speech { color: #b0a080; font-style: italic; }
+    .log-action { color: #66bb6a; }
+    .log-move { color: #5c6bc0; }
+    .log-phase { color: #ff9800; }
+    .log-time { color: #333; }
+
+    #connection-status {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      font-size: 10px;
+    }
+    .connected { color: #4caf50; }
+    .disconnected { color: #f44336; }
+  </style>
+</head>
+<body>
+  <div id="connection-status" class="disconnected">disconnected</div>
+
+  <div id="container">
+    <div id="time-bar">Day 1 — Hour 6 — Dawn</div>
+    <div id="orientation">—</div>
+    <div id="felt">Waiting...</div>
+    <div id="room">The Hearth</div>
+    <div id="drives"></div>
+    <div id="practices"></div>
+    <div id="log"></div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
