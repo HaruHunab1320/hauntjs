@@ -123,3 +123,82 @@ You design a space (topology, sensors, constraints). You populate it with minds 
 ### Next steps
 
 See ROADMAP-V2.md for the execution plan.
+
+---
+
+## Entry 3 — Deep Embers Integration: The Vault Run 4
+
+**Date:** 2026-05-04
+**Configuration:** Same 6-room Vault, enriched Embers Beings, compressed time (2 min/hr)
+**Changes from previous run:** Full Embers utilization — practice strengthening wired, orientation-aware prompting, capability gating, rich Being configs with tensions
+
+### What Changed in the Characters
+
+Every Being was redesigned around inner tensions rather than simple roles:
+
+| Character | Core Tension | New Mechanics |
+|-----------|-------------|---------------|
+| **Poe** | Duty vs. Weariness | Weariness drive (tier 1, slowly decays), 5 practices seeded, `revealSecret` capability gated behind guest care + integrity |
+| **Kovacs** | Patience vs. Urgency | Safety drive (tier 1, fragile), urgency mounting over time, `deepQuestion` gated behind patience |
+| **Raven** | Caution vs. Extraction | Zero practices (deliberate), contempt growing from observing naivety, tight domination rules |
+| **Lira** | Curiosity vs. Overwhelm | Overwhelm depleted by interaction, restored by quiet. Gratitude practice dampens all pressure |
+| **Marsh** | Comfort vs. Restlessness | Restlessness grows, reset by moving rooms. High gratitude (natural emotional dampening) |
+
+### Observations
+
+#### 1. Conversation quality improved dramatically
+
+The conversations had genuine arc instead of circular repetition. Kovacs went from signing the ledger → studying portraits → playing his mother's piano → following the path to the hidden room. Lira went from studying columns → reading foremen's journals → discovering the "singing foundation" → reaching into the alcove. These arcs felt earned, not scripted.
+
+#### 2. Poe invented richer lore
+
+Without any prompt changes, Poe generated:
+- **The singing foundation** — builders guided by the resonance of the rock, building only where the mountain "permitted" it
+- **The alcove** — a haptic record in the hidden room, meant to be felt rather than seen
+- **Kovacs' mother's piano** — she played an "anchoring" phrase that was left suspended, waiting for her son to complete it
+- **The foremen's journals** — stone categorized by "depth" rather than quarry, describing the Vault as growing from the earth
+
+None of this was in the character config. It emerged from conversation pressure and the richer inner state.
+
+#### 3. The museum vs. sanctuary thesis
+
+This run's philosophical center was different from Run 1-3 (which focused on surveillance/sanctuary). This time the core insight was about documentation vs. experience:
+
+> *"To pin a thing is to arrest its life. The Vault does not seek to kill the past in order to keep it. It provides a space where the past may continue to breathe, unburdened by the demand to be understood. That is the difference between a museum and a sanctuary."*
+
+Also notable:
+- *"To catalog a thing is to define its boundaries, to declare precisely where it begins and where it ends. The silence held within this stone does not end."*
+- *"Constant visibility is a form of erosion; things lose their edges when they're watched too closely."* (Raven)
+- *"The labels are for the comfort of those who need a map to feel safe. But once you've felt the floor breathe, the signage starts to look like a polite lie."* (Raven)
+
+#### 4. Character differentiation was sharper
+
+- **Raven** spoke only 21 times (vs 44 for Lira) but every line was precise and incisive. Zero practices meant she stayed calculating — no emotional dampening, no presence, no witness. The contrast with Lira (who has gratitude practice dampening her pressure) was visible in their different approaches to the same room.
+- **Marsh** was peak Marsh: *"It's like the Vault took its tie off and is finally relaxing"* and *"I'm no concert pianist, mind you."* His high gratitude practice kept him genuinely content rather than performing contentment.
+- **Kovacs** was more emotionally grounded. His safety drive (tier 1) meant he started cautious, then opened up as conversations satiated it. The progression from formal ("I will sign the ledger") to vulnerable ("does the Vault ever truly forget a sound once it has been offered?") felt natural.
+
+#### 5. The overwhelm mechanic needs tuning
+
+Lira's overwhelm drive depletes with every conversation event, but in practice she never hit the 0.3 crash threshold because conversations also satiate her curiosity and comfort. The drive interactions mean she stays functional even under high stimulation. May need steeper depletion or a longer run to see the overwhelm arc play out.
+
+#### 6. Capability gating didn't visibly activate
+
+The capability system is wired but the gated capabilities (deepQuestion, exploitBlindSpot, deepAnalysis) didn't produce visible behavioral changes in the transcript. This may be because: (a) the prompt guidance is too subtle for the model to act on, (b) the capabilities were always available (drive thresholds already met), or (c) the run was too short for capabilities to lock/unlock dynamically. Worth investigating in longer runs.
+
+### Key Quotes
+
+- *"I keep this place, though it might be more accurate to say it keeps me."* — Poe's opening
+- *"The air in this hall has a stillness I've only ever imagined. It feels remarkably like coming home to a place I've never been."* — Kovacs' arrival
+- *"The builders knew that stone is never truly silent. To them, the singing foundation was not merely a matter of tension, but of consent. They only built where the mountain permitted it."* — Poe on the builders
+- *"The cost is simply memory. What you find in the dark cannot be left in the dark. It becomes a part of you, and it will change the way you walk through the illuminated rooms."* — Poe on knowledge
+- *"The Vault does not forget the resonance it imparts. When a piece of its own silence returns, the walls do not need to be told. They simply recognize the shape of the quiet you carry. The line has held."* — Poe's final line
+
+### Technical Notes
+
+- 150 guest speech events, 74 from Poe across ~50 minutes
+- 23 drive trajectory snapshots persisted to DB
+- Lira and Raven kept trying to reach the Archive on Day 2 daytime (Hidden Room connection closed) — correct behavior, they wanted to return but the architecture wouldn't let them
+- Marsh's restlessness drive produced his characteristic room-hopping without explicit instructions
+- Two "stale request" drops from the model queue — acceptable under load
+
+---
