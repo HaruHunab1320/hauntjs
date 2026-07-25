@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@embersjs/core': link:../embersjs
-
 importers:
 
   .:
@@ -36,8 +33,8 @@ importers:
   apps/demo-residency:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -70,8 +67,8 @@ importers:
   apps/demo-vault:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -101,8 +98,8 @@ importers:
   apps/demo-void:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -132,8 +129,8 @@ importers:
   apps/dev-server:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -166,8 +163,8 @@ importers:
   packages/demo-residency:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../core
@@ -188,8 +185,8 @@ importers:
   packages/demo-roost:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../core
@@ -207,8 +204,8 @@ importers:
   packages/demo-vault:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../core
@@ -229,8 +226,8 @@ importers:
   packages/demo-void:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../core
@@ -245,8 +242,8 @@ importers:
   packages/guest-agent:
     dependencies:
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../core
@@ -286,8 +283,8 @@ importers:
         specifier: ^0.90.0
         version: 0.90.0(zod@4.3.6)
       '@embersjs/core':
-        specifier: link:../../../embersjs
-        version: link:../../../embersjs
+        specifier: ^0.2.0
+        version: 0.2.0
       '@hauntjs/core':
         specifier: workspace:*
         version: link:../core
@@ -396,6 +393,10 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@embersjs/core@0.2.0':
+    resolution: {integrity: sha512-ifT7zO7x2l5y3Sk8fmZrfp1AGtNpYjF2/+fXYYJyd9juCvGVbl40VSmuYrPP2NqGKj6lh1JBMMOfQ5NbvPqzEw==}
+    engines: {node: '>=20'}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -1569,6 +1570,8 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.4.12':
     optional: true
+
+  '@embersjs/core@0.2.0': {}
 
   '@esbuild/aix-ppc64@0.25.12':
     optional: true
