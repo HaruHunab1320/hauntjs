@@ -28,11 +28,29 @@ import { createLogger, type Logger } from "@hauntjs/core";
 import type { PracticeAttempt, PracticeAttemptResult } from "./embers.js";
 import type { ModelProvider } from "./model/types.js";
 
-/** Quality at or below this is not credited. */
-const ACCEPT_THRESHOLD = 0.3;
+/**
+ * Quality at or below this is not credited.
+ *
+ * Sits deliberately *between* the rubric's bands rather than on a boundary.
+ * The prompt defines 0.0-0.3 as "generic or performative" and 0.4-0.6 as "a
+ * real but ordinary instance", and models answer in one-decimal steps, so
+ * scores cluster on 0.3 and 0.4 exactly. A threshold of 0.3 puts the accept
+ * decision on top of that cluster, where ordinary sampling variance flips
+ * identical evidence between accept and reject. 0.35 separates the bands
+ * cleanly: everything the rubric calls real is credited, everything it calls
+ * generic is not.
+ */
+const ACCEPT_THRESHOLD = 0.35;
 
-/** Evidence shorter than this cannot plausibly constitute a practice act. */
-const MIN_EVIDENCE_LENGTH = 25;
+/**
+ * Evidence shorter than this is treated as contentless.
+ *
+ * Deliberately low. Its job is to skip empty or near-empty payloads before
+ * spending a model call, not to pre-judge brevity — characters written in
+ * fragments ("The fire does not need me.") say real things in very few
+ * characters, and the model tier is what decides whether they did.
+ */
+const MIN_EVIDENCE_LENGTH = 12;
 
 export interface PracticeEvaluatorOptions {
   /** Model used for the model tier. */
@@ -82,6 +100,10 @@ export function createPracticeEvaluator(
 
     // Rule tier — reject what cannot be judged.
     if (!evidence || evidence.length < MIN_EVIDENCE_LENGTH) {
+      // Logged because a silent rule-tier rejection is indistinguishable from
+      // a strict model verdict, which makes a mis-wired nomination (no payload
+      // attached) look like rigour.
+      log.debug(`no evidence for ${attempt.practiceId}; rejected without a model call`);
       return reject("No evidence attached; the act cannot be established from the event alone.");
     }
 
@@ -94,16 +116,20 @@ export function createPracticeEvaluator(
       const response = await options.model.chat({
         systemPrompt: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildEvaluationPrompt(attempt, evidence) }],
-        maxTokens: 400,
+        maxTokens: 800,
       });
       const verdict = parseVerdict(response.content);
       if (!verdict) {
         log.debug(`unparseable verdict for ${attempt.practiceId}; rejecting`);
         return reject("Evaluator returned unparseable output.");
       }
+      const accepted = verdict.quality > threshold;
+      log.debug(
+        `${attempt.practiceId}: quality ${verdict.quality.toFixed(2)} → ${accepted ? "credited" : "rejected"}`,
+      );
       return {
         quality: verdict.quality,
-        accepted: verdict.quality > threshold,
+        accepted,
         reasons: [verdict.reasoning],
         content: { practice: attempt.practiceId, evidence, insight: verdict.insight },
       };
@@ -173,8 +199,10 @@ Scoring:
 - 0.4-0.6 — a real but ordinary instance.
 - 0.7-1.0 — specific, costly, drawn from this being's actual situation, and it produces something the being did not already have.
 
-Respond with JSON only:
-{"quality": <0-1>, "reasoning": "<one sentence citing evidence>", "insight": "<what the being actually arrived at, or null>"}`;
+Respond with JSON only, and put "quality" first:
+{"quality": <0-1>, "reasoning": "<at most 25 words>", "insight": "<what the being arrived at, or null>"}
+
+Keep reasoning under 25 words. A truncated response cannot be scored.`;
 
 function buildEvaluationPrompt(attempt: PracticeAttempt, evidence: string): string {
   const ctx = attempt.context;
@@ -221,7 +249,17 @@ interface Verdict {
   insight: string | null;
 }
 
-/** Extracts a verdict from model output, tolerating fenced or prose-wrapped JSON. */
+/**
+ * Extracts a verdict from model output, tolerating fenced or prose-wrapped JSON.
+ *
+ * Falls back to scraping `quality` with a regex when the object won't parse.
+ * That path matters more than it looks: models write long `reasoning` strings
+ * and get cut off by the token limit mid-string, leaving unclosed JSON. Because
+ * an unparseable verdict is treated as a rejection, a strict-JSON-only parser
+ * silently converts every truncated response into "no growth" — an evaluator
+ * that looks admirably rigorous while actually being broken. `quality` is asked
+ * for first precisely so it survives truncation.
+ */
 function parseVerdict(content: string): Verdict | null {
   const candidates: string[] = [];
 
@@ -239,7 +277,7 @@ function parseVerdict(content: string): Verdict | null {
       const quality = Number(parsed.quality);
       if (!Number.isFinite(quality)) continue;
       return {
-        quality: Math.min(1, Math.max(0, quality)),
+        quality: clamp01(quality),
         reasoning:
           typeof parsed.reasoning === "string" ? parsed.reasoning : "No reasoning supplied.",
         insight: typeof parsed.insight === "string" ? parsed.insight : null,
@@ -249,5 +287,23 @@ function parseVerdict(content: string): Verdict | null {
     }
   }
 
+  // Salvage: the object never closed, but the score may still be in there.
+  const scraped = content.match(/"quality"\s*:\s*(-?[\d.]+)/);
+  if (scraped?.[1]) {
+    const quality = Number(scraped[1]);
+    if (Number.isFinite(quality)) {
+      const reasoning = content.match(/"reasoning"\s*:\s*"([^"]*)/)?.[1];
+      return {
+        quality: clamp01(quality),
+        reasoning: reasoning ? `${reasoning} (truncated)` : "Verdict truncated; score recovered.",
+        insight: null,
+      };
+    }
+  }
+
   return null;
+}
+
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
 }
