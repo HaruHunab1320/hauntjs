@@ -191,16 +191,16 @@ async function start(): Promise<void> {
             felt: metabolized?.felt ?? null,
             lastAction: event.type.startsWith("resident.") ? event.type : null,
             drives:
-              metabolized?.dominantDrives?.map(
-                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+              metabolized?.drives?.map(
+                (d: { id: string; name: string; level: number; pressure: number }) => ({
                   id: d.id,
                   name: d.name,
                   level: d.level,
-                  pressure: d.feltPressure,
+                  pressure: d.pressure,
                 }),
               ) ?? [],
             practices:
-              metabolized?.practiceState?.map(
+              metabolized?.practices?.map(
                 (p: { id: string; name: string; depth: number; active: boolean }) => ({
                   id: p.id,
                   name: p.name,
@@ -228,16 +228,16 @@ async function start(): Promise<void> {
                 name: g.name,
                 currentRoom: g.currentRoom as string | null,
                 drives:
-                  guestMetabolized?.dominantDrives?.map(
-                    (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+                  guestMetabolized?.drives?.map(
+                    (d: { id: string; name: string; level: number; pressure: number }) => ({
                       id: d.id,
                       name: d.name,
                       level: d.level,
-                      pressure: d.feltPressure,
+                      pressure: d.pressure,
                     }),
                   ) ?? [],
                 practices:
-                  guestMetabolized?.practiceState?.map(
+                  guestMetabolized?.practices?.map(
                     (p: { id: string; name: string; depth: number; active: boolean }) => ({
                       id: p.id,
                       name: p.name,
@@ -281,18 +281,26 @@ async function start(): Promise<void> {
             snapshotAgents.push({
               id: residentState.id,
               name: home.name,
-              drives: resMeta.dominantDrives.map(
-                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
-                  id: d.id, name: d.name, level: d.level, pressure: d.feltPressure,
+              drives: resMeta.drives.map(
+                (d: { id: string; name: string; level: number; pressure: number }) => ({
+                  id: d.id,
+                  name: d.name,
+                  level: d.level,
+                  pressure: d.pressure,
                 }),
               ),
-              practices: resMeta.practiceState.map(
+              practices: resMeta.practices.map(
                 (p: { id: string; name: string; depth: number; active: boolean }) => ({
-                  id: p.id, name: p.name, depth: p.depth, active: p.active,
+                  id: p.id,
+                  name: p.name,
+                  depth: p.depth,
+                  active: p.active,
                 }),
               ),
             });
-          } catch { /* skip if metabolize fails */ }
+          } catch {
+            /* skip if metabolize fails */
+          }
         }
 
         // Guest snapshots
@@ -304,18 +312,26 @@ async function start(): Promise<void> {
             snapshotAgents.push({
               id: agent.id as string,
               name: agent.name,
-              drives: gMeta.dominantDrives.map(
-                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
-                  id: d.id, name: d.name, level: d.level, pressure: d.feltPressure,
+              drives: gMeta.drives.map(
+                (d: { id: string; name: string; level: number; pressure: number }) => ({
+                  id: d.id,
+                  name: d.name,
+                  level: d.level,
+                  pressure: d.pressure,
                 }),
               ),
-              practices: gMeta.practiceState.map(
+              practices: gMeta.practices.map(
                 (p: { id: string; name: string; depth: number; active: boolean }) => ({
-                  id: p.id, name: p.name, depth: p.depth, active: p.active,
+                  id: p.id,
+                  name: p.name,
+                  depth: p.depth,
+                  active: p.active,
                 }),
               ),
             });
-          } catch { /* skip if metabolize fails */ }
+          } catch {
+            /* skip if metabolize fails */
+          }
         }
 
         if (snapshotAgents.length > 0) {
@@ -369,7 +385,9 @@ async function start(): Promise<void> {
     }
 
     if (MAX_REAL_MINUTES > 0 && realMinutes >= MAX_REAL_MINUTES) {
-      console.log(`\n  ⏹ Simulation ended: ${Math.round(realMinutes)} real minutes elapsed (limit: ${MAX_REAL_MINUTES})`);
+      console.log(
+        `\n  ⏹ Simulation ended: ${Math.round(realMinutes)} real minutes elapsed (limit: ${MAX_REAL_MINUTES})`,
+      );
       await shutdown("max-time");
     }
   });

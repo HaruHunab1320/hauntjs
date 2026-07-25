@@ -1,6 +1,7 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
+import { priorCultivation } from "@hauntjs/resident";
 
 export const kitConfig: GuestAgentConfig = {
   id: "kit",
@@ -15,7 +16,8 @@ You're drawn to people who can handle directness. You're frustrated by small tal
 You secretly crave acceptance despite your combative exterior. Being rejected for honesty hurts more than you let on.`,
 
   goal: "Find people who can handle the truth. Make something real here.",
-  strategy: "Be direct. Push past small talk. Write when the words won't come out loud. Don't fake it.",
+  strategy:
+    "Be direct. Push past small talk. Write when the words won't come out loud. Don't fake it.",
   startRoom: roomId("hallway"),
   actionCooldownMs: 7000,
 
@@ -24,7 +26,7 @@ You secretly crave acceptance despite your combative exterior. Being rejected fo
     name: "Kit",
     drives: {
       tierCount: 3,
-      dominationRules: { threshold: 0.3, dampening: 0.7 },
+      dominationRules: { threshold: 0.3, attentionDampening: 0.7 },
       drives: [
         {
           id: "acceptance",
@@ -43,35 +45,33 @@ You secretly crave acceptance despite your combative exterior. Being rejected fo
         {
           id: "truth",
           name: "Truth",
-          description: "The compulsion to be honest. Decays as pressure to speak — never fully satiated.",
+          description:
+            "The compulsion to be honest. Decays as pressure to speak — never fully satiated.",
           tier: 2,
           weight: 0.8,
           initialLevel: 0.3,
           target: 0.5,
           drift: { kind: "linear", ratePerHour: -0.02 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.02 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.02 }],
         },
         {
           id: "creativity",
           name: "Creativity",
-          description: "The need to make something — write, argue, create. Satiated by affordance use.",
+          description:
+            "The need to make something — write, argue, create. Satiated by affordance use.",
           tier: 3,
           weight: 0.6,
           initialLevel: 0.5,
           target: 0.6,
           drift: { kind: "linear", ratePerHour: -0.02 },
-          satiatedBy: [
-            { matches: { kind: "action", type: "tend-affordance" }, amount: 0.1 },
-          ],
+          satiatedBy: [{ matches: { kind: "action", type: "tend-affordance" }, amount: 0.1 }],
         },
       ],
     },
     practices: {
       seeds: [
-        { id: "integrityPractice", initialDepth: 0.6 },
-        { id: "witnessPractice", initialDepth: 0.2 },
+        { id: "integrityPractice", initialArtifacts: priorCultivation(0.6) },
+        { id: "witnessPractice", initialArtifacts: priorCultivation(0.2) },
       ],
     },
     subscriptions: [

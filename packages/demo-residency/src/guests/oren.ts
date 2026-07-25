@@ -1,6 +1,7 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
+import { priorCultivation } from "@hauntjs/resident";
 
 export const orenConfig: GuestAgentConfig = {
   id: "oren",
@@ -24,25 +25,25 @@ You struggle with downtime. When there's nothing to fix, you get restless and ir
     name: "Oren",
     drives: {
       tierCount: 3,
-      dominationRules: { threshold: 0.3, dampening: 0.7 },
+      dominationRules: { threshold: 0.3, attentionDampening: 0.7 },
       drives: [
         {
           id: "comfort",
           name: "Comfort",
-          description: "The baseline need for routine and stability. Slow to decay, easy to maintain.",
+          description:
+            "The baseline need for routine and stability. Slow to decay, easy to maintain.",
           tier: 1,
           weight: 0.7,
           initialLevel: 0.7,
           target: 0.7,
           drift: { kind: "linear", ratePerHour: -0.01 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "routine" }, amount: 0.05 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "routine" }, amount: 0.05 }],
         },
         {
           id: "purpose",
           name: "Purpose",
-          description: "The need to do something useful. Decays fast. Only satiated by action, not talk.",
+          description:
+            "The need to do something useful. Decays fast. Only satiated by action, not talk.",
           tier: 2,
           weight: 0.85,
           initialLevel: 0.4,
@@ -56,15 +57,14 @@ You struggle with downtime. When there's nothing to fix, you get restless and ir
         {
           id: "restlessness",
           name: "Restlessness",
-          description: "A mounting agitation when idle. Drifts upward — only action brings it down.",
+          description:
+            "A mounting agitation when idle. Drifts upward — only action brings it down.",
           tier: 2,
           weight: 0.75,
           initialLevel: 0.3,
           target: 0.2,
           drift: { kind: "linear", ratePerHour: 0.02 },
-          satiatedBy: [
-            { matches: { kind: "action", type: "tend-affordance" }, amount: 0.2 },
-          ],
+          satiatedBy: [{ matches: { kind: "action", type: "tend-affordance" }, amount: 0.2 }],
         },
         {
           id: "legacy",
@@ -75,16 +75,14 @@ You struggle with downtime. When there's nothing to fix, you get restless and ir
           initialLevel: 0.3,
           target: 0.5,
           drift: { kind: "linear", ratePerHour: -0.01 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.08 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.08 }],
         },
       ],
     },
     practices: {
       seeds: [
-        { id: "serviceOrientation", initialDepth: 0.5 },
-        { id: "gratitudePractice", initialDepth: 0.2 },
+        { id: "serviceOrientation", initialArtifacts: priorCultivation(0.5) },
+        { id: "gratitudePractice", initialArtifacts: priorCultivation(0.2) },
       ],
     },
     subscriptions: [],

@@ -1,6 +1,7 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
+import { priorCultivation } from "@hauntjs/resident";
 
 export const marshConfig: GuestAgentConfig = {
   id: "marsh",
@@ -17,7 +18,8 @@ You're slightly oblivious to the undercurrents. If other guests are scheming, yo
 You speak casually, warmly. You use contractions. You're the friendliest person in the room.`,
 
   goal: "Have a pleasant, relaxing stay at the Vault.",
-  strategy: "Be social. Explore the rooms. Chat with the keeper and other guests. Enjoy the atmosphere. Move around when restless.",
+  strategy:
+    "Be social. Explore the rooms. Chat with the keeper and other guests. Enjoy the atmosphere. Move around when restless.",
   startRoom: roomId("foyer"),
   actionCooldownMs: 6000,
 
@@ -26,7 +28,7 @@ You speak casually, warmly. You use contractions. You're the friendliest person 
     name: "Marsh",
     drives: {
       tierCount: 2,
-      dominationRules: { threshold: 0.35, dampening: 0.5 },
+      dominationRules: { threshold: 0.35, attentionDampening: 0.5 },
       drives: [
         {
           id: "comfort",
@@ -60,22 +62,21 @@ You speak casually, warmly. You use contractions. You're the friendliest person 
         {
           id: "restlessness",
           name: "Restlessness",
-          description: "A need for novelty and movement. Grows over time, reset by exploring new rooms.",
+          description:
+            "A need for novelty and movement. Grows over time, reset by exploring new rooms.",
           tier: 2,
           weight: 0.5,
           initialLevel: 0.8,
           target: 0.7,
           drift: { kind: "linear", ratePerHour: -0.02 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "place-change" }, amount: 0.2 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "place-change" }, amount: 0.2 }],
         },
       ],
     },
     practices: {
       seeds: [
-        { id: "gratitudePractice", initialDepth: 0.6 },
-        { id: "serviceOrientation", initialDepth: 0.3 },
+        { id: "gratitudePractice", initialArtifacts: priorCultivation(0.6) },
+        { id: "serviceOrientation", initialArtifacts: priorCultivation(0.3) },
       ],
     },
     // Marsh has no gated capabilities — he's simple and open.

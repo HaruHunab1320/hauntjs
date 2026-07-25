@@ -279,7 +279,8 @@ function buildMoodSection(
   if (situation) {
     const guidance = orientationGuidance(situation.orientation);
     const guidanceLine = guidance ? `\n${guidance}` : "";
-    return `### Inner state\n${situation.felt}\n\nOrientation: ${situation.orientation}${guidanceLine}`;
+    const feltLine = situation.felt ? `${situation.felt}\n\n` : "";
+    return `### Inner state\n${feltLine}Orientation: ${situation.orientation}${guidanceLine}`;
   }
   const { mood } = context.resident;
   return `### Your mood\nEnergy: ${(mood.energy * 100).toFixed(0)}% | Focus: ${(mood.focus * 100).toFixed(0)}% | Valence: ${mood.valence > 0 ? "positive" : mood.valence < 0 ? "negative" : "neutral"}`;

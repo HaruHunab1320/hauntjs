@@ -1,6 +1,7 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
+import { priorCultivation } from "@hauntjs/resident";
 
 export const kovacsConfig: GuestAgentConfig = {
   id: "kovacs",
@@ -15,7 +16,8 @@ You are not naive. You know others might be here for the same reason. You watch 
 You are calm, thoughtful, and occasionally melancholy. The Vault feels like a place you've been described in bedtime stories.`,
 
   goal: "Earn the keeper's trust and be recognized as the rightful heir to the Vault's secret.",
-  strategy: "Be genuine. Ask about the place's history. Share personal details when the moment is right. Build real rapport. Never demand or push.",
+  strategy:
+    "Be genuine. Ask about the place's history. Share personal details when the moment is right. Build real rapport. Never demand or push.",
   startRoom: roomId("foyer"),
   actionCooldownMs: 8000,
 
@@ -24,7 +26,7 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
     name: "Kovacs",
     drives: {
       tierCount: 3,
-      dominationRules: { threshold: 0.3, dampening: 0.7 },
+      dominationRules: { threshold: 0.3, attentionDampening: 0.7 },
       drives: [
         {
           id: "safety",
@@ -49,9 +51,7 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
           initialLevel: 0.3,
           target: 0.8,
           drift: { kind: "linear", ratePerHour: -0.01 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.05 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.05 }],
         },
         {
           id: "patience",
@@ -62,9 +62,7 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
           initialLevel: 0.7,
           target: 0.6,
           drift: { kind: "linear", ratePerHour: -0.02 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "quiet-moment" }, amount: 0.05 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "quiet-moment" }, amount: 0.05 }],
         },
         {
           id: "belonging",
@@ -75,9 +73,7 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
           initialLevel: 0.3,
           target: 0.7,
           drift: { kind: "exponential", halfLifeHours: 96 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.1 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.1 }],
         },
         {
           id: "urgency",
@@ -94,8 +90,8 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
     },
     practices: {
       seeds: [
-        { id: "integrityPractice", initialDepth: 0.5 },
-        { id: "presencePractice", initialDepth: 0.3 },
+        { id: "integrityPractice", initialArtifacts: priorCultivation(0.5) },
+        { id: "presencePractice", initialArtifacts: priorCultivation(0.3) },
       ],
     },
     subscriptions: [
@@ -106,7 +102,12 @@ You are calm, thoughtful, and occasionally melancholy. The Vault feels like a pl
       },
     ],
     capabilities: [
-      { id: "deepQuestion", name: "Deep Question", description: "Ask probing questions about lineage or the secret.", kind: "action-kind" },
+      {
+        id: "deepQuestion",
+        name: "Deep Question",
+        description: "Ask probing questions about lineage or the secret.",
+        kind: "action-kind",
+      },
     ],
     metadata: { role: "heir" },
   }),

@@ -1,11 +1,31 @@
+import {
+  expirePendingAttempts,
+  type InnerSituation,
+  type IntegrationInput,
+  integrate,
+  metabolize,
+  type PracticeAttempt,
+  type PracticeAttemptResult,
+  resolveAllPending,
+  tick,
+} from "@embersjs/core";
 import type { GuestId, Logger, PresenceEvent, RoomId, RuntimeInterface } from "@hauntjs/core";
 import { addGuest, createLogger, guestId, roomId } from "@hauntjs/core";
 import type { ModelProvider } from "@hauntjs/resident";
-import { type InnerSituation, integrate, metabolize, tick } from "@embersjs/core";
-import type { GuestAction, GuestAgentConfig, GuestAgentState } from "./agent-types.js";
+import { createPracticeEvaluator } from "@hauntjs/resident";
 import { buildGuestPrompt } from "./agent-prompt.js";
+import type { GuestAction, GuestAgentConfig, GuestAgentState } from "./agent-types.js";
+
+/** A candidate Embers input nominated from a Haunt event. */
+type EmbersNomination = Pick<IntegrationInput, "entry">;
 
 const DEFAULT_COOLDOWN_MS = 5000;
+
+/**
+ * How long an unresolved attempt survives before being dropped, in being-time.
+ * Only reached when the evaluator is failing persistently.
+ */
+const ATTEMPT_TTL_MS = 6 * 3_600_000;
 const DEFAULT_DELIBERATION_EVENTS = new Set([
   "guest.spoke",
   "resident.spoke",
@@ -35,6 +55,8 @@ export class GuestAgent {
   private unsubscribe: (() => void) | null = null;
   private lastTickAt = Date.now();
   private running = false;
+  private practiceEvaluator: ((a: PracticeAttempt) => Promise<PracticeAttemptResult>) | null;
+  private cultivating = false;
 
   constructor(
     config: GuestAgentConfig,
@@ -51,6 +73,13 @@ export class GuestAgent {
     this.currentRoom = config.startRoom;
     this.cooldownMs = config.actionCooldownMs ?? DEFAULT_COOLDOWN_MS;
     this.deliberationEvents = config.deliberationEvents ?? DEFAULT_DELIBERATION_EVENTS;
+
+    if (config.practiceEvaluator === false) {
+      this.practiceEvaluator = null;
+    } else {
+      this.practiceEvaluator =
+        config.practiceEvaluator ?? createPracticeEvaluator({ model, logger: this.log });
+    }
   }
 
   /** Start the agent — register as guest, subscribe to events. */
@@ -130,6 +159,11 @@ export class GuestAgent {
       for (const input of inputs) {
         integrate(this.config.being, { ...input, context: ctx });
       }
+
+      // Adjudicate the nominated attempts. Fire-and-forget: cultivation must
+      // not delay the agent's reaction to the event, and a failed attempt
+      // stays pending for the next drain.
+      void this.cultivate();
     }
 
     // Decide whether to deliberate
@@ -140,6 +174,30 @@ export class GuestAgent {
     if (event.type === "guest.spoke" && (event.guestId as string) === (this.id as string)) return;
 
     this.deliberate();
+  }
+
+  /**
+   * Drain this agent's pending practice attempts.
+   *
+   * Serialized against itself — a slow evaluator must not have two drains
+   * mutating the same Being concurrently.
+   */
+  private async cultivate(): Promise<void> {
+    if (!this.config.being || !this.practiceEvaluator || this.cultivating) return;
+
+    this.cultivating = true;
+    try {
+      const { failures } = await resolveAllPending(this.config.being, this.practiceEvaluator, {
+        concurrency: 2,
+      });
+      if (failures.length > 0) {
+        expirePendingAttempts(this.config.being, ATTEMPT_TTL_MS);
+      }
+    } catch (err) {
+      this.log.debug("cultivation failed:", err);
+    } finally {
+      this.cultivating = false;
+    }
   }
 
   private canPerceive(event: PresenceEvent): boolean {
@@ -205,7 +263,10 @@ export class GuestAgent {
     }
   }
 
-  private parseAction(response: { content: string; toolCalls?: Array<{ name: string; arguments: Record<string, unknown> }> }): GuestAction | null {
+  private parseAction(response: {
+    content: string;
+    toolCalls?: Array<{ name: string; arguments: Record<string, unknown> }>;
+  }): GuestAction | null {
     if (response.toolCalls && response.toolCalls.length > 0) {
       const tc = response.toolCalls[0];
       switch (tc.name) {
@@ -281,29 +342,47 @@ export class GuestAgent {
       : { pressured: false, pressingDriveIds: [] };
   }
 
-  private mapEventToEmbers(event: PresenceEvent): Array<{ entry: { kind: "event" | "action"; type: string } }> {
-    const inputs: Array<{ entry: { kind: "event" | "action"; type: string } }> = [];
+  /**
+   * Nominate Embers inputs from an event.
+   *
+   * As with the resident, the practice entries here are candidates, not
+   * assertions — our own speech is not proof that acknowledgement occurred.
+   * Evidence rides along in the payload so the evaluator has something to
+   * judge, and rejection is what keeps the mapping honest.
+   */
+  private mapEventToEmbers(event: PresenceEvent): EmbersNomination[] {
+    const inputs: EmbersNomination[] = [];
 
     switch (event.type) {
       case "guest.spoke":
         inputs.push({ entry: { kind: "event", type: "conversation" } });
         // Our own speech = acknowledge (gratitude) + potential tend-guest (service)
         if ((event.guestId as string) === (this.id as string)) {
-          inputs.push({ entry: { kind: "action", type: "acknowledge" } });
+          inputs.push({
+            entry: { kind: "action", type: "acknowledge", payload: { text: event.text } },
+          });
         }
         break;
 
       case "resident.spoke":
         inputs.push({ entry: { kind: "event", type: "conversation" } });
         // Resident speaking to us = opportunity to acknowledge (gratitude)
-        inputs.push({ entry: { kind: "event", type: "acknowledge" } });
+        inputs.push({
+          entry: { kind: "event", type: "acknowledge", payload: { text: event.text } },
+        });
         break;
 
       case "guest.entered":
         inputs.push({ entry: { kind: "event", type: "social-contact" } });
         // Another guest entering = notice-positive (gratitude)
         if ((event.guestId as string) !== (this.id as string)) {
-          inputs.push({ entry: { kind: "event", type: "notice-positive" } });
+          inputs.push({
+            entry: {
+              kind: "event",
+              type: "notice-positive",
+              payload: { guestId: event.guestId, roomId: event.roomId },
+            },
+          });
         }
         break;
 

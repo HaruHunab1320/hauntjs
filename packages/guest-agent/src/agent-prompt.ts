@@ -1,7 +1,7 @@
-import type { Place, PresenceEvent, RoomId } from "@hauntjs/core";
-import type { ChatMessage, ChatRequest } from "@hauntjs/resident";
 import type { InnerSituation, Subscription } from "@embersjs/core";
 import { availableCapabilities } from "@embersjs/core";
+import type { Place, PresenceEvent, RoomId } from "@hauntjs/core";
+import type { ChatMessage, ChatRequest } from "@hauntjs/resident";
 import type { GuestAgentConfig } from "./agent-types.js";
 
 const GUEST_TOOLS = [
@@ -280,11 +280,12 @@ function orientationGuidance(orientation: string): string {
 
 /** Builds the inner state section from an Embers InnerSituation. */
 function buildInnerStateSection(situation: InnerSituation): string {
-  const lines: string[] = [
-    "\n### Your inner state",
-    situation.felt,
-    `Orientation: ${situation.orientation}`,
-  ];
+  const lines: string[] = ["\n### Your inner state"];
+
+  // Felt prose is opt-in as of Embers v0.2; the structured state below is the
+  // part that's always present.
+  if (situation.felt) lines.push(situation.felt);
+  lines.push(`Orientation: ${situation.orientation}`);
 
   // Orientation-specific behavioral guidance
   const guidance = orientationGuidance(situation.orientation);
@@ -292,22 +293,33 @@ function buildInnerStateSection(situation: InnerSituation): string {
     lines.push(guidance);
   }
 
-  // Top dominant drives (up to 3) so the model knows what's pushing the character
-  if (situation.dominantDrives.length > 0) {
-    const topDrives = situation.dominantDrives.slice(0, 3);
-    const driveDescriptions = topDrives.map(
-      (d) => `${d.name} (pressure: ${(d.feltPressure * 100).toFixed(0)}%) — ${d.felt}`,
-    );
+  // Top drives so the model knows what's pushing the character. v0.2 returns
+  // `drives` already sorted by raw pressure descending, and no longer carries
+  // per-drive felt prose — the drive's own name and pressure carry it.
+  const topDrives = situation.drives.slice(0, 3).filter((d) => d.pressure > 0);
+  if (topDrives.length > 0) {
+    const driveDescriptions = topDrives.map((d) => {
+      const chronic = d.chronic ? ", chronic" : "";
+      return `${d.name} (pressure: ${(d.pressure * 100).toFixed(0)}%${chronic})`;
+    });
     lines.push(`Driving needs: ${driveDescriptions.join("; ")}`);
   }
 
   // Active practices
-  const activePractices = situation.practiceState.filter((p) => p.active);
+  const activePractices = situation.practices.filter((p) => p.active);
   if (activePractices.length > 0) {
     const practiceDescriptions = activePractices.map(
       (p) => `${p.name} (depth ${p.depth.toFixed(1)})`,
     );
     lines.push(`Active practices: ${practiceDescriptions.join(", ")}`);
+  }
+
+  // Chronic collapse is structural and outranks momentary orientation, so the
+  // model should hear about it explicitly rather than infer it.
+  if (situation.wear >= 0.6) {
+    lines.push(
+      "You are structurally worn. Sustained deprivation has cost you something that rest alone will not restore quickly.",
+    );
   }
 
   return lines.join("\n");

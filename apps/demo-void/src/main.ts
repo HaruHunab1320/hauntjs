@@ -2,8 +2,8 @@ import { join } from "node:path";
 import { deserializeBeing, metabolize, serializeBeing } from "@embersjs/core";
 import type { ResidentState } from "@hauntjs/core";
 import { Runtime, TickScheduler, TimeSystem } from "@hauntjs/core";
-import { solus, solusBeing, VOID_CONFIG } from "@hauntjs/demo-void";
 import { TranscriptLogger } from "@hauntjs/demo-vault";
+import { solus, solusBeing, VOID_CONFIG } from "@hauntjs/demo-void";
 import { Place2DAdapter } from "@hauntjs/place-2d";
 import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
 import Fastify from "fastify";
@@ -143,16 +143,16 @@ async function start(): Promise<void> {
             felt: metabolized?.felt ?? null,
             lastAction: event.type.startsWith("resident.") ? event.type : null,
             drives:
-              metabolized?.dominantDrives?.map(
-                (d: { id: string; name: string; level: number; feltPressure: number }) => ({
+              metabolized?.drives?.map(
+                (d: { id: string; name: string; level: number; pressure: number }) => ({
                   id: d.id,
                   name: d.name,
                   level: d.level,
-                  pressure: d.feltPressure,
+                  pressure: d.pressure,
                 }),
               ) ?? [],
             practices:
-              metabolized?.practiceState?.map(
+              metabolized?.practices?.map(
                 (p: { id: string; name: string; depth: number; active: boolean }) => ({
                   id: p.id,
                   name: p.name,
@@ -193,27 +193,37 @@ async function start(): Promise<void> {
               JSON.stringify({
                 tick: telemetryTickCount,
                 time: timeSystem.time,
-                agents: [{
-                  id: residentState.id,
-                  name: solus.name,
-                  orientation: snap.orientation,
-                  felt: snap.felt,
-                  drives: snap.dominantDrives.map(
-                    (d: { id: string; name: string; level: number; feltPressure: number }) => ({
-                      id: d.id, name: d.name, level: d.level, pressure: d.feltPressure,
-                    }),
-                  ),
-                  practices: snap.practiceState.map(
-                    (p: { id: string; name: string; depth: number; active: boolean }) => ({
-                      id: p.id, name: p.name, depth: p.depth, active: p.active,
-                    }),
-                  ),
-                }],
+                agents: [
+                  {
+                    id: residentState.id,
+                    name: solus.name,
+                    orientation: snap.orientation,
+                    felt: snap.felt,
+                    drives: snap.drives.map(
+                      (d: { id: string; name: string; level: number; pressure: number }) => ({
+                        id: d.id,
+                        name: d.name,
+                        level: d.level,
+                        pressure: d.pressure,
+                      }),
+                    ),
+                    practices: snap.practices.map(
+                      (p: { id: string; name: string; depth: number; active: boolean }) => ({
+                        id: p.id,
+                        name: p.name,
+                        depth: p.depth,
+                        active: p.active,
+                      }),
+                    ),
+                  },
+                ],
               }),
               new Date().toISOString(),
             );
           }
-        } catch { /* skip if metabolize fails */ }
+        } catch {
+          /* skip if metabolize fails */
+        }
       }
     }
 

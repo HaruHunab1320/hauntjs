@@ -1,12 +1,13 @@
 import type { BeingConfig } from "@embersjs/core";
 import { createBeing } from "@embersjs/core";
+import { priorCultivation } from "@hauntjs/resident";
 
 const homeBeingConfig: BeingConfig = {
   id: "home",
   name: "Home (The Residency)",
   drives: {
     tierCount: 2,
-    dominationRules: { threshold: 0.3, dampening: 0.7 },
+    dominationRules: { threshold: 0.3, attentionDampening: 0.7 },
     drives: [
       {
         id: "comfort",
@@ -25,7 +26,8 @@ const homeBeingConfig: BeingConfig = {
       {
         id: "order",
         name: "Order",
-        description: "The pull toward things being tended — dishes washed, garden watered, doors closed.",
+        description:
+          "The pull toward things being tended — dishes washed, garden watered, doors closed.",
         tier: 1,
         weight: 0.7,
         initialLevel: 0.6,
@@ -54,8 +56,8 @@ const homeBeingConfig: BeingConfig = {
   },
   practices: {
     seeds: [
-      { id: "serviceOrientation", initialDepth: 0.4 },
-      { id: "presencePractice", initialDepth: 0.5 },
+      { id: "serviceOrientation", initialArtifacts: priorCultivation(0.4) },
+      { id: "presencePractice", initialArtifacts: priorCultivation(0.5) },
     ],
   },
   subscriptions: [],

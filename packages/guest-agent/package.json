@@ -15,7 +15,7 @@
   "dependencies": {
     "@hauntjs/core": "workspace:*",
     "@hauntjs/resident": "workspace:*",
-    "@embersjs/core": "^0.1.1"
+    "@embersjs/core": "^0.2.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

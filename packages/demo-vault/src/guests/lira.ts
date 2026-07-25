@@ -1,6 +1,7 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
+import { priorCultivation } from "@hauntjs/resident";
 
 export const liraConfig: GuestAgentConfig = {
   id: "lira",
@@ -19,7 +20,8 @@ You enjoy conversation. You connect with people through shared interests. You're
 However, you can become overwhelmed by too much stimulation. When this happens, you need to withdraw and find quiet to recharge.`,
 
   goal: "Understand the Vault — its history, its architecture, why it changes at night.",
-  strategy: "Explore every room. Ask the keeper questions about the place. Examine affordances. Build rapport through genuine curiosity. Take breaks when overwhelmed.",
+  strategy:
+    "Explore every room. Ask the keeper questions about the place. Examine affordances. Build rapport through genuine curiosity. Take breaks when overwhelmed.",
   startRoom: roomId("foyer"),
   actionCooldownMs: 7000,
 
@@ -28,7 +30,7 @@ However, you can become overwhelmed by too much stimulation. When this happens, 
     name: "Lira",
     drives: {
       tierCount: 3,
-      dominationRules: { threshold: 0.3, dampening: 0.6 },
+      dominationRules: { threshold: 0.3, attentionDampening: 0.6 },
       drives: [
         {
           id: "comfort",
@@ -39,9 +41,7 @@ However, you can become overwhelmed by too much stimulation. When this happens, 
           initialLevel: 0.6,
           target: 0.7,
           drift: { kind: "linear", ratePerHour: -0.02 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.05 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.05 }],
         },
         {
           id: "overwhelm",
@@ -82,16 +82,14 @@ However, you can become overwhelmed by too much stimulation. When this happens, 
           initialLevel: 0.5,
           target: 0.6,
           drift: { kind: "exponential", halfLifeHours: 72 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.12 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.12 }],
         },
       ],
     },
     practices: {
       seeds: [
-        { id: "gratitudePractice", initialDepth: 0.4 },
-        { id: "witnessPractice", initialDepth: 0.1 },
+        { id: "gratitudePractice", initialArtifacts: priorCultivation(0.4) },
+        { id: "witnessPractice", initialArtifacts: priorCultivation(0.1) },
       ],
     },
     subscriptions: [
@@ -102,7 +100,12 @@ However, you can become overwhelmed by too much stimulation. When this happens, 
       },
     ],
     capabilities: [
-      { id: "deepAnalysis", name: "Deep Analysis", description: "Make structural and historical insights that connect disparate details.", kind: "action-kind" },
+      {
+        id: "deepAnalysis",
+        name: "Deep Analysis",
+        description: "Make structural and historical insights that connect disparate details.",
+        kind: "action-kind",
+      },
     ],
     metadata: { role: "scholar" },
   }),

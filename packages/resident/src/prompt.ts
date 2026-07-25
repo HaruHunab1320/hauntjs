@@ -16,7 +16,13 @@ export { ACTION_TOOLS } from "./prompt/tools.js";
 
 /** The inner situation from Embers, if available. */
 export interface InnerSituationForPrompt {
-  felt: string;
+  /**
+   * Optional because Embers v0.2 made felt prose opt-in — the structured
+   * inner architecture is the deliverable. Haunt asks for prose via
+   * `feltMode: "prose"`, but a custom voice module may decline to produce it,
+   * so the prompt has to render without it.
+   */
+  felt?: string;
   orientation: string;
 }
 

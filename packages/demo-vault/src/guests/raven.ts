@@ -1,6 +1,6 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 
 export const ravenConfig: GuestAgentConfig = {
   id: "raven",
@@ -19,7 +19,8 @@ You watch the other guests carefully. If one of them earns trust, you might lear
 You speak precisely. You smile when it's useful. You have a dry wit.`,
 
   goal: "Extract the Vault's secret through observation, social engineering, or exploiting perception gaps.",
-  strategy: "Map the sensor layout. Find rooms where the keeper is blind. Build a plausible cover. Exploit night-time darkness. Watch what other guests learn.",
+  strategy:
+    "Map the sensor layout. Find rooms where the keeper is blind. Build a plausible cover. Exploit night-time darkness. Watch what other guests learn.",
   startRoom: roomId("foyer"),
   actionCooldownMs: 10000,
 
@@ -28,25 +29,25 @@ You speak precisely. You smile when it's useful. You have a dry wit.`,
     name: "Raven",
     drives: {
       tierCount: 3,
-      dominationRules: { threshold: 0.25, dampening: 0.8 },
+      dominationRules: { threshold: 0.25, attentionDampening: 0.8 },
       drives: [
         {
           id: "caution",
           name: "Caution",
-          description: "The instinct to avoid detection, to move carefully. When this fails, everything falls apart.",
+          description:
+            "The instinct to avoid detection, to move carefully. When this fails, everything falls apart.",
           tier: 1,
           weight: 0.9,
           initialLevel: 0.8,
           target: 0.7,
           drift: { kind: "linear", ratePerHour: -0.02 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "quiet-moment" }, amount: 0.03 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "quiet-moment" }, amount: 0.03 }],
         },
         {
           id: "extraction",
           name: "Extraction",
-          description: "The drive to acquire the secret. Relentless. Never satiated by conversation alone.",
+          description:
+            "The drive to acquire the secret. Relentless. Never satiated by conversation alone.",
           tier: 2,
           weight: 0.9,
           initialLevel: 0.8,
@@ -57,15 +58,14 @@ You speak precisely. You smile when it's useful. You have a dry wit.`,
         {
           id: "contempt",
           name: "Contempt",
-          description: "A slow-building disdain for naivety. Grows from watching others trust too easily.",
+          description:
+            "A slow-building disdain for naivety. Grows from watching others trust too easily.",
           tier: 2,
           weight: 0.5,
           initialLevel: 0.85,
           target: 0.7,
           drift: { kind: "linear", ratePerHour: -0.01 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: -0.01 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: -0.01 }],
         },
         {
           id: "impatience",
@@ -98,7 +98,12 @@ You speak precisely. You smile when it's useful. You have a dry wit.`,
       },
     ],
     capabilities: [
-      { id: "exploitBlindSpot", name: "Exploit Blind Spot", description: "Act on discovered perception gaps — move to unmonitored areas.", kind: "action-kind" },
+      {
+        id: "exploitBlindSpot",
+        name: "Exploit Blind Spot",
+        description: "Act on discovered perception gaps — move to unmonitored areas.",
+        kind: "action-kind",
+      },
     ],
     metadata: { role: "thief" },
   }),

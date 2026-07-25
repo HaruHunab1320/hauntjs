@@ -1,6 +1,7 @@
-import type { GuestAgentConfig } from "@hauntjs/guest-agent";
 import { createBeing } from "@embersjs/core";
 import { roomId } from "@hauntjs/core";
+import type { GuestAgentConfig } from "@hauntjs/guest-agent";
+import { priorCultivation } from "@hauntjs/resident";
 
 export const sableConfig: GuestAgentConfig = {
   id: "sable",
@@ -15,7 +16,8 @@ You might spend a whole afternoon in your room with the door closed. When you do
 You don't talk about your past unless you feel truly safe.`,
 
   goal: "Find out if this house and its people are safe enough to let your guard down.",
-  strategy: "Observe from the edges. Test with small gestures. Withdraw when overwhelmed. Return when curious.",
+  strategy:
+    "Observe from the edges. Test with small gestures. Withdraw when overwhelmed. Return when curious.",
   startRoom: roomId("hallway"),
   actionCooldownMs: 10000,
 
@@ -24,7 +26,7 @@ You don't talk about your past unless you feel truly safe.`,
     name: "Sable",
     drives: {
       tierCount: 3,
-      dominationRules: { threshold: 0.3, dampening: 0.7 },
+      dominationRules: { threshold: 0.3, attentionDampening: 0.7 },
       drives: [
         {
           id: "safety",
@@ -57,22 +59,21 @@ You don't talk about your past unless you feel truly safe.`,
         {
           id: "belonging",
           name: "Belonging",
-          description: "The slow, deep need to be part of something. Grows through genuine connection.",
+          description:
+            "The slow, deep need to be part of something. Grows through genuine connection.",
           tier: 3,
           weight: 0.6,
           initialLevel: 0.2,
           target: 0.5,
           drift: { kind: "exponential", halfLifeHours: 72 },
-          satiatedBy: [
-            { matches: { kind: "event", type: "conversation" }, amount: 0.12 },
-          ],
+          satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.12 }],
         },
       ],
     },
     practices: {
       seeds: [
-        { id: "presencePractice", initialDepth: 0.3 },
-        { id: "witnessPractice", initialDepth: 0.1 },
+        { id: "presencePractice", initialArtifacts: priorCultivation(0.3) },
+        { id: "witnessPractice", initialArtifacts: priorCultivation(0.1) },
       ],
     },
     subscriptions: [

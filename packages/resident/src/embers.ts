@@ -3,37 +3,58 @@
  * All Embers interactions go through these wrappers.
  */
 
-import type { Perception, PresenceEvent } from "@hauntjs/core";
 import {
   type AttentionCandidate,
+  availableCapabilities,
   type Being,
   type Capability,
+  type DrainResult,
+  deserializeBeing,
+  expirePendingAttempts,
+  getPendingAttempts,
   type InnerSituation,
   type IntegrationInput,
   type IntegrationResult,
-  type SerializedBeing,
-  type WeightedCandidate,
-  availableCapabilities,
-  deserializeBeing,
   integrate,
   metabolize,
+  type PracticeAttempt,
+  type PracticeAttemptResult,
+  resolveAllPending,
+  type SerializedBeing,
   serializeBeing,
   tick,
+  type WeightedCandidate,
   weightAttention,
 } from "@embersjs/core";
+import type { Perception, PresenceEvent } from "@hauntjs/core";
 
 // Re-export Being type for use in ResidentOptions
-export type { Being, InnerSituation, SerializedBeing };
+export type {
+  Being,
+  DrainResult,
+  InnerSituation,
+  PracticeAttempt,
+  PracticeAttemptResult,
+  SerializedBeing,
+};
 
 /** Advance drives/practices by elapsed time. Mutates the Being in place. */
 export function embersTickBeing(being: Being, dtMs: number): void {
   tick(being, dtMs);
 }
 
-/** Map a Haunt PresenceEvent to Embers IntegrationInputs and process them all. */
+/**
+ * Map a Haunt PresenceEvent to Embers IntegrationInputs and process them all.
+ *
+ * The practice-trigger mappings below are *nominations*, not assertions —
+ * `resident.spoke` does not prove that tending occurred. They are only honest
+ * because `embersResolveAttempts` runs a strict evaluator behind them, which
+ * is free to reject. Evidence from the event is attached to each entry so the
+ * evaluator has something to judge.
+ */
 export function embersIntegrate(being: Being, event: PresenceEvent): IntegrationResult {
   const ctx = buildPressureContext(being);
-  const allChanges: IntegrationResult = { driveChanges: [], practiceChanges: [] };
+  const allChanges: IntegrationResult = { driveChanges: [], pendingAttemptIds: [] };
 
   // Primary integration (the base event/action mapping)
   const primary = mapEventToInput(event);
@@ -42,7 +63,7 @@ export function embersIntegrate(being: Being, event: PresenceEvent): Integration
     mergeResults(allChanges, result);
   }
 
-  // Practice-strengthening integrations
+  // Candidate practice attempts, adjudicated later by the evaluator.
   const extras = mapEventToPracticeInputs(event);
   for (const extra of extras) {
     const result = integrate(being, { ...extra, context: ctx });
@@ -52,9 +73,46 @@ export function embersIntegrate(being: Being, event: PresenceEvent): Integration
   return allChanges;
 }
 
-/** Get the Being's current inner situation — felt prose string + orientation. */
+/**
+ * Drain pending practice attempts through the supplied evaluator.
+ *
+ * Without this, attempts queue forever and practice depth stays at whatever
+ * the config seeded — v0.2 grows depth only from evaluated substrate.
+ * Failures are returned rather than thrown; a failed attempt stays pending
+ * and is retried on the next drain.
+ */
+export async function embersResolveAttempts(
+  being: Being,
+  evaluate: (attempt: PracticeAttempt) => Promise<PracticeAttemptResult>,
+  concurrency = 4,
+): Promise<DrainResult> {
+  return resolveAllPending(being, evaluate, { concurrency });
+}
+
+/** Read the attempts currently awaiting a verdict. */
+export function embersPendingAttempts(being: Being): readonly PracticeAttempt[] {
+  return getPendingAttempts(being);
+}
+
+/**
+ * Drop attempts older than `olderThanMs` of being-time.
+ *
+ * A long run whose evaluator intermittently fails would otherwise accumulate
+ * unresolvable attempts indefinitely.
+ */
+export function embersExpireAttempts(being: Being, olderThanMs: number): number {
+  return expirePendingAttempts(being, olderThanMs);
+}
+
+/**
+ * Get the Being's current inner situation.
+ *
+ * `feltMode: "prose"` is explicit because v0.2 made felt prose opt-in — the
+ * structured data is the deliverable — but Haunt's prompt assembly injects the
+ * prose directly, so it asks for it.
+ */
 export function embersMetabolize(being: Being): InnerSituation {
-  return metabolize(being);
+  return metabolize(being, { feltMode: "prose" });
 }
 
 /** Weight perceptions based on the Being's drive pressures and attention. */
@@ -115,9 +173,9 @@ function mergeResults(into: IntegrationResult, from: IntegrationResult): void {
     ...into.driveChanges,
     ...from.driveChanges,
   ];
-  (into as { practiceChanges: IntegrationResult["practiceChanges"] }).practiceChanges = [
-    ...into.practiceChanges,
-    ...from.practiceChanges,
+  (into as { pendingAttemptIds: IntegrationResult["pendingAttemptIds"] }).pendingAttemptIds = [
+    ...into.pendingAttemptIds,
+    ...from.pendingAttemptIds,
   ];
 }
 
@@ -185,51 +243,70 @@ function mapEventToInput(event: PresenceEvent): IntegrationInput | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Map a Haunt PresenceEvent to additional IntegrationInputs that target
- * practice strengtheners. These complement the primary mapping above.
+ * Nominate candidate practice attempts from a Haunt PresenceEvent.
  *
- * The insight: we can't detect nuanced acts like "honest-admission" from event
- * type alone, but we CAN map structural patterns to practice-relevant types:
+ * These mappings are structural — `resident.spoke` becomes a `tend-guest`
+ * candidate because speech occurred, not because tending occurred. Under v0.1
+ * that was the whole mechanism, and it grew practice depth from event volume.
+ * Under v0.2 it is only the nomination step: every entry carries the evidence
+ * needed to judge it, and the evaluator behind `embersResolveAttempts` decides
+ * whether the act actually happened. Rejection is the detector.
  *
- * - resident.spoke with guests present  → tend-guest (Service)
- * - resident.acted on affordances        → connect-to-purpose (Creator Connection)
- * - tick when no guests present          → ground (Presence) + self-observe (Witness)
- * - guest.spoke directed at resident     → acknowledge (Gratitude)
- * - resident.moved                       → unprompted-care (Service, contextual)
+ * Mappings:
+ * - resident.spoke with an audience  → tend-guest (Service)
+ * - resident.acted on an affordance  → connect-to-purpose (Creator Connection)
+ * - tick                             → ground (Presence) + self-observe (Witness)
+ * - guest.spoke                      → acknowledge (Gratitude)
+ * - resident.moved                   → unprompted-care (Service)
+ *
+ * `ground` is pressure-gated in Embers, so the tick mapping only nominates
+ * presence work when the being is actually under pressure.
  */
 function mapEventToPracticeInputs(event: PresenceEvent): IntegrationInput[] {
   const inputs: IntegrationInput[] = [];
 
   switch (event.type) {
     case "resident.spoke":
-      // Speaking to guests = tending to them (serviceOrientation)
       if (event.audience.length > 0) {
-        inputs.push({ entry: { kind: "action", type: "tend-guest" } });
+        inputs.push({
+          entry: {
+            kind: "action",
+            type: "tend-guest",
+            payload: { text: event.text, audienceSize: event.audience.length },
+          },
+        });
       }
       break;
 
     case "resident.acted":
-      // Acting on affordances = connecting to purpose (creatorConnection)
-      inputs.push({ entry: { kind: "action", type: "connect-to-purpose" } });
+      inputs.push({
+        entry: {
+          kind: "action",
+          type: "connect-to-purpose",
+          payload: { affordanceId: event.affordanceId, actionId: event.actionId },
+        },
+      });
       break;
 
     case "tick":
-      // Quiet moments alone = grounding (presencePractice) + self-observation (witnessPractice)
-      // These fire on every tick; the pressure requirement on `ground` means
-      // it only strengthens presencePractice when the being is under pressure.
       inputs.push({ entry: { kind: "event", type: "ground" } });
       inputs.push({ entry: { kind: "event", type: "self-observe" } });
       break;
 
     case "guest.spoke":
-      // A guest speaking = opportunity to acknowledge (gratitudePractice)
-      inputs.push({ entry: { kind: "event", type: "acknowledge" } });
+      inputs.push({
+        entry: { kind: "event", type: "acknowledge", payload: { text: event.text } },
+      });
       break;
 
     case "resident.moved":
-      // Moving toward guests = unprompted care (serviceOrientation)
-      // We emit the type; the practice strengthener will only fire if matched.
-      inputs.push({ entry: { kind: "action", type: "unprompted-care" } });
+      inputs.push({
+        entry: {
+          kind: "action",
+          type: "unprompted-care",
+          payload: { from: event.from, to: event.to },
+        },
+      });
       break;
   }
 

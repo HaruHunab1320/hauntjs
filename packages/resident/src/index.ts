@@ -25,6 +25,11 @@ export type {
   ToolCall,
   ToolDefinition,
 } from "./model/types.js";
+// Inner life — practice cultivation
+export type { PracticeEvaluatorOptions } from "./practice-evaluator.js";
+export { createPracticeEvaluator } from "./practice-evaluator.js";
+export type { PriorCultivationOptions } from "./prior-cultivation.js";
+export { priorCultivation } from "./prior-cultivation.js";
 // Prompt
 export { ACTION_TOOLS, buildPrompt } from "./prompt.js";
 export type { ResidentOptions } from "./resident.js";

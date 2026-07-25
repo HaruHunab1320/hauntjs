@@ -18,7 +18,7 @@
     "@hauntjs/guest-agent": "workspace:*",
     "@hauntjs/demo-residency": "workspace:*",
     "@hauntjs/demo-vault": "workspace:*",
-    "@embersjs/core": "^0.1.1",
+    "@embersjs/core": "^0.2.0",
     "fastify": "^5.2.0"
   },
   "devDependencies": {

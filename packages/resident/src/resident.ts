@@ -10,16 +10,19 @@ import type {
 } from "@hauntjs/core";
 import { createLogger } from "@hauntjs/core";
 import { parseAllDecisions } from "./decision.js";
-import type { Being, InnerSituation } from "./embers.js";
+import type { Being, InnerSituation, PracticeAttempt, PracticeAttemptResult } from "./embers.js";
 import {
   embersAvailableCapabilities,
+  embersExpireAttempts,
   embersIntegrate,
   embersMetabolize,
+  embersResolveAttempts,
   embersTickBeing,
   embersWeightPerceptions,
 } from "./embers.js";
 import type { SqliteMemoryStore } from "./memory/store.js";
 import type { ModelProvider } from "./model/types.js";
+import { createPracticeEvaluator } from "./practice-evaluator.js";
 import { buildPrompt } from "./prompt.js";
 
 export interface ResidentOptions {
@@ -27,7 +30,22 @@ export interface ResidentOptions {
   logger?: Logger;
   model: ModelProvider;
   memory: SqliteMemoryStore;
+  /**
+   * Judges whether nominated practice attempts were genuine acts. Defaults to
+   * the built-in evaluator over `model`.
+   *
+   * Pass `false` to disable cultivation entirely — practice depth then stays
+   * at whatever the character config seeded. Useful for cheap runs where inner
+   * life is not the object of study.
+   */
+  practiceEvaluator?: ((attempt: PracticeAttempt) => Promise<PracticeAttemptResult>) | false;
 }
+
+/**
+ * How long an unresolved attempt survives before being dropped, in being-time.
+ * Only reached when the evaluator is failing persistently.
+ */
+const ATTEMPT_TTL_MS = 6 * 3_600_000;
 
 /** Events that warrant calling the model for deliberation. */
 const DELIBERATION_EVENTS = new Set([
@@ -47,12 +65,21 @@ export class Resident implements ResidentMind {
   private log: Logger;
   private busy = false;
   private lastTickAt = Date.now();
+  private evaluator: ((attempt: PracticeAttempt) => Promise<PracticeAttemptResult>) | null;
 
   constructor(options: ResidentOptions) {
     this.character = options.character;
     this.model = options.model;
     this.memory = options.memory;
     this.log = options.logger ?? createLogger("Resident");
+
+    if (options.practiceEvaluator === false) {
+      this.evaluator = null;
+    } else {
+      this.evaluator =
+        options.practiceEvaluator ??
+        createPracticeEvaluator({ model: options.model, logger: this.log });
+    }
   }
 
   async perceive(
@@ -72,12 +99,16 @@ export class Resident implements ResidentMind {
 
       embersTickBeing(being, dtMs);
       const result = embersIntegrate(being, event);
-      if (result.driveChanges.length > 0 || result.practiceChanges.length > 0) {
+      if (result.driveChanges.length > 0 || result.pendingAttemptIds.length > 0) {
         this.log.debug("inner life updated:", {
           drives: result.driveChanges.length,
-          practices: result.practiceChanges.length,
+          attempts: result.pendingAttemptIds.length,
         });
       }
+
+      // Adjudicate the nominated practice attempts. Without this, depth never
+      // moves off whatever the character config seeded.
+      await this.cultivate(being);
     }
 
     // Decide whether this event warrants deliberation (a model call)
@@ -110,7 +141,9 @@ export class Resident implements ResidentMind {
 
     if (being) {
       situation = embersMetabolize(being);
-      this.log.debug(`inner state: ${situation.orientation} — "${situation.felt.slice(0, 80)}"`);
+      this.log.debug(
+        `inner state: ${situation.orientation} — "${situation.felt?.slice(0, 80) ?? ""}"`,
+      );
 
       // Weight perceptions by drive pressures
       const weighted = embersWeightPerceptions(being, perceptions);
@@ -190,6 +223,32 @@ export class Resident implements ResidentMind {
     }
 
     return actions.length === 1 ? actions[0] : actions;
+  }
+
+  /**
+   * Drain pending practice attempts through the evaluator.
+   *
+   * Skipped entirely when no evaluator is configured — a resident without one
+   * keeps its seeded depth and grows no further, which is the honest outcome
+   * given that nothing is judging its practice.
+   */
+  private async cultivate(being: Being): Promise<void> {
+    if (!this.evaluator) return;
+
+    const { resolutions, failures } = await embersResolveAttempts(being, this.evaluator);
+
+    const credited = resolutions.filter((r) => r.accepted);
+    if (credited.length > 0) {
+      this.log.debug(
+        `practice credited: ${credited.map((r) => `${r.practiceId} ${r.depthBefore.toFixed(2)}→${r.depthAfter.toFixed(2)}`).join(", ")}`,
+      );
+    }
+    if (failures.length > 0) {
+      this.log.debug(`practice evaluation failures: ${failures.length} (left pending for retry)`);
+      // Attempts a persistently-failing evaluator can never resolve would
+      // otherwise accumulate for the length of the run.
+      embersExpireAttempts(being, ATTEMPT_TTL_MS);
+    }
   }
 
   private async persistNote(action: ResidentAction & { type: "note" }): Promise<void> {
