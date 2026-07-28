@@ -9,6 +9,11 @@ what changed as a result.
 
 `scripts/physical-sensing.mjs` is the working demonstration.
 
+Companion design records: [`COGNITION.md`](./COGNITION.md) — the layers above
+perception, and what is missing from them. [`MEMORY-AND-FOLD.md`](./MEMORY-AND-FOLD.md) —
+how sensor events become memory, and the observation/belief split this document's
+"open direction" section only gestures at.
+
 ---
 
 ## What already works

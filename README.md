@@ -203,6 +203,15 @@ pnpm typecheck           # TypeScript only
 - **[Writing Sensors](docs/guides/writing-a-sensor.md)** — how to shape perception (fidelity, reach, design patterns)
 - **[Writing an Adapter](docs/guides/writing-an-adapter.md)** — how to connect a new backend (Minecraft, Discord, etc.)
 
+## Design records
+
+Findings from the current design cycle. These describe where the architecture
+stands and what is missing, not what is scheduled.
+
+- **[An architecture of cognition](docs/COGNITION.md)** — perception, disposition, intention; the gap, and why it is missing
+- **[Memory, and the Fold](docs/MEMORY-AND-FOLD.md)** — log versus fold, sensor events, compaction, the observation/belief split
+- **[Physical places](docs/PHYSICAL-PLACES.md)** — what survives contact with real cameras and microphones
+
 ---
 
 ## What It Is Not
