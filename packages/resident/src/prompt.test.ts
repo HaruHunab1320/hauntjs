@@ -15,6 +15,7 @@ import {
   enterRoom,
   guestId,
   roomId,
+  sensorId,
 } from "@hauntjs/core";
 import { describe, expect, it } from "vitest";
 import { buildPrompt } from "./prompt.js";
@@ -41,6 +42,20 @@ function makeContext(): RuntimeContext {
   addRoom(place, { id: lobby, name: "Lobby", description: "The main hall with a fireplace." });
   addRoom(place, { id: study, name: "Study", description: "A quiet room with books." });
   connectRooms(place, lobby, study);
+
+  // The resident perceives guests through sensors, never off the roster, so a
+  // fixture that asserts a guest is visible has to say how.
+  const lobbySight = sensorId("lobby.sight");
+  place.rooms.get(lobby)!.sensors.set(lobbySight, {
+    id: lobbySight,
+    roomId: lobby,
+    modality: "sight",
+    name: "Line of sight",
+    description: "Poe can see the lobby.",
+    fidelity: { kind: "full" },
+    enabled: true,
+    reach: { kind: "room" },
+  });
 
   const fireplace: Affordance = {
     id: affordanceId("fireplace"),
@@ -191,5 +206,67 @@ describe("buildPrompt", () => {
 
     expect(allContent).toContain("Good evening, Poe.");
     expect(allContent).toContain("How are you?");
+  });
+});
+
+describe("sensed presence", () => {
+  const event: PresenceEvent = {
+    type: "tick",
+    at: new Date(),
+  };
+
+  function promptFor(ctx: RuntimeContext): string {
+    return buildPrompt(makeCharacter(), ctx, event, [], [], new Map()).systemPrompt;
+  }
+
+  it("names a guest when a full-fidelity sensor covers the room", () => {
+    expect(promptFor(makeContext())).toContain("Takeshi");
+  });
+
+  it("does not reveal a guest the resident has no sensor for", () => {
+    const ctx = makeContext();
+    ctx.place.rooms.get(roomId("lobby"))!.sensors.clear();
+
+    const prompt = promptFor(ctx);
+    expect(prompt).not.toContain("Takeshi");
+    expect(prompt).toContain("no way to sense");
+  });
+
+  it("does not reveal a guest through a disabled sensor", () => {
+    const ctx = makeContext();
+    const sensor = ctx.place.rooms.get(roomId("lobby"))!.sensors.get(sensorId("lobby.sight"))!;
+    sensor.enabled = false;
+
+    expect(promptFor(ctx)).not.toContain("Takeshi");
+  });
+
+  it("reports presence without identity when the sensor withholds it", () => {
+    const ctx = makeContext();
+    const sensor = ctx.place.rooms.get(roomId("lobby"))!.sensors.get(sensorId("lobby.sight"))!;
+    sensor.fidelity = { kind: "partial", reveals: ["presence"] };
+
+    const prompt = promptFor(ctx);
+    expect(prompt).not.toContain("Takeshi");
+    expect(prompt).toContain("cannot tell who");
+  });
+
+  it("distinguishes a sensed-empty room from an unsensed one", () => {
+    const seen = makeContext();
+    seen.place.guests.get(guestId("takeshi"))!.currentRoom = null;
+    expect(promptFor(seen)).toContain("No one else is here.");
+
+    const blind = makeContext();
+    blind.place.guests.get(guestId("takeshi"))!.currentRoom = null;
+    blind.place.rooms.get(roomId("lobby"))!.sensors.clear();
+    expect(promptFor(blind)).not.toContain("No one else is here.");
+  });
+
+  it("hedges an empty room when coverage is imperfect", () => {
+    const ctx = makeContext();
+    ctx.place.guests.get(guestId("takeshi"))!.currentRoom = null;
+    const sensor = ctx.place.rooms.get(roomId("lobby"))!.sensors.get(sensorId("lobby.sight"))!;
+    sensor.fidelity = { kind: "ambiguous", confidence: 0.4 };
+
+    expect(promptFor(ctx)).toContain("awareness of this room is incomplete");
   });
 });

@@ -1,4 +1,11 @@
-import type { Affordance, CharacterDefinition, Guest, RuntimeContext } from "@hauntjs/core";
+import type {
+  Affordance,
+  CharacterDefinition,
+  Guest,
+  PresenceView,
+  RuntimeContext,
+} from "@hauntjs/core";
+import { perceivePresence, revealsIdentity } from "@hauntjs/core";
 import type { InnerSituationForPrompt } from "../prompt.js";
 
 /** Builds the system prompt based on the resident's presence mode. */
@@ -32,14 +39,14 @@ function buildHostSystemPrompt(
 
   const roomDescriptions: string[] = [];
   for (const room of context.place.rooms.values()) {
-    const guests = Array.from(context.place.guests.values())
-      .filter((g) => g.currentRoom === room.id)
-      .map((g) => describeGuest(g));
+    // Sensed, not read off the roster — a host with no sensors in a room is
+    // blind to it, however place-wide its authority.
+    const presence = perceivePresence(context.place, room.id);
     const affordances = Array.from(room.affordances.values())
       .filter((a) => a.sensable)
       .map(describeAffordance);
 
-    const guestLine = guests.length > 0 ? `  Guests: ${guests.join(", ")}` : "  No guests.";
+    const guestLine = `  ${summarizePresence(presence)}`;
     const affLine =
       affordances.length > 0 ? `  Objects:\n${affordances.map((a) => "    " + a).join("\n")}` : "";
 
@@ -77,11 +84,17 @@ function buildPresenceSystemPrompt(
   character: CharacterDefinition,
   context: RuntimeContext,
 ): string {
-  const allGuests = Array.from(context.place.guests.values())
-    .filter((g) => g.currentRoom !== null)
-    .map((g) => `${g.name} in ${context.place.rooms.get(g.currentRoom!)?.name ?? g.currentRoom}`);
+  const sensedByRoom: string[] = [];
+  for (const room of context.place.rooms.values()) {
+    const presence = perceivePresence(context.place, room.id);
+    if (presence.coverage === null) continue; // unsensed rooms are not reported as empty
+    for (const { guest, fidelity } of presence.guests) {
+      const who = revealsIdentity(fidelity) ? guest.name : "someone";
+      sensedByRoom.push(`${who} in ${room.name}`);
+    }
+  }
 
-  const guestLine = allGuests.length > 0 ? allGuests.join(", ") : "No guests present.";
+  const guestLine = sensedByRoom.length > 0 ? sensedByRoom.join(", ") : "You sense no one.";
 
   return `${character.systemPrompt}
 
@@ -128,8 +141,9 @@ function buildInhabitantSystemPrompt(
         .join("\n")
     : "None";
 
-  const guestsPresent =
-    context.guestsInRoom.map((g) => describeGuest(g)).join("\n") || "No one else is here.";
+  const guestsPresent = describePresence(
+    perceivePresence(context.place, context.resident.currentRoom),
+  );
 
   const perceptualReach = buildPerceptualReach(context);
 
@@ -247,6 +261,46 @@ export function describeAffordance(affordance: Affordance): string {
   State: ${stateStr || "none"}
   Actions:
 ${actions}`;
+}
+
+/**
+ * Renders what the resident can sense about who is present.
+ *
+ * The three outcomes are deliberately distinct, and the distinction is the whole
+ * point of this function: seeing an empty room, sensing nothing through an
+ * imperfect channel, and having no channel at all are three different epistemic
+ * states. Collapsing them into "No one else is here." is what let a resident
+ * assert an empty room it had no way to observe.
+ */
+function describePresence(view: PresenceView): string {
+  if (view.coverage === null) {
+    return "You have no way to sense whether anyone is here.";
+  }
+
+  if (view.guests.length === 0) {
+    return view.coverage.kind === "full"
+      ? "No one else is here."
+      : "You sense no one here — though your awareness of this room is incomplete.";
+  }
+
+  return view.guests
+    .map(({ guest, fidelity }) => {
+      if (revealsIdentity(fidelity)) return describeGuest(guest);
+      if (fidelity.kind === "ambiguous") return "- Someone may be here — the reading is unclear.";
+      return "- Someone is here, but you cannot tell who.";
+    })
+    .join("\n");
+}
+
+/** Single-line variant for the per-room listings in host and presence modes. */
+function summarizePresence(view: PresenceView): string {
+  if (view.coverage === null) return "No perceptual reach — you cannot tell who is here.";
+  if (view.guests.length === 0) {
+    return view.coverage.kind === "full" ? "No guests." : "No one sensed (incomplete awareness).";
+  }
+  return view.guests
+    .map(({ guest, fidelity }) => (revealsIdentity(fidelity) ? guest.name : "someone unidentified"))
+    .join(", ");
 }
 
 export function describeGuest(guest: Guest): string {
