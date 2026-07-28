@@ -99,3 +99,7 @@ export type {
 } from "./types.js";
 // ID constructors
 export { affordanceId, guestId, roomId, sensorId } from "./types.js";
+// Sensed presence — what the resident can tell about who is in a room
+export type { PerceivedGuest, PresenceView } from "./perceivable.js";
+export { perceivePresence, revealsIdentity } from "./perceivable.js";
+export { isWithinDepth, roomHasEnabledSensor, sensorCoversRoom } from "./sensor-reach.js";

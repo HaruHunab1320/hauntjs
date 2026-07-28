@@ -1,3 +1,4 @@
+import { isWithinDepth, roomHasEnabledSensor } from "./sensor-reach.js";
 import type {
   AffordanceId,
   Perception,
@@ -100,12 +101,8 @@ function sensorReachesEvent(
     case "adjacent": {
       if (sensorRoomId === eventRoomId) return true;
       // Adjacent sensors cannot reach into rooms with zero enabled sensors (dead zones)
-      const adjTarget = place.rooms.get(eventRoomId);
-      if (!adjTarget) return false;
-      const adjHasEnabledSensor = Array.from(adjTarget.sensors.values()).some(
-        (s) => s.enabled,
-      );
-      if (!adjHasEnabledSensor) return false;
+      if (!place.rooms.has(eventRoomId)) return false;
+      if (!roomHasEnabledSensor(place, eventRoomId)) return false;
       const maxDepth = sensor.reach.maxDepth ?? 1;
       return isWithinDepth(sensorRoomId, eventRoomId, maxDepth, place);
     }
@@ -120,40 +117,13 @@ function sensorReachesEvent(
     case "place-wide": {
       // A place-wide sensor can reach any room that has its own sensors.
       // Rooms with zero enabled sensors are dead zones — truly imperceptible.
-      const targetRoom = place.rooms.get(eventRoomId);
-      if (!targetRoom) return false;
-      const hasEnabledSensor = Array.from(targetRoom.sensors.values()).some(
-        (s) => s.enabled,
-      );
-      return hasEnabledSensor;
+      if (!place.rooms.has(eventRoomId)) return false;
+      return roomHasEnabledSensor(place, eventRoomId);
     }
 
     default:
       return false;
   }
-}
-
-/** Check if targetRoom is within depth hops of sourceRoom. */
-function isWithinDepth(
-  sourceRoom: RoomId,
-  targetRoom: RoomId,
-  maxDepth: number,
-  place: Place,
-): boolean {
-  if (maxDepth <= 0) return false;
-
-  const room = place.rooms.get(sourceRoom);
-  if (!room) return false;
-
-  if (room.connectedTo.includes(targetRoom)) return true;
-
-  if (maxDepth > 1) {
-    for (const neighbor of room.connectedTo) {
-      if (isWithinDepth(neighbor, targetRoom, maxDepth - 1, place)) return true;
-    }
-  }
-
-  return false;
 }
 
 /** Generate a Perception from a sensor + event combination. */
