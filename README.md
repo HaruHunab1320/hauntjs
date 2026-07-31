@@ -211,6 +211,7 @@ stands and what is missing, not what is scheduled.
 - **[An architecture of cognition](docs/COGNITION.md)** — perception, disposition, intention; the gap, and why it is missing
 - **[Memory, and the Fold](docs/MEMORY-AND-FOLD.md)** — log versus fold, sensor events, compaction, the observation/belief split
 - **[Physical places](docs/PHYSICAL-PLACES.md)** — what survives contact with real cameras and microphones
+- **[Phase 3 — The Gap](docs/PHASE-3-ROADMAP.md)** — draft plan: a resident that acts unprompted and can explain why
 
 ---
 
