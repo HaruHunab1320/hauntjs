@@ -67,14 +67,21 @@ Per `embersjs/docs/design/v0.3/intention.md`:
 1. Golden tests pinning current drive and wear trajectories.
 2. Fold drive level and `chronicLoad` over their event history. Behavior-
    preserving against those tests; any divergence is a bug.
-3. The `Intention` primitive, its event log, and the derived view.
-4. `pursuableBy` on drives — optional, so existing beings are unaffected.
-5. Nomination on threshold crossing. No adjudication in the library.
+3. `SurfacedCandidate` and `Intention`, their event log, and the derived view.
+4. `pursuableBy` on drives — optional, so existing beings are unaffected. It
+   declares a satisfier and a threshold, **not** an aim.
+5. Eligibility signalling: which latent pressures are currently eligible to
+   surface. The library neither authors aims nor decides to commit.
 
 Ships as `@embersjs/core` 0.3.0.
 
-**Checkpoint:** a being under pressure nominates a candidate intention with a
-satisfier token, and the log explains why. Nothing decides whether to commit.
+**Checkpoint:** a being under pressure reports that a pressure is eligible to
+surface, with its satisfier token, and the log explains why. Nothing is
+articulated and nothing is committed.
+
+> **Three states, not two.** Latent pressure that biases attention and colors
+> tone already exists in v0.2 and is unchanged. Most pressure stays there. See
+> the spec — this phase adds one layer, not two.
 
 ---
 
@@ -110,6 +117,15 @@ not autonomous:
 
 ### The rest
 
+- **Surfacing detection.** Haunt owns this, because only the host knows what a
+  satisfier refers to. Perceptual coincidence — the satisfier appears in current
+  perception — plus quiet, with threshold as a floor. The fire visibly dying is
+  what makes tending it thinkable.
+- **Aim authoring.** A model call at surfacing, and *only* at surfacing. This is
+  the being putting words to a pressure. Because the drive owns the satisfier and
+  the model owns the aim, the two can diverge — a resident that misidentifies
+  what it wants, pursues the satisfier, and finds the pressure undropped. That is
+  a feature and needs no code.
 - **Adjudicator.** Two-tier, same shape as `createPracticeEvaluator`: rule tier
   declines on unresolvable satisfiers and out-ranked duplicates without a model
   call; model tier only for genuine uncertainty. Default to declining.
@@ -119,8 +135,11 @@ not autonomous:
 - **Intention in context.** Committed intentions appear in the prompt *as
   commitments*, alongside the structural gating above. Prompt presence is
   necessary and nowhere near sufficient.
-- **Debug view.** Current commitments, their urgency, and recent declines. The
-  declines matter more than the commits when this goes wrong.
+- **Debug view.** Current commitments, their urgency, recent declines, and
+  **surfacings per hour**. The declines matter more than the commits when this
+  goes wrong, and the surfacing rate is the parameter most likely to be wrong
+  first — too high and the resident narrates every passing pressure, too low and
+  the layer looks broken when it is merely quiet.
 
 ---
 
@@ -176,12 +195,17 @@ Worth measuring in 3b rather than assuming.
 
 ## Open questions for the review
 
-1. **Who authors an intention's `aim`** — static per drive, or model-generated at
-   nomination? Static is canned across a long run; dynamic costs a call at the
-   highest-frequency point in the system.
+1. ~~**Who authors an intention's `aim`?**~~ **Settled.** The drive owns the
+   satisfier; the resident authors the aim at surfacing. The cost objection went
+   away once surfacing became a distinct, rare state rather than a synonym for
+   threshold crossing.
 2. **Does a satisfied intention feed the practice substrate?** Pursuing something
    under pressure and discharging it resembles cultivation. Coupling two systems
-   before either is proven seems wrong; noting it rather than deciding.
+   before either is proven seems wrong; noting it rather than deciding. The
+   reverse coupling — witness depth raising the surfacing rate — is the more
+   promising direction and is named in the spec.
 3. **Where does the Empty Room run** — the existing Void harness, or the
    physical-sensing script? The Void keeps the comparison clean and is the
    recommendation.
+4. **What surfacing rate is right?** Unknown, and not knowable in advance.
+   Instrumented from the first run rather than guessed at.
