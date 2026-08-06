@@ -65,18 +65,31 @@ This also gets the mechanism of change right. You do not become different by
 deciding to; you become different because the recent window fills with
 differently-shaped events until it dominates.
 
-### Embers is already half-folded
+### Not everything should fold
 
-And the unfolded half is the half that does not work.
+An earlier draft of this document said "Embers is half-folded, and the unfolded
+half is the broken half." That over-generalized, and writing golden tests for the
+refactor showed why.
 
-| | Storage | Behavior |
+> **Fold discrete state. Sample continuous state and log its discontinuities.**
+
+| | Kind | Treatment |
 |---|---|---|
-| **Practices** | `computeDepth(substrate, elapsedMs)` — nothing stores depth | Works |
-| **Drives** | mutable `level`, mutated in place | Does not drive |
+| **Practices** | discrete artifacts | fold — `computeDepth(substrate, elapsedMs)` stores nothing |
+| **Drives** | continuous drift | keep the running level; log the *satiations* |
 
-A stored level cannot answer *why am I like this*. There is no path from the
-number back to the events that produced it. A folded level can, which is what
-makes a character legible rather than arbitrary.
+Folding drive level fails on its own terms. The reconstruction has to replay
+incrementally, because accumulated float error moves threshold crossings — which
+means a log entry per tick, unbounded, and almost entirely content-free. "Time
+passed" is not an explanation. The discrete events are.
+
+The real defect is narrower than "unfolded": drives record no *causal* history at
+all, only sampled levels. A stored level cannot answer *why am I like this*, but
+neither can a per-tick replay of drift. What answers it is the discrete causes
+plus the drift parameters — *"it was 0.7 twenty-six hours ago, nothing has
+satiated it since, and it drifts at −0.02/h."*
+
+See `embersjs/docs/design/v0.3/intention.md` for the full reasoning.
 
 Haunt has the same pattern hand-rolled: `affordance.changed` carries `prevState`
 and `newState`. That is a change record written by hand.
@@ -261,7 +274,8 @@ happens, not a reason to do it sooner.
 1. More memory is not more value. In: everything. Out: as little as possible.
 2. Do not classify at write time. Append, and let the fold decide.
 3. Keep the log lossless; put forgetting in the fold function, never in deletion.
-4. Embers is half-folded, and the unfolded half — drives — is the broken half.
+4. Fold discrete state; sample continuous state and log its discontinuities. Not
+   everything should fold, and drive level is the counter-example.
 5. Reinterpretation is free once beliefs are derived rather than stored.
 6. Compaction should be bounded by semantic episodes; places supply them.
 7. Three record kinds: lifecycle, observation, belief. Never promote 2 to 3 at
