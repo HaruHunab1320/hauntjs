@@ -8,21 +8,36 @@ import {
   availableCapabilities,
   type Being,
   type Capability,
+  commit,
+  currentIntentions,
   type DrainResult,
+  decline,
   deserializeBeing,
+  eligibleToSurface,
+  end as endIntention,
   expirePendingAttempts,
+  expireStalePursuits,
   getPendingAttempts,
   type InnerSituation,
   type IntegrationInput,
   type IntegrationResult,
+  type Intention,
+  type IntentionEnd,
   integrate,
   metabolize,
   type PracticeAttempt,
   type PracticeAttemptResult,
+  recordAction,
   resolveAllPending,
+  type Satisfier,
   type SerializedBeing,
+  type SurfacedCandidate,
+  type SurfacingEligibility,
+  type SurfacingTrigger,
   serializeBeing,
+  surface,
   tick,
+  urgency,
   type WeightedCandidate,
   weightAttention,
 } from "@embersjs/core";
@@ -33,9 +48,15 @@ export type {
   Being,
   DrainResult,
   InnerSituation,
+  Intention,
+  IntentionEnd,
   PracticeAttempt,
   PracticeAttemptResult,
+  Satisfier,
   SerializedBeing,
+  SurfacedCandidate,
+  SurfacingEligibility,
+  SurfacingTrigger,
 };
 
 /** Advance drives/practices by elapsed time. Mutates the Being in place. */
@@ -184,8 +205,33 @@ function mergeResults(into: IntegrationResult, from: IntegrationResult): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Map a Haunt PresenceEvent to an Embers IntegrationInput.
- * Returns null for events that don't map to Embers inputs.
+ * Translates a Haunt `PresenceEvent` into an Embers entry.
+ * Returns null for events that do not map to one.
+ *
+ * **The two vocabularies are deliberately different and do not correspond by
+ * name.** `guest.spoke` becomes `conversation`; `tick` becomes `quiet-moment`.
+ * Haunt event types describe what happened in the place; Embers entry types
+ * describe what it meant to a being, and one is not a rename of the other.
+ *
+ * The consequence for character authors: `satiatedBy` and practice triggers
+ * must match on the **right-hand** column below. A config that matches on
+ * `"guest.spoke"` produces a drive that silently never satiates — no error, no
+ * warning, just a being that never gets what it needs. Nothing enforces the
+ * correspondence, so it is worth checking against this switch when a drive
+ * seems inert.
+ *
+ * | Haunt event         | Embers entry                    |
+ * |---------------------|---------------------------------|
+ * | `guest.entered`     | `guest-arrival`                 |
+ * | `guest.left`        | `guest-departure`               |
+ * | `guest.spoke`       | `conversation`                  |
+ * | `guest.moved`       | `guest-movement`                |
+ * | `guest.approached`  | `guest-interest`                |
+ * | `affordance.changed`| `place-change`                  |
+ * | `resident.spoke`    | `speak` (action)                |
+ * | `resident.acted`    | `tend-affordance` (action)      |
+ * | `resident.moved`    | `move` (action)                 |
+ * | `tick`              | `quiet-moment`                  |
  */
 function mapEventToInput(event: PresenceEvent): IntegrationInput | null {
   switch (event.type) {
@@ -311,4 +357,68 @@ function mapEventToPracticeInputs(event: PresenceEvent): IntegrationInput[] {
   }
 
   return inputs;
+}
+
+// ---------------------------------------------------------------------------
+// Intentions — the gap
+// ---------------------------------------------------------------------------
+
+/**
+ * Pressures currently eligible to surface.
+ *
+ * Embers reports which have cleared their thresholds and are not already spoken
+ * for. It cannot know whether a satisfier is reachable right now or whether the
+ * place is quiet enough to notice anything — those triggers are Haunt's, because
+ * only Haunt knows what a satisfier refers to.
+ */
+export function embersEligibleToSurface(being: Being): SurfacingEligibility[] {
+  return eligibleToSurface(being);
+}
+
+/** Record that a pressure surfaced, with the aim the resident authored for it. */
+export function embersSurface(
+  being: Being,
+  input: {
+    sourceDriveId: string;
+    satisfier: Satisfier;
+    aim: string;
+    trigger: SurfacingTrigger;
+  },
+): SurfacedCandidate {
+  return surface(being, input);
+}
+
+/** Take up a surfaced candidate. At the cap this supersedes the least urgent. */
+export function embersCommit(being: Being, candidateId: string): Intention {
+  return commit(being, candidateId);
+}
+
+/** Decline a surfaced candidate. The pressure remains; the being is not pursuing it. */
+export function embersDecline(being: Being, candidateId: string, reason: string): void {
+  decline(being, candidateId, reason);
+}
+
+/** The being's current pursuits, most urgent first. */
+export function embersCurrentIntentions(being: Being): Intention[] {
+  return currentIntentions(being);
+}
+
+/** How pressing a pursuit is right now — derived, never stored. */
+export function embersUrgency(being: Being, intention: Intention): number {
+  return urgency(being, intention);
+}
+
+/** Record an action taken toward a pursuit. */
+export function embersRecordAction(being: Being, intentionId: string): void {
+  recordAction(being, intentionId);
+}
+
+/** End a pursuit with its reason. */
+export function embersEndIntention(being: Being, intentionId: string, end: IntentionEnd): void {
+  endIntention(being, intentionId, end);
+}
+
+/** Reap pursuits that have decayed past usefulness. Returns what lapsed. */
+export function embersExpirePursuits(being: Being): Intention[] {
+  return expireStalePursuits(being);
 }

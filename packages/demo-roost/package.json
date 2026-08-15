@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@embersjs/core": "^0.2.0",
+    "@embersjs/core": "^0.3.0",
     "@hauntjs/core": "workspace:*",
     "@hauntjs/place-2d": "workspace:*",
     "@hauntjs/resident": "workspace:*"
