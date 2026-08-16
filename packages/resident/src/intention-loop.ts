@@ -1,0 +1,393 @@
+/**
+ * The intention loop — where a pressure becomes something the resident does.
+ *
+ * Embers reports which pressures are *eligible* to surface. It cannot know
+ * whether the thing that would satisfy one is reachable right now, or whether
+ * the place is quiet enough to notice anything, because both depend on a world
+ * it has no access to. This module supplies those triggers, authors the aim,
+ * adjudicates, and turns a committed pursuit into a real `ResidentAction`.
+ *
+ * Two filters run here, and they reject for different reasons:
+ *
+ *   1. Most eligible pressure never surfaces. A satisfier that cannot be acted
+ *      on is not something the resident can notice wanting.
+ *   2. Most of what surfaces is declined. The model is asked whether this is
+ *      worth doing *now*, and told to default to no.
+ *
+ * A resident whose every pressure both surfaces and commits has no interior —
+ * everything it feels immediately becomes something it is doing.
+ */
+
+import type {
+  Affordance,
+  Perception,
+  PresenceEvent,
+  ResidentAction,
+  RuntimeContext,
+} from "@hauntjs/core";
+import { affordanceId, createLogger, type Logger, perceivePresence, roomId } from "@hauntjs/core";
+import type { Being, Satisfier, SurfacedCandidate, SurfacingTrigger } from "./embers.js";
+import {
+  embersCommit,
+  embersCurrentIntentions,
+  embersDecline,
+  embersEligibleToSurface,
+  embersEndIntention,
+  embersExpirePursuits,
+  embersRecordAction,
+  embersSurface,
+} from "./embers.js";
+import type { ModelProvider } from "./model/types.js";
+
+// ---------------------------------------------------------------------------
+// Satisfier resolution — where a pursuit becomes a thing that happens in a room
+// ---------------------------------------------------------------------------
+
+/**
+ * Turns an opaque satisfier token into an action the resident can take, or
+ * `null` when it cannot be acted on right now.
+ *
+ * Returning `null` is the reachability test as well as the resolution: a
+ * satisfier that will not resolve is not something to go and want.
+ *
+ * Supported kinds:
+ * - `affordance` — `ref` is an affordance id, `params.actionId` the action.
+ *   Resolves only when the affordance is somewhere the resident can act and the
+ *   action's `availableWhen` guard passes.
+ * - `movement` — `ref` is a room id the resident can reach.
+ */
+export function resolveSatisfier(
+  satisfier: Satisfier,
+  context: RuntimeContext,
+): ResidentAction | null {
+  switch (satisfier.kind) {
+    case "affordance":
+      return resolveAffordance(satisfier, context);
+    case "movement":
+      return resolveMovement(satisfier, context);
+    default:
+      return null;
+  }
+}
+
+function resolveAffordance(satisfier: Satisfier, context: RuntimeContext): ResidentAction | null {
+  const id = affordanceId(satisfier.ref);
+
+  let found: Affordance | undefined;
+  let foundRoom: string | undefined;
+  for (const room of context.place.rooms.values()) {
+    const affordance = room.affordances.get(id);
+    if (affordance) {
+      found = affordance;
+      foundRoom = room.id;
+      break;
+    }
+  }
+  if (!found || !foundRoom) return null;
+
+  // An inhabitant has to be in the room. A host acts anywhere it can perceive.
+  if (
+    context.resident.presenceMode === "inhabitant" &&
+    foundRoom !== context.resident.currentRoom
+  ) {
+    return null;
+  }
+
+  const actionId =
+    typeof satisfier.params?.actionId === "string" ? satisfier.params.actionId : null;
+  const action = actionId
+    ? found.actions.find((a) => a.id === actionId)
+    : // No action named — take the first currently-available one.
+      found.actions.find((a) => (a.availableWhen ? a.availableWhen(found.state) : true));
+  if (!action) return null;
+
+  // A fire already lit is not something to go and light.
+  if (action.availableWhen && !action.availableWhen(found.state)) return null;
+
+  return { type: "act", affordanceId: id, actionId: action.id };
+}
+
+function resolveMovement(satisfier: Satisfier, context: RuntimeContext): ResidentAction | null {
+  const target = roomId(satisfier.ref);
+  if (!context.place.rooms.has(target)) return null;
+  if (context.resident.currentRoom === target) return null;
+  return { type: "move", toRoom: target };
+}
+
+// ---------------------------------------------------------------------------
+// Surfacing triggers
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether the place is quiet enough for something to surface unbidden.
+ *
+ * Quiet means a tick with nobody sensed present — not merely a tick, since a
+ * resident sitting with a guest is not undisturbed. Uses `perceivePresence`
+ * rather than the guest roster, so a resident that cannot see the room does not
+ * get to conclude it is empty.
+ */
+function isQuiet(event: PresenceEvent, context: RuntimeContext): boolean {
+  if (event.type !== "tick") return false;
+  const view = perceivePresence(context.place, context.resident.currentRoom);
+  return view.guests.length === 0;
+}
+
+// ---------------------------------------------------------------------------
+// The loop
+// ---------------------------------------------------------------------------
+
+export interface IntentionLoopOptions {
+  model: ModelProvider;
+  logger?: Logger;
+  /**
+   * Pressure above which a satisfier that is merely reachable does not need a
+   * coincidence or a quiet moment to surface. The floor that stops a severe
+   * unmet need from waiting forever for the right moment.
+   */
+  urgentThreshold?: number;
+}
+
+/** What the surfacing call has to answer. */
+interface SurfacingVerdict {
+  aim: string;
+  worthPursuing: boolean;
+  reason: string;
+}
+
+const SURFACING_SYSTEM_PROMPT = `You give words to something a place's resident finds itself wanting, and judge whether it is worth doing now.
+
+You will be told: an unmet need, the thing that would ease it, and what is happening.
+
+Two jobs.
+
+1. "aim" — what the resident takes itself to want, in its own voice. One short phrase, under ten words. Concrete and about this moment, not a restatement of the need. "tend the fire before it dies", not "satisfy connection".
+
+2. "worthPursuing" — whether to take it up right now. **Default to false.** A resident that acts on every impulse is not motivated, it is restless. Say true only when the moment genuinely suits it: nothing more pressing is happening, and doing this now would be natural rather than abrupt.
+
+Respond with JSON only:
+{"aim": "<phrase>", "worthPursuing": <true|false>, "reason": "<at most 15 words>"}`;
+
+export class IntentionLoop {
+  private readonly log: Logger;
+  private readonly urgentThreshold: number;
+
+  constructor(private readonly options: IntentionLoopOptions) {
+    this.log = options.logger ?? createLogger("Intentions");
+    this.urgentThreshold = options.urgentThreshold ?? 0.6;
+  }
+
+  /**
+   * Advances the loop by one perception.
+   *
+   * Returns actions to take toward a committed pursuit — usually empty. Safe to
+   * call every tick; the expensive path is gated behind a surfacing trigger,
+   * which is rare by design.
+   */
+  async run(
+    being: Being,
+    context: RuntimeContext,
+    event: PresenceEvent,
+    _perceptions: Perception[],
+  ): Promise<ResidentAction[]> {
+    this.reapFinished(being, context);
+
+    const actions = this.actOnCommitment(being, context);
+    if (actions.length > 0) return actions;
+
+    // Only look for something new when not already occupied.
+    if (embersCurrentIntentions(being).length > 0) return [];
+
+    await this.trySurface(being, context, event);
+    return [];
+  }
+
+  /**
+   * Ends pursuits that are finished or stale.
+   *
+   * A pursuit whose satisfier no longer resolves has been discharged by other
+   * means or become impossible — either way the resident is not doing it any
+   * more, and leaving it committed would suppress events for no reason.
+   */
+  private reapFinished(being: Being, context: RuntimeContext): void {
+    for (const intention of embersCurrentIntentions(being)) {
+      if (!resolveSatisfier(intention.satisfier, context)) {
+        this.log.debug(`"${intention.aim}" is no longer actionable — satisfied`);
+        embersEndIntention(being, intention.id, { kind: "satisfied" });
+      }
+    }
+
+    for (const lapsed of embersExpirePursuits(being)) {
+      this.log.debug(`"${lapsed.aim}" lapsed`);
+    }
+  }
+
+  /** Takes the next action toward the most urgent pursuit, if one resolves. */
+  private actOnCommitment(being: Being, context: RuntimeContext): ResidentAction[] {
+    const [pursuit] = embersCurrentIntentions(being);
+    if (!pursuit) return [];
+
+    const action = resolveSatisfier(pursuit.satisfier, context);
+    if (!action) return [];
+
+    embersRecordAction(being, pursuit.id);
+    this.log.debug(`acting on "${pursuit.aim}"`);
+    return [action];
+  }
+
+  /** Looks for a pressure worth noticing, and asks whether to take it up. */
+  private async trySurface(
+    being: Being,
+    context: RuntimeContext,
+    event: PresenceEvent,
+  ): Promise<void> {
+    const eligible = embersEligibleToSurface(being);
+    if (eligible.length === 0) return;
+
+    const quiet = isQuiet(event, context);
+
+    for (const pressure of eligible) {
+      // Reachability is the first filter — a satisfier that will not resolve is
+      // not something the resident can notice wanting.
+      if (!resolveSatisfier(pressure.satisfier, context)) continue;
+
+      const trigger = this.triggerFor(pressure.pressure, quiet, event);
+      if (!trigger) continue;
+
+      await this.surfaceAndAdjudicate(being, context, pressure, trigger);
+      return; // One at a time. Noticing is not a batch operation.
+    }
+  }
+
+  private triggerFor(
+    pressure: number,
+    quiet: boolean,
+    event: PresenceEvent,
+  ): SurfacingTrigger | null {
+    // The satisfier is reachable and something just changed about the place —
+    // the fire is visibly dying, and that is when tending it becomes thinkable.
+    if (event.type === "affordance.changed") {
+      return { kind: "coincidence", note: `${event.affordanceId} changed` };
+    }
+    if (quiet) return { kind: "quiet" };
+    if (pressure >= this.urgentThreshold) return { kind: "threshold" };
+    return null;
+  }
+
+  private async surfaceAndAdjudicate(
+    being: Being,
+    context: RuntimeContext,
+    pressure: { driveId: string; satisfier: Satisfier; hint?: string; pressure: number },
+    trigger: SurfacingTrigger,
+  ): Promise<void> {
+    const verdict = await this.askForAim(being, context, pressure, trigger);
+    if (!verdict) return; // The call failed; nothing surfaced, nothing recorded.
+
+    let candidate: SurfacedCandidate;
+    try {
+      candidate = embersSurface(being, {
+        sourceDriveId: pressure.driveId,
+        satisfier: pressure.satisfier,
+        aim: verdict.aim,
+        trigger,
+      });
+    } catch (err) {
+      this.log.debug("could not surface:", err);
+      return;
+    }
+
+    if (verdict.worthPursuing) {
+      embersCommit(being, candidate.id);
+      this.log.debug(`committed: "${verdict.aim}" (${trigger.kind})`);
+    } else {
+      embersDecline(being, candidate.id, verdict.reason);
+      this.log.debug(`declined: "${verdict.aim}" — ${verdict.reason}`);
+    }
+  }
+
+  /**
+   * One model call that both articulates and adjudicates.
+   *
+   * Splitting these would double the cost at the highest-frequency point in the
+   * system, and the judgment needs exactly the context the articulation does.
+   */
+  private async askForAim(
+    being: Being,
+    context: RuntimeContext,
+    pressure: { driveId: string; satisfier: Satisfier; hint?: string; pressure: number },
+    trigger: SurfacingTrigger,
+  ): Promise<SurfacingVerdict | null> {
+    const drive = being.drives.drives.get(pressure.driveId);
+    const room = context.place.rooms.get(context.resident.currentRoom);
+    const presence = perceivePresence(context.place, context.resident.currentRoom);
+
+    const prompt = `The resident: ${context.resident.character.name}, ${context.resident.character.archetype}
+
+An unmet need: ${drive?.name ?? pressure.driveId} — ${drive?.description ?? ""}
+How unmet: ${(pressure.pressure * 100).toFixed(0)}% short of where it wants to be.
+
+What would ease it: ${pressure.hint ?? `${pressure.satisfier.kind} "${pressure.satisfier.ref}"`}
+
+Where: ${room?.name ?? "unknown"} — ${room?.description ?? ""}
+Who else is here: ${presence.guests.length > 0 ? presence.guests.map((g) => g.guest.name).join(", ") : "no one"}
+What prompted the thought: ${describeTrigger(trigger)}
+
+Respond with JSON only.`;
+
+    try {
+      const response = await this.options.model.chat({
+        systemPrompt: SURFACING_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: prompt }],
+        maxTokens: 200,
+        temperature: 0.8,
+      });
+      return parseVerdict(response.content);
+    } catch (err) {
+      this.log.debug("surfacing call failed:", err);
+      return null;
+    }
+  }
+}
+
+function describeTrigger(trigger: SurfacingTrigger): string {
+  switch (trigger.kind) {
+    case "coincidence":
+      return `something changed nearby — ${trigger.note}`;
+    case "quiet":
+      return "a quiet moment, with nothing demanding attention";
+    case "threshold":
+      return "the need has simply grown hard to ignore";
+  }
+}
+
+/**
+ * Extracts the verdict, tolerating fenced or prose-wrapped JSON.
+ *
+ * An unparseable response yields `null`, which surfaces nothing at all rather
+ * than committing on a guess — the conservative direction, since a spurious
+ * commitment suppresses real events.
+ */
+function parseVerdict(content: string): SurfacingVerdict | null {
+  const candidates = [
+    content.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1],
+    content.match(/\{[\s\S]*\}/)?.[0],
+    content,
+  ];
+
+  for (const raw of candidates) {
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw.trim()) as Record<string, unknown>;
+      const aim = typeof parsed.aim === "string" ? parsed.aim.trim() : "";
+      if (!aim) continue;
+      return {
+        aim,
+        worthPursuing: parsed.worthPursuing === true,
+        reason: typeof parsed.reason === "string" ? parsed.reason : "no reason given",
+      };
+    } catch {
+      // Try the next shape.
+    }
+  }
+
+  return null;
+}

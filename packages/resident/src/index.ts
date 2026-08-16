@@ -4,6 +4,8 @@
 export { createCharacter, validateCharacter } from "./character.js";
 // Decision
 export { parseAllDecisions, parseDecision } from "./decision.js";
+export type { IntentionLoopOptions } from "./intention-loop.js";
+export { IntentionLoop, resolveSatisfier } from "./intention-loop.js";
 export type { SqliteMemoryStoreOptions } from "./memory/store.js";
 // Memory
 export { SqliteMemoryStore } from "./memory/store.js";

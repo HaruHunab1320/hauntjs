@@ -16,7 +16,12 @@ import {
 } from "@hauntjs/demo-vault";
 import { GuestAgent, ModelCallQueue } from "@hauntjs/guest-agent";
 import { Place2DAdapter } from "@hauntjs/place-2d";
-import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
+import {
+  createModelProvider,
+  createResidentPipeline,
+  Resident,
+  SqliteMemoryStore,
+} from "@hauntjs/resident";
 import Fastify from "fastify";
 
 // --- Configuration ---
@@ -115,6 +120,9 @@ async function start(): Promise<void> {
     place,
     resident: residentState,
     residentMind,
+    // Commitment-aware autonomy: a resident that is occupied does not
+    // deliberate about a passing event.
+    systems: createResidentPipeline(),
   });
 
   // 9. Set up trust tracking and transcript

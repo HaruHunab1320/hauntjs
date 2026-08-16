@@ -5,7 +5,12 @@ import { Runtime, TickScheduler, TimeSystem } from "@hauntjs/core";
 import { TranscriptLogger } from "@hauntjs/demo-vault";
 import { solus, solusBeing, VOID_CONFIG } from "@hauntjs/demo-void";
 import { Place2DAdapter } from "@hauntjs/place-2d";
-import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
+import {
+  createModelProvider,
+  createResidentPipeline,
+  Resident,
+  SqliteMemoryStore,
+} from "@hauntjs/resident";
 import Fastify from "fastify";
 
 // --- Configuration ---
@@ -80,6 +85,9 @@ async function start(): Promise<void> {
     place,
     resident: residentState,
     residentMind,
+    // Commitment-aware autonomy: a resident that is occupied does not
+    // deliberate about a passing event.
+    systems: createResidentPipeline(),
   });
 
   // 9. Set up transcript

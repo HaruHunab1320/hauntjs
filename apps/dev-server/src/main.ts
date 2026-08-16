@@ -4,7 +4,12 @@ import type { ResidentState } from "@hauntjs/core";
 import { addGuest, guestId, Runtime, TickScheduler } from "@hauntjs/core";
 import { poe, poeBeing } from "@hauntjs/demo-roost";
 import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
-import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
+import {
+  createModelProvider,
+  createResidentPipeline,
+  Resident,
+  SqliteMemoryStore,
+} from "@hauntjs/resident";
 import Fastify from "fastify";
 
 const WS_PORT = Number(process.env.WS_PORT ?? 3002);
@@ -65,6 +70,7 @@ async function start(): Promise<void> {
     place,
     resident: residentState,
     residentMind: residentMind,
+    systems: createResidentPipeline(),
     onGuestReturn: (guestId) => {
       const guest = place.guests.get(guestId);
       console.log(

@@ -20,6 +20,7 @@ import {
   embersTickBeing,
   embersWeightPerceptions,
 } from "./embers.js";
+import { IntentionLoop, type IntentionLoopOptions } from "./intention-loop.js";
 import type { SqliteMemoryStore } from "./memory/store.js";
 import type { ModelProvider } from "./model/types.js";
 import { createPracticeEvaluator } from "./practice-evaluator.js";
@@ -39,6 +40,15 @@ export interface ResidentOptions {
    * life is not the object of study.
    */
   practiceEvaluator?: ((attempt: PracticeAttempt) => Promise<PracticeAttemptResult>) | false;
+  /**
+   * Configures the intention loop — the path by which the resident acts
+   * unprompted.
+   *
+   * Pass `false` to disable it. A resident without one still perceives,
+   * deliberates and cultivates; it simply never initiates, which is the v0.2
+   * behavior.
+   */
+  intentions?: Partial<Omit<IntentionLoopOptions, "model">> | false;
 }
 
 /**
@@ -66,6 +76,7 @@ export class Resident implements ResidentMind {
   private busy = false;
   private lastTickAt = Date.now();
   private evaluator: ((attempt: PracticeAttempt) => Promise<PracticeAttemptResult>) | null;
+  private intentions: IntentionLoop | null;
 
   constructor(options: ResidentOptions) {
     this.character = options.character;
@@ -80,6 +91,11 @@ export class Resident implements ResidentMind {
         options.practiceEvaluator ??
         createPracticeEvaluator({ model: options.model, logger: this.log });
     }
+
+    this.intentions =
+      options.intentions === false
+        ? null
+        : new IntentionLoop({ model: options.model, logger: this.log, ...options.intentions });
   }
 
   async perceive(
@@ -109,6 +125,15 @@ export class Resident implements ResidentMind {
       // Adjudicate the nominated practice attempts. Without this, depth never
       // moves off whatever the character config seeded.
       await this.cultivate(being);
+
+      // Advance the intention loop. This is the only path by which the resident
+      // does something nobody asked for, so it runs before the deliberation
+      // gate below — an unprompted action must not depend on an event having
+      // arrived that warrants a model call.
+      if (this.intentions) {
+        const pursued = await this.intentions.run(being, context, event, perceptions);
+        if (pursued.length > 0) return pursued.length === 1 ? pursued[0]! : pursued;
+      }
     }
 
     // Decide whether this event warrants deliberation (a model call)
