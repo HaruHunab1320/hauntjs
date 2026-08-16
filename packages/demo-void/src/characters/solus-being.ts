@@ -78,6 +78,18 @@ const solusBeingConfig: BeingConfig = {
           { matches: { kind: "action", type: "move" }, amount: 0.15 },
           { matches: { kind: "action", type: "tend-affordance" }, amount: 0.1 },
         ],
+        // The one drive in the Void that can be *pursued* rather than merely
+        // relieved by whatever happens to arrive. It already said movement eases
+        // it; until now there was no way for Solus to go and move.
+        //
+        // The Void has no affordances at all — three rooms, all empty — so
+        // movement is its entire action surface. That is a limit of this place,
+        // not of the mechanism.
+        pursuableBy: [
+          { satisfier: { kind: "movement", ref: "study" }, hint: "the study, and its hard chair" },
+          { satisfier: { kind: "movement", ref: "hearth" }, hint: "the hearth, and the low fire" },
+          { satisfier: { kind: "movement", ref: "dark" }, hint: "the dark, where nothing is" },
+        ],
       },
     ],
   },
