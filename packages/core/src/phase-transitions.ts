@@ -1,6 +1,6 @@
-import type { GuestId, Place, RoomId, SensorId } from "./types.js";
-import type { TimePhase } from "./time-system.js";
 import { createLogger } from "./logger.js";
+import type { TimePhase } from "./time-system.js";
+import type { GuestId, Place, RoomId, SensorId } from "./types.js";
 
 const log = createLogger("PhaseTransition");
 
@@ -95,7 +95,9 @@ export function applyPhaseTransition(
         room.connectedTo = room.connectedTo.filter((id) => id !== targetRoomId);
         const targetRoom = place.rooms.get(targetRoomId);
         if (targetRoom) {
-          targetRoom.connectedTo = targetRoom.connectedTo.filter((id) => id !== (toggle.roomId as RoomId));
+          targetRoom.connectedTo = targetRoom.connectedTo.filter(
+            (id) => id !== (toggle.roomId as RoomId),
+          );
         }
         log.debug(`disconnected ${toggle.roomId} ↔ ${toggle.connectedTo}`);
 
@@ -107,10 +109,13 @@ export function applyPhaseTransition(
           if (!roomToCheck || roomToCheck.connectedTo.length > 0) continue;
           // This room is now completely disconnected — move guests out
           // Determine where to send them: the other side of the connection that was just removed
-          const evacuateTo = roomId === (toggle.roomId as RoomId) ? targetRoomId : (toggle.roomId as RoomId);
+          const evacuateTo =
+            roomId === (toggle.roomId as RoomId) ? targetRoomId : (toggle.roomId as RoomId);
           for (const guest of place.guests.values()) {
             if (guest.currentRoom === roomId) {
-              log.debug(`evicting guest ${guest.id as string} from ${roomId as string} → ${evacuateTo as string}`);
+              log.debug(
+                `evicting guest ${guest.id as string} from ${roomId as string} → ${evacuateTo as string}`,
+              );
               guest.currentRoom = evacuateTo;
               evictions.push({ guestId: guest.id, from: roomId, to: evacuateTo });
             }

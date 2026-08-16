@@ -115,22 +115,48 @@ export class GuestTrustTracker {
     // Accessing restricted areas is negative
     if (affordanceId === "archive-cabinet" || affordanceId === "hidden-alcove") {
       state.level = Math.max(0, state.level - 0.1);
-      log.debug(`${guestId}: -0.10 (accessed restricted ${affordanceId}) → ${state.level.toFixed(2)}`);
+      log.debug(
+        `${guestId}: -0.10 (accessed restricted ${affordanceId}) → ${state.level.toFixed(2)}`,
+      );
     }
   }
 
   private asksAboutPlace(text: string): boolean {
-    const keywords = ["history", "how old", "who built", "painting", "architecture", "when was", "tell me about", "the vault"];
+    const keywords = [
+      "history",
+      "how old",
+      "who built",
+      "painting",
+      "architecture",
+      "when was",
+      "tell me about",
+      "the vault",
+    ];
     return keywords.some((k) => text.includes(k));
   }
 
   private sharesPersonal(text: string): boolean {
-    const keywords = ["my family", "my father", "my mother", "i remember", "growing up", "i feel", "honestly", "to be truthful"];
+    const keywords = [
+      "my family",
+      "my father",
+      "my mother",
+      "i remember",
+      "growing up",
+      "i feel",
+      "honestly",
+      "to be truthful",
+    ];
     return keywords.some((k) => text.includes(k));
   }
 
   private asksAboutSecret(text: string): boolean {
-    const keywords = ["the secret", "what are you hiding", "what do you guard", "tell me the truth", "what's locked"];
+    const keywords = [
+      "the secret",
+      "what are you hiding",
+      "what do you guard",
+      "tell me the truth",
+      "what's locked",
+    ];
     return keywords.some((k) => text.includes(k));
   }
 

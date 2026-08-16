@@ -22,7 +22,11 @@ export class ChatBox {
     });
   }
 
-  addMessage(text: string, cls: "msg-resident" | "msg-guest" | "msg-system" | "msg-self", prefix?: string): void {
+  addMessage(
+    text: string,
+    cls: "msg-resident" | "msg-guest" | "msg-system" | "msg-self",
+    prefix?: string,
+  ): void {
     const div = document.createElement("div");
     div.className = cls;
     div.textContent = prefix ? `${prefix}: ${text}` : text;

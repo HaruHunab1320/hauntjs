@@ -25,9 +25,7 @@ export const RESIDENCY_CONFIG = {
  */
 export const RESIDENCY_PHASE_TRANSITIONS: PhaseTransitionMap = {
   night: {
-    sensors: [
-      { sensorId: "garden.sight", enabled: false },
-    ],
+    sensors: [{ sensorId: "garden.sight", enabled: false }],
     rooms: [
       {
         roomId: "living-room",
@@ -42,9 +40,7 @@ export const RESIDENCY_PHASE_TRANSITIONS: PhaseTransitionMap = {
     ],
   },
   dawn: {
-    sensors: [
-      { sensorId: "garden.sight", enabled: true },
-    ],
+    sensors: [{ sensorId: "garden.sight", enabled: true }],
     rooms: [
       {
         roomId: "living-room",

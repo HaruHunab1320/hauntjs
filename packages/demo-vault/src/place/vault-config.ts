@@ -46,9 +46,7 @@ export const VAULT_PHASE_TRANSITIONS: PhaseTransitionMap = {
       { sensorId: "conservatory.sight", enabled: false },
       { sensorId: "archive.sight", enabled: false },
     ],
-    connections: [
-      { roomId: "archive", connectedTo: "hidden-room", connected: true },
-    ],
+    connections: [{ roomId: "archive", connectedTo: "hidden-room", connected: true }],
     rooms: [
       {
         roomId: "foyer",
@@ -86,9 +84,7 @@ export const VAULT_PHASE_TRANSITIONS: PhaseTransitionMap = {
       { sensorId: "conservatory.sight", enabled: true },
       { sensorId: "archive.sight", enabled: true },
     ],
-    connections: [
-      { roomId: "archive", connectedTo: "hidden-room", connected: false },
-    ],
+    connections: [{ roomId: "archive", connectedTo: "hidden-room", connected: false }],
     rooms: [
       {
         roomId: "foyer",

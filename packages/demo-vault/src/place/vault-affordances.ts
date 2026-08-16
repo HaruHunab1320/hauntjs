@@ -36,7 +36,8 @@ export const newerPainting: Affordance = {
     {
       id: "examine",
       name: "Examine closely",
-      description: "Look at the painting up close. Study the brushwork, the face, the empty nameplate.",
+      description:
+        "Look at the painting up close. Study the brushwork, the face, the empty nameplate.",
     },
   ],
   sensable: true,
@@ -47,7 +48,8 @@ export const readingLamp: Affordance = {
   roomId: roomId("library"),
   kind: "lamp",
   name: "Reading Lamp",
-  description: "A brass lamp casting warm light across the reading chair. The switch is within reach.",
+  description:
+    "A brass lamp casting warm light across the reading chair. The switch is within reach.",
   state: { on: true },
   actions: [
     {

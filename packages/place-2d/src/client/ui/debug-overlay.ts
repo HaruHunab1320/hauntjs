@@ -1,4 +1,4 @@
-import type { DebugSensorInfo, DebugPerceptionInfo } from "../../shared/protocol-types.js";
+import type { DebugPerceptionInfo, DebugSensorInfo } from "../../shared/protocol-types.js";
 
 export class DebugOverlay {
   private container: HTMLElement;
@@ -87,7 +87,8 @@ export class DebugOverlay {
       this.perceptionList.innerHTML = "";
       for (const p of perceptions) {
         const div = document.createElement("div");
-        div.style.cssText = "margin-bottom: 4px; color: #ccc; border-left: 2px solid #e4a672; padding-left: 6px;";
+        div.style.cssText =
+          "margin-bottom: 4px; color: #ccc; border-left: 2px solid #e4a672; padding-left: 6px;";
         div.textContent = `[${p.modality}] ${p.content.slice(0, 80)} (${(p.confidence * 100).toFixed(0)}%)`;
         this.perceptionList.appendChild(div);
       }

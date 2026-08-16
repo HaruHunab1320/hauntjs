@@ -375,9 +375,7 @@ describe("Integration: full pipeline", () => {
       const garden = roomId("garden");
       addRoom(place, { id: garden, name: "Garden", description: "A garden" });
       connectRooms(place, roomId("lobby"), garden);
-      place.rooms.get(garden)!.sensors = new Map([
-        sightSensor("garden.sight", garden),
-      ]);
+      place.rooms.get(garden)!.sensors = new Map([sightSensor("garden.sight", garden)]);
 
       const lobbyRoom = place.rooms.get(roomId("lobby"))!;
       const [omniId, omniSensor] = omniscientSensor("lobby.omni", roomId("lobby"));

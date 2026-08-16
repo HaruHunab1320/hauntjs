@@ -1,10 +1,10 @@
 import { join } from "node:path";
+import { deserializeBeing, serializeBeing } from "@embersjs/core";
 import type { ResidentState } from "@hauntjs/core";
 import { addGuest, guestId, Runtime, TickScheduler } from "@hauntjs/core";
 import { poe, poeBeing } from "@hauntjs/demo-roost";
 import { Place2DAdapter, ROOST_CONFIG } from "@hauntjs/place-2d";
 import { createModelProvider, Resident, SqliteMemoryStore } from "@hauntjs/resident";
-import { deserializeBeing, serializeBeing } from "@embersjs/core";
 import Fastify from "fastify";
 
 const WS_PORT = Number(process.env.WS_PORT ?? 3002);

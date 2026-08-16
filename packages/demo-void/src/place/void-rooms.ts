@@ -30,9 +30,7 @@ export const study: Room = {
   description:
     "A bare desk beneath a high window. The chair is hard. Papers are stacked but unread. The pen has dried. Sound carries in this room — every creak of the floorboards, every settling of the walls. The silence here is not comfortable; it is expectant.",
   affordances: new Map(),
-  sensors: new Map([
-    soundSensor("study.sound", roomId("study")),
-  ]),
+  sensors: new Map([soundSensor("study.sound", roomId("study"))]),
   connectedTo: [roomId("hearth")],
   state: {},
 };

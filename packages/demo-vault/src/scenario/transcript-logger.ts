@@ -1,5 +1,4 @@
-import type { PresenceEvent } from "@hauntjs/core";
-import type { TimeState } from "@hauntjs/core";
+import type { PresenceEvent, TimeState } from "@hauntjs/core";
 import type Database from "better-sqlite3";
 
 export interface TranscriptEntry {

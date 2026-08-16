@@ -1,10 +1,5 @@
 import type { Room } from "@hauntjs/core";
-import {
-  presenceSensor,
-  roomId,
-  sightSensor,
-  soundSensor,
-} from "@hauntjs/core";
+import { presenceSensor, roomId, sightSensor, soundSensor } from "@hauntjs/core";
 
 // --- The Residency: Seven rooms of a shared living space ---
 
@@ -64,9 +59,7 @@ export const bedroom1: Room = {
   description:
     "Small and personal. A single window faces east, catching the morning light. A desk is pushed against the wall, covered in papers and half-finished thoughts.",
   affordances: new Map(),
-  sensors: new Map([
-    soundSensor("bedroom-1.sound", roomId("bedroom-1")),
-  ]),
+  sensors: new Map([soundSensor("bedroom-1.sound", roomId("bedroom-1"))]),
   connectedTo: [roomId("hallway")],
   state: {},
 };
@@ -77,9 +70,7 @@ export const bedroom2: Room = {
   description:
     "Cozy and cluttered. Bookshelves line one wall, double-stacked and overflowing. A reading chair sits in the corner with a lamp beside it. The bed is unmade.",
   affordances: new Map(),
-  sensors: new Map([
-    soundSensor("bedroom-2.sound", roomId("bedroom-2")),
-  ]),
+  sensors: new Map([soundSensor("bedroom-2.sound", roomId("bedroom-2"))]),
   connectedTo: [roomId("hallway")],
   state: {},
 };
@@ -90,9 +81,7 @@ export const bedroom3: Room = {
   description:
     "Sparse and clean. Very little on the walls. A window seat looks out over the garden. The bed is neatly made. The room smells faintly of lavender.",
   affordances: new Map(),
-  sensors: new Map([
-    soundSensor("bedroom-3.sound", roomId("bedroom-3")),
-  ]),
+  sensors: new Map([soundSensor("bedroom-3.sound", roomId("bedroom-3"))]),
   connectedTo: [roomId("hallway")],
   state: {},
 };

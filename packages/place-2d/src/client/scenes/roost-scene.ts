@@ -1,10 +1,10 @@
 import * as Phaser from "phaser";
-import { GameSocket } from "../net/socket.js";
-import { ChatBox } from "../ui/chat-box.js";
-import { SpeechBubble } from "../ui/speech-bubble.js";
-import { InteractMenu } from "../ui/interact-menu.js";
-import { DebugOverlay } from "../ui/debug-overlay.js";
 import type { PublicPlaceState } from "../../../shared/protocol-types.js";
+import type { GameSocket } from "../net/socket.js";
+import { ChatBox } from "../ui/chat-box.js";
+import { DebugOverlay } from "../ui/debug-overlay.js";
+import { InteractMenu } from "../ui/interact-menu.js";
+import { SpeechBubble } from "../ui/speech-bubble.js";
 
 // Room visual layouts — positions of affordances and doorways relative to room center
 interface RoomLayout {
@@ -84,11 +84,20 @@ export class RoostScene extends Phaser.Scene {
   private residentNameText!: Phaser.GameObjects.Text;
 
   // Other guests
-  private otherGuests = new Map<string, { sprite: Phaser.GameObjects.Arc; nameText: Phaser.GameObjects.Text }>();
+  private otherGuests = new Map<
+    string,
+    { sprite: Phaser.GameObjects.Arc; nameText: Phaser.GameObjects.Text }
+  >();
 
   // Room objects
-  private affordanceSprites = new Map<string, { rect: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }>();
-  private doorSprites = new Map<string, { rect: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }>();
+  private affordanceSprites = new Map<
+    string,
+    { rect: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }
+  >();
+  private doorSprites = new Map<
+    string,
+    { rect: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }
+  >();
 
   private roomLabel!: HTMLElement;
   private roomDesc!: HTMLElement;
@@ -128,20 +137,26 @@ export class RoostScene extends Phaser.Scene {
     // Player sprite
     this.playerSprite = this.add.circle(cx, cy, PLAYER_RADIUS, 0x88ccaa);
     this.playerSprite.setDepth(10);
-    this.playerNameText = this.add.text(cx, cy + PLAYER_RADIUS + 4, this.guestName, {
-      fontSize: "11px",
-      fontFamily: "Georgia, serif",
-      color: "#c3e88d",
-    }).setOrigin(0.5, 0).setDepth(10);
+    this.playerNameText = this.add
+      .text(cx, cy + PLAYER_RADIUS + 4, this.guestName, {
+        fontSize: "11px",
+        fontFamily: "Georgia, serif",
+        color: "#c3e88d",
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(10);
 
     // Resident sprite
     this.residentSprite = this.add.circle(cx - 60, cy - 30, RESIDENT_RADIUS, 0xe4a672);
     this.residentSprite.setDepth(10);
-    this.residentNameText = this.add.text(cx - 60, cy - 30 + RESIDENT_RADIUS + 4, "Poe", {
-      fontSize: "11px",
-      fontFamily: "Georgia, serif",
-      color: "#e4a672",
-    }).setOrigin(0.5, 0).setDepth(10);
+    this.residentNameText = this.add
+      .text(cx - 60, cy - 30 + RESIDENT_RADIUS + 4, "Poe", {
+        fontSize: "11px",
+        fontFamily: "Georgia, serif",
+        color: "#e4a672",
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(10);
 
     // Controls
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -197,7 +212,10 @@ export class RoostScene extends Phaser.Scene {
 
     // Update speech bubble
     if (this.speechBubble.isVisible) {
-      this.speechBubble.updatePosition(this.residentSprite.x, this.residentSprite.y - RESIDENT_RADIUS - 8);
+      this.speechBubble.updatePosition(
+        this.residentSprite.x,
+        this.residentSprite.y - RESIDENT_RADIUS - 8,
+      );
     }
 
     // Check proximity to doors
@@ -316,7 +334,27 @@ export class RoostScene extends Phaser.Scene {
     });
 
     this.socket.on("debug.snapshot" as never, (msg: never) => {
-      const snapshot = msg as { type: "debug.snapshot"; sensors: Array<{ id: string; roomId: string; roomName: string; modality: string; name: string; enabled: boolean; fidelity: string; reach: string }>; recentPerceptions: Array<{ sensorId: string; roomId: string; modality: string; content: string; confidence: number; at: string }> };
+      const snapshot = msg as {
+        type: "debug.snapshot";
+        sensors: Array<{
+          id: string;
+          roomId: string;
+          roomName: string;
+          modality: string;
+          name: string;
+          enabled: boolean;
+          fidelity: string;
+          reach: string;
+        }>;
+        recentPerceptions: Array<{
+          sensorId: string;
+          roomId: string;
+          modality: string;
+          content: string;
+          confidence: number;
+          at: string;
+        }>;
+      };
       if (snapshot.type === "debug.snapshot") {
         this.debugOverlay.update(snapshot.sensors, snapshot.recentPerceptions);
       }
@@ -358,11 +396,14 @@ export class RoostScene extends Phaser.Scene {
       rect.setStrokeStyle(1, 0x888888);
       rect.setDepth(5);
 
-      const label = this.add.text(ax, ay + AFFORDANCE_SIZE / 2 + 4, aff.name, {
-        fontSize: "10px",
-        fontFamily: "Georgia, serif",
-        color: "#aaa",
-      }).setOrigin(0.5, 0).setDepth(5);
+      const label = this.add
+        .text(ax, ay + AFFORDANCE_SIZE / 2 + 4, aff.name, {
+          fontSize: "10px",
+          fontFamily: "Georgia, serif",
+          color: "#aaa",
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(5);
 
       this.affordanceSprites.set(aff.id, { rect, label });
     }
@@ -380,11 +421,14 @@ export class RoostScene extends Phaser.Scene {
       rect.setStrokeStyle(1, 0x3a7ca5);
       rect.setDepth(5);
 
-      const label = this.add.text(dx, dy + DOOR_SIZE / 2 + 4, doorLabel, {
-        fontSize: "10px",
-        fontFamily: "Georgia, serif",
-        color: "#3a7ca5",
-      }).setOrigin(0.5, 0).setDepth(5);
+      const label = this.add
+        .text(dx, dy + DOOR_SIZE / 2 + 4, doorLabel, {
+          fontSize: "10px",
+          fontFamily: "Georgia, serif",
+          color: "#3a7ca5",
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(5);
 
       this.doorSprites.set(connId, { rect, label });
     }
@@ -445,11 +489,14 @@ export class RoostScene extends Phaser.Scene {
     const sprite = this.add.circle(ox, oy, PLAYER_RADIUS - 2, 0xa8d8ea);
     sprite.setDepth(10);
 
-    const nameText = this.add.text(ox, oy + PLAYER_RADIUS + 2, name, {
-      fontSize: "10px",
-      fontFamily: "Georgia, serif",
-      color: "#a8d8ea",
-    }).setOrigin(0.5, 0).setDepth(10);
+    const nameText = this.add
+      .text(ox, oy + PLAYER_RADIUS + 2, name, {
+        fontSize: "10px",
+        fontFamily: "Georgia, serif",
+        color: "#a8d8ea",
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(10);
 
     this.otherGuests.set(id, { sprite, nameText });
   }
@@ -477,8 +524,10 @@ export class RoostScene extends Phaser.Scene {
 
     for (const [roomId, { rect }] of this.doorSprites) {
       const dist = Phaser.Math.Distance.Between(
-        this.playerSprite.x, this.playerSprite.y,
-        rect.x, rect.y,
+        this.playerSprite.x,
+        this.playerSprite.y,
+        rect.x,
+        rect.y,
       );
       if (dist < threshold) {
         this.nearDoor = roomId;
@@ -500,8 +549,10 @@ export class RoostScene extends Phaser.Scene {
 
     for (const [affId, { rect }] of this.affordanceSprites) {
       const dist = Phaser.Math.Distance.Between(
-        this.playerSprite.x, this.playerSprite.y,
-        rect.x, rect.y,
+        this.playerSprite.x,
+        this.playerSprite.y,
+        rect.x,
+        rect.y,
       );
       if (dist < threshold) {
         this.nearAffordance = affId;

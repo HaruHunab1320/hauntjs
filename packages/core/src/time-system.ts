@@ -1,6 +1,6 @@
-import type { PresenceEvent } from "./types.js";
-import type { PipelineState, System, SystemContext } from "./systems/types.js";
 import { createLogger } from "./logger.js";
+import type { PipelineState, System, SystemContext } from "./systems/types.js";
+import type { PresenceEvent } from "./types.js";
 
 export type TimePhase = "dawn" | "day" | "dusk" | "night";
 
@@ -74,7 +74,9 @@ export class TimeSystem implements System {
       startedAt: Date.now(),
     };
 
-    this.log.info(`initialized — ${phase}, hour ${startHour}, ${realMsPerHour / 1000}s per in-world hour`);
+    this.log.info(
+      `initialized — ${phase}, hour ${startHour}, ${realMsPerHour / 1000}s per in-world hour`,
+    );
   }
 
   /** Get the current time state (read-only snapshot). */
@@ -101,7 +103,9 @@ export class TimeSystem implements System {
     // Emit phase change event if phase transitioned
     if (newPhase !== prevPhase) {
       this.state.phase = newPhase;
-      this.log.info(`phase change: ${prevPhase} → ${newPhase} (hour ${currentHour}, day ${currentDay})`);
+      this.log.info(
+        `phase change: ${prevPhase} → ${newPhase} (hour ${currentHour}, day ${currentDay})`,
+      );
 
       // Inject the phase change event into the pipeline
       // The event will be processed by subsequent systems

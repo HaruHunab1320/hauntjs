@@ -34,7 +34,8 @@ export class InteractMenu {
 
     const title = document.createElement("div");
     title.textContent = "Interact";
-    title.style.cssText = "color: #e4a672; font-size: 16px; margin-bottom: 12px; text-align: center;";
+    title.style.cssText =
+      "color: #e4a672; font-size: 16px; margin-bottom: 12px; text-align: center;";
     container.appendChild(title);
 
     for (const opt of options) {

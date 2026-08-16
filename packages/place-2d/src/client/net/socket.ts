@@ -41,7 +41,9 @@ export class GameSocket {
       this.handlers.set(type, set);
     }
     set.add(handler as SocketHandler);
-    return () => { set!.delete(handler as SocketHandler); };
+    return () => {
+      set!.delete(handler as SocketHandler);
+    };
   }
 
   send(msg: object): void {

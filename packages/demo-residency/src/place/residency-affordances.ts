@@ -28,7 +28,8 @@ export const kitchenTable: Affordance = {
   roomId: roomId("kitchen"),
   kind: "furniture",
   name: "Kitchen Table",
-  description: "A heavy wooden table with four mismatched chairs. The surface is scarred with knife marks and coffee rings.",
+  description:
+    "A heavy wooden table with four mismatched chairs. The surface is scarred with knife marks and coffee rings.",
   state: {},
   actions: [
     {
@@ -72,7 +73,8 @@ export const bookshelf: Affordance = {
   roomId: roomId("living-room"),
   kind: "furniture",
   name: "Bookshelf",
-  description: "Overstuffed shelves with no discernible organization. Novels mixed with cookbooks mixed with philosophy.",
+  description:
+    "Overstuffed shelves with no discernible organization. Novels mixed with cookbooks mixed with philosophy.",
   state: {},
   actions: [
     {
@@ -120,7 +122,8 @@ export const desk: Affordance = {
   roomId: roomId("bedroom-1"),
   kind: "furniture",
   name: "Writing Desk",
-  description: "A small desk pushed against the wall. Papers, pens, and half-finished notes cover its surface.",
+  description:
+    "A small desk pushed against the wall. Papers, pens, and half-finished notes cover its surface.",
   state: {},
   actions: [
     {
@@ -142,7 +145,8 @@ export const readingChair: Affordance = {
   roomId: roomId("bedroom-2"),
   kind: "furniture",
   name: "Reading Chair",
-  description: "A deep armchair with a reading lamp beside it. The cushion is permanently indented.",
+  description:
+    "A deep armchair with a reading lamp beside it. The cushion is permanently indented.",
   state: {},
   actions: [
     {

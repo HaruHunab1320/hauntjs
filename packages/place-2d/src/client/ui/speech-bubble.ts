@@ -1,4 +1,4 @@
-import * as Phaser from "phaser";
+import type * as Phaser from "phaser";
 
 export class SpeechBubble {
   private scene: Phaser.Scene;
@@ -31,11 +31,7 @@ export class SpeechBubble {
     bg.fillRoundedRect(-bgWidth / 2, -bgHeight - 10, bgWidth, bgHeight, 6);
 
     // Little triangle pointing down
-    bg.fillTriangle(
-      -6, -10,
-      6, -10,
-      0, 0,
-    );
+    bg.fillTriangle(-6, -10, 6, -10, 0, 0);
 
     textObj.setOrigin(0.5, 1);
     textObj.setPosition(0, -10 - padding);

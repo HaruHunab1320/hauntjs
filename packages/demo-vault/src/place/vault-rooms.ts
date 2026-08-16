@@ -1,11 +1,5 @@
 import type { Room } from "@hauntjs/core";
-import {
-  presenceSensor,
-  roomId,
-  sightSensor,
-  soundSensor,
-  stateSensor,
-} from "@hauntjs/core";
+import { presenceSensor, roomId, sightSensor, soundSensor, stateSensor } from "@hauntjs/core";
 
 // --- The Vault: Six rooms with distinct sensor profiles ---
 

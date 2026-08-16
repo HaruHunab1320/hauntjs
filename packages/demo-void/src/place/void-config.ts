@@ -1,6 +1,6 @@
 import type { PhaseTransitionMap } from "@hauntjs/core";
 import { roomId } from "@hauntjs/core";
-import { hearth, study, dark } from "./void-rooms.js";
+import { dark, hearth, study } from "./void-rooms.js";
 
 export const VOID_CONFIG = {
   id: "the-void",

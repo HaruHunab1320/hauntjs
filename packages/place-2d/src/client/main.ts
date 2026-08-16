@@ -7,35 +7,39 @@ const WS_URL = `ws://${window.location.hostname}:3002`;
 function boot(guestName: string): void {
   const socket = new GameSocket(WS_URL);
 
-  socket.connect().then(() => {
-    const game = new Phaser.Game({
-      type: Phaser.AUTO,
-      parent: "game-container",
-      width: window.innerWidth,
-      height: window.innerHeight - 200,
-      backgroundColor: "#1a1a2e",
-      scene: RoostScene,
-      scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
-    });
+  socket
+    .connect()
+    .then(() => {
+      const game = new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: "game-container",
+        width: window.innerWidth,
+        height: window.innerHeight - 200,
+        backgroundColor: "#1a1a2e",
+        scene: RoostScene,
+        scale: {
+          mode: Phaser.Scale.RESIZE,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+        },
+      });
 
-    game.scene.start("RoostScene", { socket, guestName });
+      game.scene.start("RoostScene", { socket, guestName });
 
-    window.addEventListener("resize", () => {
-      game.scale.resize(window.innerWidth, window.innerHeight - 200);
+      window.addEventListener("resize", () => {
+        game.scale.resize(window.innerWidth, window.innerHeight - 200);
+      });
+    })
+    .catch((err) => {
+      console.error("Failed to connect:", err);
+      const log = document.getElementById("chat-log");
+      if (log) {
+        log.innerHTML =
+          '<div class="msg-system">Failed to connect to The Roost. Is the server running?</div>';
+      }
+      // Remove modal on error so user can see the message
+      const modal = document.getElementById("name-modal");
+      if (modal) modal.style.display = "none";
     });
-  }).catch((err) => {
-    console.error("Failed to connect:", err);
-    const log = document.getElementById("chat-log");
-    if (log) {
-      log.innerHTML = '<div class="msg-system">Failed to connect to The Roost. Is the server running?</div>';
-    }
-    // Remove modal on error so user can see the message
-    const modal = document.getElementById("name-modal");
-    if (modal) modal.style.display = "none";
-  });
 }
 
 // Name entry
