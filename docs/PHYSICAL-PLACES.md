@@ -54,22 +54,35 @@ drawn at all.
 That inversion is why the hardware path bypasses `filterEvent` entirely rather
 than extending it.
 
-### Three consequences still outstanding
+### Three consequences — two fixed, one open
 
-1. **`PresenceEvent` is a closed union** (`types.ts`). An adapter cannot add
-   `motion.detected` or `sound.transient` without editing core.
-2. **`EVENT_MODALITY_MAP` is a hardcoded const** (`sensor-pipeline.ts`) while
-   `SensorModality` is deliberately open via `(string & {})`. Modality is
-   extensible and its routing table is not; a new modality silently produces
-   zero perceptions.
-3. **Confidence is derived from static sensor config** (`getConfidence`) —
-   `full` is always exactly `1.0`. A real sensor's confidence is
-   per-observation: certain about a face at 2m, guessing at 20m. The
-   `Perception.confidence` field is right; the way the pipeline populates it is
-   not.
+**Fixed: modality routing is extensible.** `EVENT_MODALITY_MAP` was a hardcoded
+const while `SensorModality` is deliberately open via `(string & {})` — you
+could declare a `thermal` sensor and nothing would ever route to it. It is now
+`DEFAULT_EVENT_MODALITIES`, overridable via `filterEvent(event, place, options)`
+or `new SensorSystem({ modalities })`.
 
-None of these block a physical adapter. All three make one clumsier than it
-should be.
+Fixing it exposed that the map was only the first of three closed doors.
+`getEventRoomId` and `generateContent` also switched on the built-in event set
+and returned `null` for anything else, so a custom event was dropped *before*
+routing mattered. Both now handle unknown types: location falls back to a
+`roomId` property, and narration falls back to a bare description — or to an
+adapter-supplied `describe` hook, which can also override core's prose for
+places where it is simply wrong.
+
+**Fixed: confidence is per-observation.** `getConfidence` returned a constant
+per fidelity kind — `full` was always exactly `1.0`, whether the event was in
+the sensor's own room or three rooms away. Confidence now attenuates with hop
+distance (`ATTENUATION_PER_HOP`, default `0.6`), so fidelity sets the ceiling
+and distance takes it down from there. `hopDistance` in `sensor-reach.ts` is a
+BFS, so it finds the genuine shortest path rather than assuming the topology is
+a tree.
+
+**Still open: `PresenceEvent` is a closed union** (`types.ts`). Adapters can now
+route, locate and narrate custom events at *runtime*, but the *type* still
+enumerates Haunt's own set, so an adapter has to cast. Making it properly
+extensible means a declaration-merged event map and touching every switch in the
+codebase — worth doing when a real adapter needs it, not before.
 
 ---
 

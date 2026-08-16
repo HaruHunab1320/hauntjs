@@ -1,4 +1,4 @@
-import { isWithinDepth, roomHasEnabledSensor } from "./sensor-reach.js";
+import { hopDistance, isWithinDepth, roomHasEnabledSensor } from "./sensor-reach.js";
 import type {
   AffordanceId,
   Perception,
@@ -10,10 +10,26 @@ import type {
 } from "./types.js";
 
 /**
- * The event→modality mapping. Determines which sensor modalities
- * are relevant for each event type.
+ * Which sensor modalities can pick up which event types.
+ *
+ * An event type absent from this map produces **no perceptions at all** — it is
+ * invisible to every sensor, silently. That is the correct strict-by-default
+ * behavior, but it makes an unmapped type indistinguishable from an unsensed
+ * one, so an adapter introducing new event types must extend the map or its
+ * events will vanish without a word.
  */
-const EVENT_MODALITY_MAP: Record<string, SensorModality[]> = {
+export type EventModalityMap = Readonly<Record<string, readonly SensorModality[]>>;
+
+/**
+ * The modality routing for Haunt's built-in events.
+ *
+ * `SensorModality` is deliberately open — `(string & {})` — so adapters can
+ * define modalities Haunt has never heard of. This table was not, which left
+ * the two halves asymmetric: you could declare a `thermal` sensor and nothing
+ * would ever route an event to it. Pass a merged map to {@link filterEvent} or
+ * to `SensorSystem` to close that gap.
+ */
+export const DEFAULT_EVENT_MODALITIES: EventModalityMap = {
   "guest.entered": ["sight", "presence"],
   "guest.left": ["sight", "presence"],
   "guest.moved": ["sight", "presence"],
@@ -21,6 +37,31 @@ const EVENT_MODALITY_MAP: Record<string, SensorModality[]> = {
   "guest.approached": ["sight", "presence"],
   "affordance.changed": ["sight", "state"],
 };
+
+/**
+ * How much confidence survives each room boundary between sensor and event.
+ *
+ * Perception through a wall is worse than perception in the room, and a sensor
+ * reporting a two-hop event with the certainty of a one-hop one is claiming
+ * something it cannot support. Same-room events are unattenuated.
+ */
+export const ATTENUATION_PER_HOP = 0.6;
+
+export interface FilterOptions {
+  /** Overrides {@link DEFAULT_EVENT_MODALITIES}. Merge rather than replace to keep built-ins. */
+  readonly modalities?: EventModalityMap;
+  /** Overrides {@link ATTENUATION_PER_HOP}. `1` disables distance attenuation. */
+  readonly attenuationPerHop?: number;
+  /**
+   * Adapter-supplied narration, consulted before core's built-in descriptions.
+   *
+   * Return `null` to fall through to core. Necessary for custom event types,
+   * which core can locate and route but cannot describe — and useful for
+   * places where core's prose is simply wrong, since a physically-sensed room
+   * does not narrate the way a simulated one does.
+   */
+  readonly describe?: (event: PresenceEvent, sensor: Sensor, place: Place) => string | null;
+}
 
 /**
  * Routes a PresenceEvent through the place's sensors and produces Perceptions.
@@ -33,7 +74,14 @@ const EVENT_MODALITY_MAP: Record<string, SensorModality[]> = {
  * - Events with no matching sensors produce no perceptions (strict-by-default)
  * - Resident's own events (resident.spoke/moved/acted) and ticks skip the pipeline
  */
-export function filterEvent(event: PresenceEvent, place: Place): Perception[] {
+export function filterEvent(
+  event: PresenceEvent,
+  place: Place,
+  options: FilterOptions = {},
+): Perception[] {
+  const modalityMap = options.modalities ?? DEFAULT_EVENT_MODALITIES;
+  const attenuation = options.attenuationPerHop ?? ATTENUATION_PER_HOP;
+
   // Resident's own actions and ticks don't go through sensors
   if (
     event.type === "resident.spoke" ||
@@ -47,7 +95,7 @@ export function filterEvent(event: PresenceEvent, place: Place): Perception[] {
   const eventRoomId = getEventRoomId(event);
   if (!eventRoomId) return [];
 
-  const relevantModalities = EVENT_MODALITY_MAP[event.type] ?? [];
+  const relevantModalities = modalityMap[event.type] ?? [];
   if (relevantModalities.length === 0) return [];
 
   const perceptions: Perception[] = [];
@@ -59,7 +107,17 @@ export function filterEvent(event: PresenceEvent, place: Place): Perception[] {
       if (!relevantModalities.includes(sensor.modality)) continue;
       if (!sensorReachesEvent(sensor, room.id, eventRoomId, event, place)) continue;
 
-      const perception = generatePerception(sensor, event, eventRoomId, place);
+      // Distance is a property of this observation, not of the sensor's config.
+      const hops = hopDistance(room.id, eventRoomId, place) ?? 0;
+      const perception = generatePerception(
+        sensor,
+        event,
+        eventRoomId,
+        place,
+        hops,
+        attenuation,
+        options.describe,
+      );
       if (perception) {
         perceptions.push(perception);
       }
@@ -69,7 +127,14 @@ export function filterEvent(event: PresenceEvent, place: Place): Perception[] {
   return perceptions;
 }
 
-/** Determine which room an event occurred in. */
+/**
+ * Determine which room an event occurred in.
+ *
+ * Falls back to a `roomId` property for event types core does not know about.
+ * Extending {@link EventModalityMap} alone is not enough to make a custom event
+ * perceptible — it also has to be locatable, and this is where an unrecognized
+ * one would otherwise be dropped before any sensor is consulted.
+ */
 function getEventRoomId(event: PresenceEvent): RoomId | null {
   switch (event.type) {
     case "guest.entered":
@@ -81,8 +146,10 @@ function getEventRoomId(event: PresenceEvent): RoomId | null {
       return event.to; // The destination room
     case "affordance.changed":
       return event.roomId;
-    default:
-      return null;
+    default: {
+      const roomId = (event as { roomId?: unknown }).roomId;
+      return typeof roomId === "string" ? (roomId as RoomId) : null;
+    }
   }
 }
 
@@ -132,9 +199,13 @@ function generatePerception(
   event: PresenceEvent,
   eventRoomId: RoomId,
   place: Place,
+  hops: number,
+  attenuationPerHop: number,
+  describe?: FilterOptions["describe"],
 ): Perception | null {
-  const confidence = getConfidence(sensor);
-  const content = generateContent(sensor, event, eventRoomId, place);
+  const confidence = getConfidence(sensor, hops, attenuationPerHop);
+  const content =
+    describe?.(event, sensor, place) ?? generateContent(sensor, event, eventRoomId, place);
 
   if (!content) return null;
 
@@ -149,19 +220,41 @@ function generatePerception(
   };
 }
 
-function getConfidence(sensor: Sensor): number {
+/**
+ * Confidence for one observation.
+ *
+ * Fidelity sets the ceiling — what this instrument could tell you at best — and
+ * distance takes it down from there. Both halves matter: a `full` sensor
+ * reporting an event two rooms away is not as reliable as the same sensor
+ * reporting its own room, and returning `1.0` for both is the sensor claiming a
+ * certainty it has not earned.
+ *
+ * This is the one place the virtual pipeline can express per-observation
+ * confidence. Hardware-driven perception bypasses this function entirely and
+ * supplies its own — see `docs/PHYSICAL-PLACES.md`.
+ */
+function getConfidence(sensor: Sensor, hops: number, attenuationPerHop: number): number {
+  let base: number;
   switch (sensor.fidelity.kind) {
     case "full":
-      return 1.0;
+      base = 1.0;
+      break;
     case "partial":
-      return 0.8;
+      base = 0.8;
+      break;
     case "ambiguous":
-      return sensor.fidelity.confidence;
+      base = sensor.fidelity.confidence;
+      break;
     case "delayed":
-      return 0.9;
+      base = 0.9;
+      break;
     default:
-      return 1.0;
+      base = 1.0;
+      break;
   }
+
+  if (hops <= 0) return base;
+  return base * attenuationPerHop ** hops;
 }
 
 /** Generate the prose content of a perception based on fidelity. */
@@ -188,7 +281,12 @@ function generateContent(
     case "affordance.changed":
       return describeAffordanceChanged(sensor, event, roomName, place);
     default:
-      return null;
+      // An event type core does not know about. It was routed here by a
+      // caller-supplied modality map and located by its roomId, so it is
+      // genuinely perceptible — but core cannot narrate it, and returning null
+      // would drop it silently after all that. A bare description is honest and
+      // keeps the perception; adapters that want prose supply `describe`.
+      return `Something happened in the ${roomName}. (${event.type})`;
   }
 }
 

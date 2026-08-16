@@ -19,6 +19,50 @@ export function roomHasEnabledSensor(place: Place, roomId: RoomId): boolean {
   return false;
 }
 
+/**
+ * Shortest hop count from `sourceRoom` to `targetRoom`, or `null` if unreachable
+ * within `maxHops`.
+ *
+ * Breadth-first, so the first time a room is reached is by its shortest path.
+ * `isWithinDepth` answers the same question as a boolean and is kept because the
+ * reach rules read better that way; this exists because *how far* is a different
+ * question from *whether*, and perception attenuates with distance.
+ */
+export function hopDistance(
+  sourceRoom: RoomId,
+  targetRoom: RoomId,
+  place: Place,
+  maxHops = Number.POSITIVE_INFINITY,
+): number | null {
+  if (sourceRoom === targetRoom) return 0;
+  if (!place.rooms.has(sourceRoom) || !place.rooms.has(targetRoom)) return null;
+
+  const seen = new Set<RoomId>([sourceRoom]);
+  let frontier: RoomId[] = [sourceRoom];
+  let depth = 0;
+
+  while (frontier.length > 0 && depth < maxHops) {
+    depth++;
+    const next: RoomId[] = [];
+
+    for (const roomId of frontier) {
+      const room = place.rooms.get(roomId);
+      if (!room) continue;
+
+      for (const neighbor of room.connectedTo) {
+        if (seen.has(neighbor)) continue;
+        if (neighbor === targetRoom) return depth;
+        seen.add(neighbor);
+        next.push(neighbor);
+      }
+    }
+
+    frontier = next;
+  }
+
+  return null;
+}
+
 /** Whether targetRoom is reachable from sourceRoom within maxDepth hops. */
 export function isWithinDepth(
   sourceRoom: RoomId,

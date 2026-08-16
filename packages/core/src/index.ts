@@ -41,7 +41,12 @@ export {
 export type { RuntimeOptions } from "./runtime.js";
 // Runtime
 export { Runtime } from "./runtime.js";
-export { isWithinDepth, roomHasEnabledSensor, sensorCoversRoom } from "./sensor-reach.js";
+export {
+  hopDistance,
+  isWithinDepth,
+  roomHasEnabledSensor,
+  sensorCoversRoom,
+} from "./sensor-reach.js";
 // Sensor factories
 export {
   mutedAudioSensor,
@@ -52,7 +57,19 @@ export {
   stateSensor,
   textSensor,
 } from "./sensors/index.js";
-export type { PipelineState, System, SystemContext } from "./systems/index.js";
+// Sensor pipeline
+export type { EventModalityMap, FilterOptions } from "./sensor-pipeline.js";
+export {
+  ATTENUATION_PER_HOP,
+  DEFAULT_EVENT_MODALITIES,
+  filterEvent,
+} from "./sensor-pipeline.js";
+export type {
+  PipelineState,
+  SensorSystemOptions,
+  System,
+  SystemContext,
+} from "./systems/index.js";
 // Systems pipeline
 export {
   ActionDispatchSystem,
