@@ -1,5 +1,6 @@
 export { ActionDispatchSystem } from "./action-dispatch.js";
-export { AutonomySystem } from "./autonomy-system.js";
+export type { AutonomySystemOptions, StandingCommitment } from "./autonomy-system.js";
+export { AutonomySystem, defaultSalience } from "./autonomy-system.js";
 export { BroadcastSystem } from "./broadcast-system.js";
 export { MemorySystem } from "./memory-system.js";
 export { ResidentSystem } from "./resident-system.js";

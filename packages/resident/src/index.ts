@@ -25,6 +25,8 @@ export type {
   ToolCall,
   ToolDefinition,
 } from "./model/types.js";
+export type { ResidentPipelineOptions } from "./pipeline.js";
+export { commitmentFromBeing, createResidentPipeline } from "./pipeline.js";
 // Inner life — practice cultivation
 export type { PracticeEvaluatorOptions } from "./practice-evaluator.js";
 export { createPracticeEvaluator } from "./practice-evaluator.js";

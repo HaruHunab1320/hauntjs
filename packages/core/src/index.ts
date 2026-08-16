@@ -41,6 +41,13 @@ export {
 export type { RuntimeOptions } from "./runtime.js";
 // Runtime
 export { Runtime } from "./runtime.js";
+// Sensor pipeline
+export type { EventModalityMap, FilterOptions } from "./sensor-pipeline.js";
+export {
+  ATTENUATION_PER_HOP,
+  DEFAULT_EVENT_MODALITIES,
+  filterEvent,
+} from "./sensor-pipeline.js";
 export {
   hopDistance,
   isWithinDepth,
@@ -57,16 +64,11 @@ export {
   stateSensor,
   textSensor,
 } from "./sensors/index.js";
-// Sensor pipeline
-export type { EventModalityMap, FilterOptions } from "./sensor-pipeline.js";
-export {
-  ATTENUATION_PER_HOP,
-  DEFAULT_EVENT_MODALITIES,
-  filterEvent,
-} from "./sensor-pipeline.js";
 export type {
+  AutonomySystemOptions,
   PipelineState,
   SensorSystemOptions,
+  StandingCommitment,
   System,
   SystemContext,
 } from "./systems/index.js";
@@ -75,6 +77,7 @@ export {
   ActionDispatchSystem,
   AutonomySystem,
   BroadcastSystem,
+  defaultSalience,
   MemorySystem,
   ResidentSystem,
   SensorSystem,
