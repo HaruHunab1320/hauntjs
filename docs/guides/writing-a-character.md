@@ -65,6 +65,43 @@ The `voice` object shapes how the character speaks:
 - Test with real conversations. Does the character respond to "how are you?" in a way that feels like *them*, not like a generic chatbot?
 - The character should have things they *don't* talk about, not just things they do.
 
+## Inner life: the vocabulary trap
+
+If your character has a Being (drives and practices via `@embersjs/core`), its
+`satiatedBy` bindings and practice triggers match on **Embers entry types**, not
+on Haunt event names. The two are deliberately different vocabularies and do not
+correspond by name — Haunt names describe what happened in the place, Embers
+names describe what it meant to a being.
+
+```ts
+// WRONG — matches nothing. The drive will never satiate.
+satiatedBy: [{ matches: { kind: "event", type: "guest.spoke" }, amount: 0.1 }]
+
+// RIGHT
+satiatedBy: [{ matches: { kind: "event", type: "conversation" }, amount: 0.1 }]
+```
+
+This fails **silently**. There is no error and no warning — just a drive that
+decays forever, which eventually drags the being into chronic collapse. It reads
+like a character problem and it is a typo.
+
+| Haunt event | Embers entry |
+|---|---|
+| `guest.entered` | `guest-arrival` |
+| `guest.left` | `guest-departure` |
+| `guest.spoke` | `conversation` |
+| `guest.moved` | `guest-movement` |
+| `guest.approached` | `guest-interest` |
+| `affordance.changed` | `place-change` |
+| `tick` | `quiet-moment` |
+| `resident.spoke` | `speak` *(action)* |
+| `resident.acted` | `tend-affordance` *(action)* |
+| `resident.moved` | `move` *(action)* |
+
+The authoritative list is `mapEventToInput` in
+`packages/resident/src/embers.ts`. When a drive seems inert, check it there
+first.
+
 ## Using Your Character
 
 Pass it to the `Resident` constructor:

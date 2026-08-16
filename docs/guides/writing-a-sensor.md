@@ -67,6 +67,62 @@ soundSensor("parlor.lobby-echo", roomId("parlor"), {
 });
 ```
 
+## Presence: who the resident knows is there
+
+Fidelity and reach shape *events*, but they also govern **standing state** — who
+the resident can tell is currently in a room. Sensors are the only source for
+this. There is no roster.
+
+A guest appears in the resident's context only when an **enabled** sensor of
+modality `sight` or `presence` reaches their room. Sound alone does not
+establish presence: hearing a voice tells you something is happening, not that a
+body is standing there.
+
+Fidelity shapes identity exactly as it does for events:
+
+| Sensor fidelity | The resident is told |
+|---|---|
+| `full` | "Takeshi — regular, 4 visits" |
+| `partial` with `"identity"` | "Takeshi — regular, 4 visits" |
+| `partial` without `"identity"` | "Someone is here, but you cannot tell who." |
+| `ambiguous` | "Someone may be here — the reading is unclear." |
+
+### Three states, not two
+
+The distinction that matters most, and the one authors miss:
+
+| Coverage | Guests found | The resident is told |
+|---|---|---|
+| none | — | "You have no way to sense whether anyone is here." |
+| `full` | none | "No one else is here." |
+| `partial` / `ambiguous` | none | "You sense no one here — though your awareness of this room is incomplete." |
+
+**An unsensored room is unknowable, not empty.** Before this was modelled, a
+resident would be told "you have no sensors in the cellar, you cannot perceive
+events there" and then handed the cellar's occupants by name in the same prompt.
+Now it cannot claim an empty room it has no channel into.
+
+### `full` is a strong claim
+
+A `full`-fidelity sight sensor asserts the resident can *enumerate* the room —
+that "no one is here" is a fact rather than a failure to detect. Most real
+sensors cannot support that. A wide-angle camera is:
+
+```ts
+sightSensor("studio.camera", roomId("studio"), {
+  fidelity: { kind: "partial", reveals: ["presence"] },
+  description: "Wide-angle, poor in low light.",
+});
+```
+
+It establishes that a body is in the room without establishing whose. Modelling
+it as `full` reintroduces exactly the overconfidence the presence layer removes,
+and no amount of prompt engineering recovers it — by then the certainty is in the
+data.
+
+If you want a resident that can be *sure* a room is empty, that is a design
+decision to make deliberately, not a default to inherit.
+
 ## Sensor-Affecting Affordances
 
 Affordance actions can toggle sensors using the `affects` field:
@@ -142,7 +198,10 @@ Start the server with `HAUNT_DEBUG=1` and press F2 in the client to see the sens
 Every room has full-fidelity sight+sound+presence. This collapses back to omniscience — the sensor system costs performance without adding value. Use this only if your place genuinely should feel surveilled.
 
 ### The Dark Hall
-One well-lit room, several dark ones. Drama comes from guests venturing into unsensored spaces where the resident can't follow.
+One well-lit room, several dark ones. Drama comes from guests venturing into unsensored spaces where the resident can't follow — and, since presence is sensed rather than read from a roster, the resident genuinely does not know whether they are still in there.
+
+### The Sensor That Can't Count
+Give a room `partial` sight with `reveals: ["presence"]` and no identity. The resident knows someone is present and not who, so it has to ask — which produces the small social business of a place rather than instant recognition. Pairs well with a `presence` sensor that has no sight at all: footsteps in a dark corridor.
 
 ### The Unreliable Narrator
 Use `ambiguous` fidelity liberally. The resident reasons under uncertainty: "I thought I heard someone in the garden, but it might have been the wind."
