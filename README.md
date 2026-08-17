@@ -161,6 +161,30 @@ hauntjs/
 
 ---
 
+## Local Embers
+
+Haunt depends on `@embersjs/core`, which is developed alongside it and is
+**not published above 0.2.0**. The two move together, so the root
+`package.json` overrides the dependency to a sibling checkout:
+
+```json
+"pnpm": { "overrides": { "@embersjs/core": "link:../embersjs" } }
+```
+
+That means you need `embersjs` checked out next to `hauntjs`:
+
+```
+Workspaces/
+├── hauntjs/
+└── embersjs/     ← same parent directory
+```
+
+The packages declare `^0.3.0`, which is the version they actually require.
+When Embers publishes, delete the `pnpm.overrides` block and `pnpm install` —
+nothing else changes.
+
+---
+
 ## Model Configuration
 
 ```bash
