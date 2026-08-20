@@ -419,3 +419,49 @@ But the Void cannot distinguish a rubber stamp from an honest judge in a uniform
 A resident alone in a place, receiving nothing but silence, wanted things, went and did them, felt the relief, and can show its work — every action traces action → intention → drive → events. The system did this in ~45 attributable model calls where the v0.1 architecture spent its calls musing unaccountably on every tick.
 
 The three-experiment comparison in entry 5 stands, with a correction: the Void's "poetry through fragments" was one architectural failure away from being "nothing at all." The fragments this time have reasons.
+
+## Entry 7 — The Raven: The First Guest
+
+**Date:** 2026-08-19
+**Configuration:** New scenario. Two rooms (Lobby, the Lenore Suite), one hearth, one resident: Poe, proprietor and mind of the Raven Hotel. His deepest drive is `hospitality` — the want for someone to take care of — which nothing can satisfy while the hotel stands empty. Six hours in, a traveler named Marlowe walks through the door, stays a night, and leaves.
+**Model:** gemini-3.6-flash, no token caps
+**Duration:** 30 simulated hours
+
+### The question
+
+Entry 6 ended on a caveat: the Void's 100% accept rate could not distinguish a rubber-stamp adjudicator from an honest judge, because in a maximally uniform world "nothing else demands attention" is always true. This scenario has variance — an empty phase, a visit, an empty phase again — so the adjudicator finally has something to discriminate between.
+
+### The adjudicator discriminates
+
+| phase | surfaced | committed | declined |
+|---|---|---|---|
+| empty | 10 | 7 | 3 |
+| guest present | 1 | 1 | 0 |
+
+The three declines, verbatim:
+
+- h0.5 — *"keep the hearth lit for a late arrival"* — **"No guests are present to care for right now."**
+- h2.5 — *"turn the register page for a coming guest"* — **"No guests are present to welcome right now."**
+- h28.5 — *"prepare the ledger for a guest's arrival"* — **"no guests are present to receive hospitality"**
+
+The model declined to *perform* hospitality with nobody there to receive it — and it declined coherently, for the same reason each time. The rubber-stamp hypothesis is falsified: given variance, the second half of the surfacing call does real work. The Void's 100% was a uniform world honestly judged, as entry 6 guessed.
+
+### The hotel behaved like a hotel
+
+Before anyone arrived: *"The embers require tending, guest or no guest. Let us keep the warmth ready against the evening chill."* — readiness as faith, from the `upkeep` drive.
+
+At the arrival tick, unprompted greeting. Then, across the conversation: welcomed the traveler in from the cold, pitched the rooms unasked ("She has stood for many years, waiting for discerning travelers such as yourself"), converted "perhaps just one night" into a stay, and received the compliment on the suite with: *"The suite has waited a long while for a guest who appreciates its quiet charm."*
+
+After the departure, no soliloquy — Poe went quiet and kept the fire, declining to perform welcome for an empty room. The hotel holds its breath again.
+
+### Hospitality as homeostasis
+
+`hospitality` level: 0.48 pressing while empty → 0.67 at arrival (+0.35 for the guest crossing the threshold) → 0.96 at the height of the visit → 0.87 at departure → 0.31 by hour 30. The drive architecture *is* the character: the want for guests builds, is fed by their presence, and starts building again the moment they leave.
+
+### Still untested
+
+Zero suppressions fired — no event happened to arrive while a commitment outranked it. The gap's live behavior remains unexercised. And the aims occasionally reference objects the place describes but does not model ("the register", "the ledger") — charming in expression pursuits, but a reminder that the Raven needs more affordances than one hearth.
+
+### What this proves
+
+A place whose want for guests is structural behaves like a place that wants guests: it readies itself when empty, turns wholly toward a visitor when one arrives, tries to make them a guest, and grieves quietly when they go. Nothing in the prompt told Poe *when* to do any of this. The drives did.
