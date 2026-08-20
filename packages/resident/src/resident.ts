@@ -80,26 +80,60 @@ export interface ResidentOptions {
 const ATTEMPT_TTL_MS = 6 * 3_600_000;
 
 /**
- * The `PresenceEvent` each resident action produces.
+ * The `PresenceEvent` a resident action produces, or `null` for actions that
+ * produce none.
  *
- * The action name and the event name deliberately differ — an action is what
- * the resident decided, the event is what happened — and they are not related
- * by suffix. This was previously computed as `resident.${action.type}`, which
- * produced `resident.move`, `resident.speak` and `resident.act`: none of them
- * real event types, so `mapEventToInput` returned null for every one and **no
- * resident action was ever integrated back into its inner life**.
+ * Two things were wrong here before, and the second was hidden by the first.
  *
- * The cost was silent and total. Every drive satiated by the being's own
- * behavior — tending, moving, speaking — could never be relieved by doing the
- * thing, only by having something happen to it.
+ * The event type was computed as `resident.${action.type}`, giving
+ * `resident.move`, `resident.speak` and `resident.act` — none of them real
+ * event types. Every mapper returned null, so **no resident action was ever
+ * integrated back into its inner life**, and no drive satiated by the being's
+ * own behavior could be relieved by doing the thing.
  *
- * `note`, `focus` and `wait` are absent on purpose: they emit no event.
+ * Fixing the names then exposed the second problem: the events were built bare,
+ * as `{ type, at }`. The practice mapper reads `event.audience.length` and
+ * `event.text` for speech, so a bare event threw, the whole deliberation was
+ * caught, and the resident's utterance was discarded before it reached the
+ * place. The being had to be given the event it would actually have received.
+ *
+ * Building them properly also means practice nominations now carry evidence —
+ * the spoken text — which is what the evaluator needs to judge them at all.
+ *
+ * `note`, `focus` and `wait` produce nothing: they change no shared state.
  */
-const RESIDENT_ACTION_EVENTS: Partial<Record<ResidentAction["type"], PresenceEvent["type"]>> = {
-  speak: "resident.spoke",
-  move: "resident.moved",
-  act: "resident.acted",
-};
+function ownActionEvent(action: ResidentAction, context: RuntimeContext): PresenceEvent | null {
+  const at = new Date();
+  switch (action.type) {
+    case "speak":
+      return {
+        type: "resident.spoke",
+        roomId: action.roomId ?? context.resident.focusRoom ?? context.resident.currentRoom,
+        text: action.text,
+        // "all" means whoever is actually here. This is the resident's own
+        // action, so its audience is a fact about what it did, not a perception.
+        audience:
+          action.audience === "all" ? context.guestsInRoom.map((g) => g.id) : action.audience,
+        at,
+      };
+    case "move":
+      return {
+        type: "resident.moved",
+        from: context.resident.currentRoom,
+        to: action.toRoom,
+        at,
+      };
+    case "act":
+      return {
+        type: "resident.acted",
+        affordanceId: action.affordanceId,
+        actionId: action.actionId,
+        at,
+      };
+    default:
+      return null;
+  }
+}
 
 /** Events that warrant calling the model for deliberation. */
 const DELIBERATION_EVENTS = new Set([
@@ -192,7 +226,7 @@ export class Resident implements ResidentMind {
           // for actions the model chose, and returning early here skips it — so
           // a drive relieved by movement would watch itself move and feel
           // nothing, pursuing relief forever and never arriving at it.
-          this.integrateOwnActions(being, pursued);
+          this.integrateOwnActions(being, pursued, context);
           return pursued.length === 1 ? pursued[0]! : pursued;
         }
       }
@@ -208,7 +242,14 @@ export class Resident implements ResidentMind {
     try {
       return await this.deliberate(event, perceptions, context);
     } catch (err) {
-      this.log.error("model error:", err instanceof Error ? err.message : err);
+      // The stack matters more than the message here. A deliberation failure is
+      // swallowed so the run continues, which means this log line is the only
+      // trace of it — "Cannot read properties of undefined" with no frame is
+      // not something anyone can act on.
+      this.log.error(
+        "deliberation failed:",
+        err instanceof Error ? (err.stack ?? err.message) : err,
+      );
       return null;
     } finally {
       this.busy = false;
@@ -295,7 +336,7 @@ export class Resident implements ResidentMind {
     if (actions.length === 0) return null;
 
     // Integrate resident actions back into Embers
-    if (being) this.integrateOwnActions(being, actions);
+    if (being) this.integrateOwnActions(being, actions, context);
 
     for (const action of actions) {
       if (action.type === "note") {
@@ -320,11 +361,14 @@ export class Resident implements ResidentMind {
    * experiencing — the drive that motivated it never eases, so it keeps
    * pursuing relief it has already earned.
    */
-  private integrateOwnActions(being: Being, actions: readonly ResidentAction[]): void {
+  private integrateOwnActions(
+    being: Being,
+    actions: readonly ResidentAction[],
+    context: RuntimeContext,
+  ): void {
     for (const action of actions) {
-      const type = RESIDENT_ACTION_EVENTS[action.type];
-      if (!type) continue; // note, focus and wait produce no event
-      embersIntegrate(being, { type, at: new Date() } as PresenceEvent);
+      const event = ownActionEvent(action, context);
+      if (event) embersIntegrate(being, event);
     }
   }
 

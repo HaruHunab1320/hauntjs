@@ -181,8 +181,10 @@ Two jobs.
 
 2. "worthPursuing" — whether to take it up right now. **Default to false.** A resident that acts on every impulse is not motivated, it is restless. Say true only when the moment genuinely suits it: nothing more pressing is happening, and doing this now would be natural rather than abrupt.
 
-Respond with JSON only:
-{"aim": "<phrase>", "worthPursuing": <true|false>, "reason": "<at most 15 words>"}`;
+Respond with JSON only, in exactly this field order:
+{"worthPursuing": <true|false>, "aim": "<under 10 words>", "reason": "<under 12 words>"}
+
+Keep it short. A response cut off mid-sentence cannot be read.`;
 
 export class IntentionLoop {
   private readonly log: Logger;
@@ -354,7 +356,7 @@ Respond with JSON only.`;
       const response = await this.options.model.chat({
         systemPrompt: SURFACING_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],
-        maxTokens: 200,
+        maxTokens: 400,
         temperature: 0.8,
       });
       return parseVerdict(response.content);
@@ -377,11 +379,21 @@ function describeTrigger(trigger: SurfacingTrigger): string {
 }
 
 /**
- * Extracts the verdict, tolerating fenced or prose-wrapped JSON.
+ * Extracts the verdict, tolerating fenced, prose-wrapped, and truncated JSON.
  *
- * An unparseable response yields `null`, which surfaces nothing at all rather
+ * The salvage path is not defensive padding — it is the failure this call
+ * actually has. A model asked for an aim writes prose, runs into the token
+ * limit mid-string, and leaves an unclosed object. Strict parsing turns every
+ * one of those into "nothing surfaced", which is indistinguishable from a
+ * resident that simply never wants anything.
+ *
+ * The field order in the prompt exists for the same reason: `worthPursuing`
+ * first so the decision survives, `aim` second, `reason` last where losing it
+ * costs nothing.
+ *
+ * A genuinely unreadable response yields `null`, which surfaces nothing rather
  * than committing on a guess — the conservative direction, since a spurious
- * commitment suppresses real events.
+ * commitment suppresses real events downstream.
  */
 function parseVerdict(content: string): SurfacingVerdict | null {
   const candidates = [
@@ -402,9 +414,17 @@ function parseVerdict(content: string): SurfacingVerdict | null {
         reason: typeof parsed.reason === "string" ? parsed.reason : "no reason given",
       };
     } catch {
-      // Try the next shape.
+      // Try the next shape, then salvage.
     }
   }
 
-  return null;
+  // Salvage: the object never closed, but the fields may still be in there.
+  const aim = content.match(/"aim"\s*:\s*"([^"]+)/)?.[1]?.trim();
+  if (!aim) return null;
+
+  return {
+    aim,
+    worthPursuing: /"worthPursuing"\s*:\s*true/.test(content),
+    reason: content.match(/"reason"\s*:\s*"([^"]*)/)?.[1] ?? "verdict truncated",
+  };
 }
