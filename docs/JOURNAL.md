@@ -376,3 +376,46 @@ The Void is the strongest evidence yet that the framework isn't just a conversat
 Three completely different outputs from the same framework. The architecture is the variable. The inner life system is the constant.
 
 ---
+
+## Entry 6 — The Void Revisited: Silence by Default
+
+**Date:** 2026-08-19
+**Configuration:** Same three rooms, same Solus, zero guests. New architecture: quiet ticks grant no model call; unprompted behavior exists only through the intention layer.
+**Model:** Gemini 3.1 Pro
+**Duration:** 48 simulated hours
+
+### Why entry 5 had to be rerun
+
+Entry 5 concluded that "in pure solitude, LLMs default to contemplation over action." Three architectural defects, all found this month, mean that conclusion was never about the model:
+
+1. **The being aged on the wall clock.** The place ran at 5 real minutes per in-world hour; the drives experienced 45 minutes in what the journal recorded as a day. Restlessness moved by 0.015 total. No pressure ever built.
+2. **No drive could be pursued.** `restlessness` — "the need to move, to change something" — declared that movement relieved it and offered no way to go and move.
+3. **The resident's own actions were never integrated.** A naming bug meant every `speak`/`move`/`act` vanished before reaching the being. Had Solus moved, it would not have helped.
+
+Solus was not contemplative. He was inert, and we read paralysis as temperament.
+
+### The run
+
+| | Entry 5 (v0.1) | This run |
+|---|---|---|
+| Utterances | 34 | 21 |
+| Moves | 0 | 4 |
+| Rooms visited | 1 | 3 |
+| Actions traceable to a drive | 0 | all of them |
+| Model calls that were unaccounted for | all of them | 0 |
+
+Restlessness: 0.850 → 0.490, relieved by its own moves — the homeostatic loop closing through the world. Every utterance discharged an expression pursuit of the `connection` drive; every move discharged a `restlessness` pursuit. Sample aims, authored at surfacing: *"say a word aloud just to hear a voice"*, *"Find the hard chair in the study."*, *"whisper to the fire to break this silence"*. Sample utterances: *"Here."* — *"Just a sound. To prove the air is still there."* — *"Are you listening? Or just... consuming."*
+
+One live instance of a **misidentified want**: hour 45, aim *"stir the low fire to make something move"*, satisfier `movement`. What he actually did was walk to the hearth. The framework authors what the being takes itself to want; the drive owns what would discharge it; they diverged, and the behavior read as a person being slightly wrong about themselves. Nothing was built to produce this — it falls out of splitting authorship.
+
+### The honest caveat: a 100% accept rate
+
+Every surfacing was committed. By the calibration bands in act-detection.md that reads as a rubber stamp — the "is now the moment?" half of the surfacing call added nothing.
+
+But the Void cannot distinguish a rubber stamp from an honest judge in a uniform world. Every reason the model gave was "the room is still and nothing demands attention," and that was *true on every tick* — this place is maximally uniform. Pacing came entirely from structure (eligibility thresholds and the satisfied-pursuit cooldown), which is arguably where pacing belongs. The discriminating experiment needs variance: surface a pressure while a guest is mid-sentence, and see whether the adjudicator ever says "not now." That test requires a place with someone in it.
+
+### What this proves
+
+A resident alone in a place, receiving nothing but silence, wanted things, went and did them, felt the relief, and can show its work — every action traces action → intention → drive → events. The system did this in ~45 attributable model calls where the v0.1 architecture spent its calls musing unaccountably on every tick.
+
+The three-experiment comparison in entry 5 stands, with a correction: the Void's "poetry through fragments" was one architectural failure away from being "nothing at all." The fragments this time have reasons.

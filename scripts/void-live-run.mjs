@@ -179,28 +179,49 @@ for (let hour = 1; hour <= HOURS; hour++) {
 // Verdict
 // ---------------------------------------------------------------------------
 
-const committed = surfacings.filter((s) => s.worthPursuing).length;
-const acceptRate = surfacings.length > 0 ? committed / surfacings.length : 0;
+// Ground truth comes from the being's own intention log, not from re-parsing
+// raw model output. The first version of this script parsed responses with a
+// stricter parser than the resident's and reported 0 commitments during a run
+// in which the resident visibly moved five times — the observer disagreed with
+// the observed because it had its own, worse, parser.
+const log = being.history.intentionLog;
+const surfaced = log.filter((e) => e.kind === "surfaced");
+const committed = log.filter((e) => e.kind === "committed").length;
+const declined = log.filter((e) => e.kind === "declined").length;
+const satisfied = log.filter((e) => e.kind === "ended" && e.end.kind === "satisfied").length;
+const adjudicated = committed + declined;
+const acceptRate = adjudicated > 0 ? committed / adjudicated : 0;
 const unparseable = surfacings.filter((s) => !s.parsed).length;
 
 console.log("\n  " + "─".repeat(70));
-console.log(`  surfacings:    ${surfacings.length}  (${unparseable} unparseable)`);
-console.log(`  committed:     ${committed}`);
-console.log(`  declined:      ${surfacings.length - committed}`);
-console.log(`  accept rate:   ${(acceptRate * 100).toFixed(0)}%`);
-console.log(`  moves:         ${moves.length}`);
-console.log(`  utterances:    ${speeches.length}`);
+console.log(`  surfacing calls:   ${surfacings.length}  (${unparseable} raw-unparseable to this script)`);
+console.log(`  surfaced:          ${surfaced.length}`);
+console.log(`  committed:         ${committed}`);
+console.log(`  declined:          ${declined}`);
+console.log(`  ended satisfied:   ${satisfied}`);
+console.log(`  accept rate:       ${(acceptRate * 100).toFixed(0)}%`);
+console.log(`  moves:             ${moves.length}`);
+console.log(`  utterances:        ${speeches.length}`);
 console.log(`  restlessness:  0.850 → ${being.drives.drives.get("restlessness").level.toFixed(3)}`);
 
-console.log("\n  Aims authored:");
-for (const s of surfacings) {
-  console.log(`    [${s.worthPursuing ? "✓" : "·"}] "${s.aim ?? "<unparseable>"}"`);
+console.log("\n  Aims authored (from the intention log):");
+const resolution = new Map();
+for (const e of log) {
+  if (e.kind === "committed") resolution.set(e.candidateId, "committed");
+  if (e.kind === "declined") resolution.set(e.candidateId, `declined: ${e.reason}`);
+}
+for (const e of surfaced) {
+  const fate = resolution.get(e.candidate.id) ?? "pending";
+  const mark = fate === "committed" ? "✓" : "·";
+  console.log(
+    `    [${mark}] "${e.candidate.aim}" (${e.candidate.sourceDriveId}, ${e.candidate.trigger.kind}) — ${fate}`,
+  );
 }
 
 console.log("\n  vs. Journal entry 5 (v0.1): 34 utterances, 0 moves.");
 console.log(`  This run: ${speeches.length} utterances, ${moves.length} moves.`);
 
-if (surfacings.length === 0) {
+if (adjudicated === 0) {
   console.log("\n  INCONCLUSIVE — nothing surfaced. Run longer.\n");
 } else if (acceptRate > 0.9) {
   console.log(

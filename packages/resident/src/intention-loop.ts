@@ -378,7 +378,11 @@ Respond with JSON only.`;
       const response = await this.options.model.chat({
         systemPrompt: SURFACING_SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],
-        maxTokens: 400,
+        // Generous on purpose. For thinking models this cap is *total* output
+        // including reasoning tokens — Gemini 3.1 Pro at 400 spent the whole
+        // budget thinking and got cut off at `"aim": "`, every single time.
+        // The visible JSON is ~40 tokens; the headroom is for the thoughts.
+        maxTokens: 2000,
         temperature: 0.8,
       });
       return parseVerdict(response.content);
