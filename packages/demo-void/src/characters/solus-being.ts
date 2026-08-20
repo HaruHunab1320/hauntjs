@@ -33,8 +33,21 @@ const solusBeingConfig: BeingConfig = {
         target: 0.6,
         drift: { kind: "linear", ratePerHour: -0.03 },
         satiatedBy: [
-          // Nothing satiates this. No guests will come.
-          // The only relief is through practice (presence dampens drive pressure).
+          // No guests will come, so nothing external satiates this. But
+          // speaking aloud eases the ache a little — talking to yourself is
+          // not company, but it is a voice in the room.
+          { matches: { kind: "action", type: "speak" }, amount: 0.05 },
+        ],
+        // Loneliness can be *pursued*: its satisfier is expression, which is
+        // enacted by a deliberation rather than a canned action. Under the
+        // silent-tick architecture this is the only way Solus ever speaks
+        // unprompted — every fragment he utters into the void traces to this
+        // drive having built up past threshold.
+        pursuableBy: [
+          {
+            satisfier: { kind: "expression", ref: "connection" },
+            hint: "the silence, and the need to put a voice into it",
+          },
         ],
       },
       {

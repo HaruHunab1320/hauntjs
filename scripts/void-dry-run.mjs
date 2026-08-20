@@ -38,32 +38,48 @@ const HOURS = Number(process.env.HOURS ?? 36);
 
 /**
  * The resident makes two quite different requests: the surfacing call (author
- * an aim, judge whether to pursue) and the deliberation call (say or do
- * something). A single canned response would satisfy neither, so this branches
- * on the system prompt.
- *
- * Deliberation always returns `wait` — this run is about whether the *intention*
- * path works, and a chatty resident would bury it.
+ * an aim, judge whether to pursue) and the deliberation call. Under the
+ * inverted tick default, a deliberation on a quiet tick can only mean an
+ * expression pursuit granted it — so the script speaks when a pursuit is in
+ * the prompt, and counts any other deliberation as *unwarranted*, which the
+ * verdict treats as a failure.
  */
 class ScriptedModel {
   name = "scripted";
   surfacingCalls = 0;
-  deliberationCalls = 0;
+  expressionDeliberations = 0;
+  unwarrantedDeliberations = 0;
 
   async chat(request) {
     if (request.systemPrompt.includes("give words to something")) {
       this.surfacingCalls++;
       return {
         content: JSON.stringify({
-          aim: "look in on the study",
           worthPursuing: true,
-          reason: "nothing else is happening",
+          aim: "put a voice into the silence",
+          reason: "the moment is empty",
         }),
         finishReason: "stop",
       };
     }
 
-    this.deliberationCalls++;
+    if (request.systemPrompt.includes("You are in the middle of")) {
+      this.expressionDeliberations++;
+      return {
+        content: "",
+        toolCalls: [
+          {
+            id: "t",
+            name: "speak",
+            arguments: { text: "The silence answers nothing.", audience: "all" },
+          },
+        ],
+        finishReason: "tool_use",
+      };
+    }
+
+    // No pursuit, no event — this call should never have happened.
+    this.unwarrantedDeliberations++;
     return {
       content: "",
       toolCalls: [{ id: "t", name: "wait", arguments: {} }],
@@ -172,12 +188,21 @@ for (let hour = 1; hour <= HOURS; hour++) {
 
 const restlessEnd = being.drives.drives.get("restlessness").level;
 
+const log = being.history.intentionLog;
+const satisfiedExpressions = log.filter(
+  (e) => e.kind === "ended" && e.end.kind === "satisfied",
+).length;
+const connectionEnd = being.drives.drives.get("connection").level;
+
 console.log("\n  " + "─".repeat(62));
-console.log(`  surfacing calls:     ${model.surfacingCalls}`);
-console.log(`  deliberation calls:  ${model.deliberationCalls}`);
-console.log(`  commitments formed:  ${commitments.length}`);
-console.log(`  moves made:          ${moves.length}`);
-console.log(`  restlessness:        0.850 → ${restlessEnd.toFixed(3)}`);
+console.log(`  surfacing calls:       ${model.surfacingCalls}`);
+console.log(`  expression delibs:     ${model.expressionDeliberations}`);
+console.log(`  unwarranted delibs:    ${model.unwarrantedDeliberations}`);
+console.log(`  commitments formed:    ${commitments.length}`);
+console.log(`  pursuits satisfied:    ${satisfiedExpressions}`);
+console.log(`  moves made:            ${moves.length}`);
+console.log(`  restlessness:          0.850 → ${restlessEnd.toFixed(3)}`);
+console.log(`  connection:            0.400 → ${connectionEnd.toFixed(3)}`);
 
 for (const m of moves.slice(0, 8)) {
   console.log(`    h${String(m.hour).padStart(3)}  ${m.from} → ${m.to}`);
@@ -190,6 +215,11 @@ const checks = [
   ["a commitment formed", commitments.length > 0],
   ["it produced a real move", moves.length > 0],
   ["moving relieved the drive", moves.some((m, i) => i > 0 && m.restless > moves[i - 1].restless)],
+  ["it spoke, and speaking discharged the pursuit", satisfiedExpressions > 0],
+  // The inversion itself: with ticks silent, a deliberation happens only when
+  // an expression pursuit granted it. Anything else is the old free-musing
+  // path leaking back in.
+  ["every deliberation was warranted", model.unwarrantedDeliberations === 0],
 ];
 
 console.log();

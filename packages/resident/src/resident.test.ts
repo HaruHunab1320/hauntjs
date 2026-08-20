@@ -186,7 +186,16 @@ describe("Resident", () => {
     });
 
     const resident = new Resident({ character: makeCharacter(), model, memory });
-    const event: PresenceEvent = { type: "tick", at: new Date() };
+    // A tick no longer deliberates — quiet ticks grant no model call under the
+    // inverted default. This test is about note persistence, not tick
+    // semantics, so it uses an event that still warrants deliberation.
+    const event: PresenceEvent = {
+      type: "guest.spoke",
+      guestId: guestId("takeshi"),
+      roomId: roomId("lobby"),
+      text: "How is the garden?",
+      at: new Date(),
+    };
 
     await resident.perceive(event, [], makeContext());
 
@@ -213,5 +222,60 @@ describe("Resident", () => {
     await resident.perceive(event, [], makeContext());
     expect(memory.workingMemory).toHaveLength(1);
     expect(memory.workingMemory[0].type).toBe("guest.entered");
+  });
+});
+
+describe("the inverted tick default", () => {
+  const memory = new SqliteMemoryStore({ dbPath: ":memory:" });
+
+  it("grants no model call on a quiet tick", async () => {
+    const model = new MockModelProvider({ content: "should never be asked" });
+    const resident = new Resident({ character: makeCharacter(), model, memory });
+
+    const result = await resident.perceive({ type: "tick", at: new Date() }, [], makeContext());
+
+    expect(result).toBeNull();
+    // The inversion: silence is the default state of an empty place. A model
+    // that muses on every tick is acting constantly and unattributably.
+    expect(model.calls).toHaveLength(0);
+  });
+
+  it("still deliberates on ticks when explicitly asked to", async () => {
+    const model = new MockModelProvider({
+      content: "",
+      toolCalls: [{ id: "t", name: "wait", arguments: {} }],
+      finishReason: "tool_use",
+    });
+    const resident = new Resident({
+      character: makeCharacter(),
+      model,
+      memory,
+      deliberateOnTicks: true,
+    });
+
+    await resident.perceive({ type: "tick", at: new Date() }, [], makeContext());
+    expect(model.calls).toHaveLength(1);
+  });
+
+  it("still deliberates on real events", async () => {
+    const model = new MockModelProvider({
+      content: "",
+      toolCalls: [{ id: "t", name: "wait", arguments: {} }],
+      finishReason: "tool_use",
+    });
+    const resident = new Resident({ character: makeCharacter(), model, memory });
+
+    await resident.perceive(
+      {
+        type: "guest.spoke",
+        guestId: guestId("takeshi"),
+        roomId: roomId("lobby"),
+        text: "Hello?",
+        at: new Date(),
+      },
+      [],
+      makeContext(),
+    );
+    expect(model.calls).toHaveLength(1);
   });
 });

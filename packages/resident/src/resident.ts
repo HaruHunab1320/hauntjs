@@ -14,9 +14,11 @@ import type { Being, InnerSituation, PracticeAttempt, PracticeAttemptResult } fr
 import {
   embersAvailableCapabilities,
   embersCurrentIntentions,
+  embersEndIntention,
   embersExpireAttempts,
   embersIntegrate,
   embersMetabolize,
+  embersRecordAction,
   embersResolveAttempts,
   embersTickBeing,
   embersUrgency,
@@ -71,6 +73,16 @@ export interface ResidentOptions {
    * Must be monotonic. Only differences between successive calls are used.
    */
   clock?: () => number;
+  /**
+   * Restore the pre-inversion behavior of deliberating on every tick.
+   *
+   * Off by default, and leaving it off is the architecture: a quiet tick
+   * grants no model call, so unprompted behavior exists only where a drive
+   * built up a reason for it. Turning this on buys ambient, unattributable
+   * musing at a model call per tick — the mode every recorded observation
+   * before 2026-08 was unknowingly running in.
+   */
+  deliberateOnTicks?: boolean;
 }
 
 /**
@@ -135,7 +147,21 @@ function ownActionEvent(action: ResidentAction, context: RuntimeContext): Presen
   }
 }
 
-/** Events that warrant calling the model for deliberation. */
+/**
+ * Events that warrant calling the model for deliberation.
+ *
+ * `tick` is deliberately absent. This is the inversion the live Void run
+ * argued for: when quiet ticks grant a free deliberation, the model acts
+ * constantly and unattributably, and the intention layer is starved by the
+ * thing it was built to enable — the run produced 21 moves and zero
+ * surfacings, with restlessness pinned at maximum because relief was free.
+ *
+ * With ticks silent, the default state of an empty place is silence, and
+ * every unprompted action has to come through the intention loop — which
+ * means every one traces to a drive. Nothing happens "because it was tick
+ * 33". Expression pursuits reopen the model call deliberately (see below),
+ * so even speech into the void has a reason.
+ */
 const DELIBERATION_EVENTS = new Set([
   "guest.entered",
   "guest.left",
@@ -143,7 +169,6 @@ const DELIBERATION_EVENTS = new Set([
   "guest.moved",
   "guest.approached",
   "affordance.changed",
-  "tick",
 ]);
 
 export class Resident implements ResidentMind {
@@ -164,6 +189,7 @@ export class Resident implements ResidentMind {
   private lastTickAt: number;
   private evaluator: ((attempt: PracticeAttempt) => Promise<PracticeAttemptResult>) | null;
   private intentions: IntentionLoop | null;
+  private readonly deliberateOnTicks: boolean;
 
   constructor(options: ResidentOptions) {
     this.character = options.character;
@@ -172,6 +198,7 @@ export class Resident implements ResidentMind {
     this.log = options.logger ?? createLogger("Resident");
     this.clock = options.clock ?? (() => Date.now());
     this.lastTickAt = this.clock();
+    this.deliberateOnTicks = options.deliberateOnTicks ?? false;
 
     if (options.practiceEvaluator === false) {
       this.evaluator = null;
@@ -232,15 +259,38 @@ export class Resident implements ResidentMind {
       }
     }
 
-    // Decide whether this event warrants deliberation (a model call)
-    if (!DELIBERATION_EVENTS.has(event.type)) return null;
+    // Decide whether this event warrants deliberation (a model call).
+    //
+    // An expression pursuit reopens the gate on ticks: the pursuit of a voice
+    // is enacted *by* deliberating, and the resulting speech discharges it.
+    // That keeps the accounting intact — the model call itself was wanted, by
+    // a drive, for a reason that is in the log.
+    const expression = being && this.intentions ? this.intentions.pendingExpression(being) : null;
+    const warranted =
+      DELIBERATION_EVENTS.has(event.type) ||
+      (event.type === "tick" && (this.deliberateOnTicks || expression !== null));
+    if (!warranted) return null;
 
     // Backpressure
     if (this.busy) return null;
 
     this.busy = true;
     try {
-      return await this.deliberate(event, perceptions, context);
+      const result = await this.deliberate(event, perceptions, context);
+      if (being && expression) {
+        const actions = result == null ? [] : Array.isArray(result) ? result : [result];
+        if (actions.some((a) => a.type === "speak")) {
+          // It found its voice. One pursuit, one utterance — wanting to speak
+          // again is a fresh surfacing, paced by the satisfied cooldown.
+          embersEndIntention(being, expression.id, { kind: "satisfied" });
+        } else {
+          // Given the floor and said nothing. Recorded as an attempt so a
+          // resident that will not speak lapses at the cap instead of holding
+          // the slot forever.
+          embersRecordAction(being, expression.id);
+        }
+      }
+      return result;
     } catch (err) {
       // The stack matters more than the message here. A deliberation failure is
       // swallowed so the run continues, which means this log line is the only

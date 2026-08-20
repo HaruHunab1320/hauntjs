@@ -26,7 +26,7 @@ import type {
   RuntimeContext,
 } from "@hauntjs/core";
 import { affordanceId, createLogger, type Logger, perceivePresence, roomId } from "@hauntjs/core";
-import type { Being, Satisfier, SurfacedCandidate, SurfacingTrigger } from "./embers.js";
+import type { Being, Intention, Satisfier, SurfacedCandidate, SurfacingTrigger } from "./embers.js";
 import {
   embersCommit,
   embersCurrentIntentions,
@@ -55,6 +55,9 @@ import type { ModelProvider } from "./model/types.js";
  *   Resolves only when the affordance is somewhere the resident can act and the
  *   action's `availableWhen` guard passes.
  * - `movement` — `ref` is a room id the resident can reach.
+ * - `expression` — returns `null` here on purpose. Speaking needs words, and
+ *   words need a model call, so an expression pursuit is enacted by granting a
+ *   deliberation rather than by a canned action. See {@link IntentionLoop.pendingExpression}.
  */
 export function resolveSatisfier(
   satisfier: Satisfier,
@@ -229,6 +232,9 @@ export class IntentionLoop {
    */
   private reapFinished(being: Being, context: RuntimeContext): void {
     for (const intention of embersCurrentIntentions(being)) {
+      // Expression pursuits are discharged by actually speaking, which the
+      // Resident judges after a deliberation — not by satisfier resolution.
+      if (intention.satisfier.kind === "expression") continue;
       if (!resolveSatisfier(intention.satisfier, context)) {
         this.log.debug(`"${intention.aim}" is no longer actionable — satisfied`);
         embersEndIntention(being, intention.id, { kind: "satisfied" });
@@ -240,10 +246,21 @@ export class IntentionLoop {
     }
   }
 
+  /**
+   * The current pursuit, if it is one that wants a voice rather than a canned
+   * action. The Resident grants a deliberation when this is non-null — that
+   * deliberation *is* the enactment, and a resulting `speak` discharges it.
+   */
+  pendingExpression(being: Being): Intention | null {
+    const [top] = embersCurrentIntentions(being);
+    return top && top.satisfier.kind === "expression" ? top : null;
+  }
+
   /** Takes the next action toward the most urgent pursuit, if one resolves. */
   private actOnCommitment(being: Being, context: RuntimeContext): ResidentAction[] {
     const [pursuit] = embersCurrentIntentions(being);
     if (!pursuit) return [];
+    if (pursuit.satisfier.kind === "expression") return []; // enacted via deliberation
 
     const action = resolveSatisfier(pursuit.satisfier, context);
     if (!action) return [];
@@ -266,8 +283,13 @@ export class IntentionLoop {
 
     for (const pressure of eligible) {
       // Reachability is the first filter — a satisfier that will not resolve is
-      // not something the resident can notice wanting.
-      if (!resolveSatisfier(pressure.satisfier, context)) continue;
+      // not something the resident can notice wanting. Expression is exempt:
+      // a voice is always reachable.
+      if (
+        pressure.satisfier.kind !== "expression" &&
+        !resolveSatisfier(pressure.satisfier, context)
+      )
+        continue;
 
       const trigger = this.triggerFor(pressure.pressure, quiet, event);
       if (!trigger) continue;
