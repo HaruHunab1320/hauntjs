@@ -217,6 +217,16 @@ export function enterRoom(place: Place, guestId: GuestId, roomId: RoomId): void 
   guest.currentRoom = roomId;
   guest.lastSeen = new Date();
   guest.visitCount += 1;
+
+  // Loyalty follows visits. Previously the tier was assigned at creation and
+  // never advanced, so a guest on their tenth stay still rendered as
+  // "stranger" in the resident's context — the place literally could not
+  // recognize a regular. `principal` is never assigned automatically and never
+  // demoted: that relationship is authored, not earned by foot traffic.
+  if (guest.loyaltyTier !== "principal") {
+    guest.loyaltyTier =
+      guest.visitCount >= 5 ? "regular" : guest.visitCount >= 2 ? "visitor" : "stranger";
+  }
 }
 
 /**

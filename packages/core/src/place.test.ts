@@ -224,3 +224,32 @@ describe("guests", () => {
     expect(() => enterRoom(place, guest.id, roomId("nowhere"))).toThrow(/does not exist/);
   });
 });
+
+describe("loyalty progression", () => {
+  it("advances with visits and never demotes a principal", () => {
+    const place = createPlace({ id: "p", name: "P" });
+    addRoom(place, { id: roomId("lobby"), name: "Lobby", description: "" });
+
+    const g = addGuest(place, { id: guestId("m"), name: "Marlowe" });
+    expect(g.loyaltyTier).toBe("stranger");
+
+    enterRoom(place, g.id, roomId("lobby"));
+    expect(g.loyaltyTier).toBe("stranger"); // first visit
+
+    for (let visit = 2; visit <= 4; visit++) {
+      leavePlace(place, g.id);
+      enterRoom(place, g.id, roomId("lobby"));
+      expect(g.loyaltyTier).toBe("visitor");
+    }
+
+    leavePlace(place, g.id);
+    enterRoom(place, g.id, roomId("lobby"));
+    expect(g.visitCount).toBe(5);
+    expect(g.loyaltyTier).toBe("regular");
+
+    // Principal is authored, not earned — and never lost by walking in.
+    const owner = addGuest(place, { id: guestId("o"), name: "Owner", loyaltyTier: "principal" });
+    enterRoom(place, owner.id, roomId("lobby"));
+    expect(owner.loyaltyTier).toBe("principal");
+  });
+});

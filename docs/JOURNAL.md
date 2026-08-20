@@ -465,3 +465,43 @@ Zero suppressions fired — no event happened to arrive while a commitment outra
 ### What this proves
 
 A place whose want for guests is structural behaves like a place that wants guests: it readies itself when empty, turns wholly toward a visitor when one arrives, tries to make them a guest, and grieves quietly when they go. Nothing in the prompt told Poe *when* to do any of this. The drives did.
+
+## Entry 8 — The Raven: The Return
+
+**Date:** 2026-08-19
+**Configuration:** The Raven, furnished — register, lobby lamps, and a bed that can be turned down and made. Marlowe visits (h5–12), is gone eight hours, and returns (h20–28) asking "do you remember me?"
+**Model:** gemini-3.6-flash
+**Duration:** 36 simulated hours
+
+### Two core bugs found by furnishing the place
+
+**`stateChange` had never been applied.** Typed, documented, authored in every demo's world config since Phase 1 — and applied by nothing. Acting on a fireplace never lit it; The Roost's "turn off the lamp" disabled the sight sensor while the lamp's own state stayed `lit: true` forever. The world was never actually mutable by the resident, and every `availableWhen` guard was checking a fiction. The dry pass exposed it immediately: Poe opened the register four times in an hour because opening it never made it open.
+
+**Loyalty never advanced.** `loyaltyTier` was assigned at creation and never touched again — a guest on their tenth stay still rendered as "stranger" in the resident's context. Tiers now follow visit count (`principal` stays authored, never demoted).
+
+### The hotel keeps house in rhythm with its guest
+
+The acts, in order: register opened before anyone came (h1.5) — then Marlowe moves to the suite and **the bed is turned down that same tick** (h8) — Marlowe leaves and **the bed is made fresh** (h12) — Marlowe returns to the suite and it is **turned down again**, this time with words: *"Allow me to turn down the bed for you"* (h23) — made fresh after the second departure (h28): *"Fresh linen for the next time he—or another—comes to rest."* And the run's final act, hour 36, empty hotel: turned down once more. *"The Lenore Suite stands ready for whenever a traveler next seeks rest."*
+
+Accommodation as acts. The housekeeping cycles in sync with the guest's comings and goings, driven by `upkeep` pressure and the model's own use of the act tool mid-conversation — both paths, interleaved.
+
+### The second welcome is different from the first
+
+First visit: *"Good evening, and welcome to the Raven Hotel. I am Poe, your host."*
+The return: *"Welcome back, Marlowe. To hear a guest say such a thing... well, there is truly no finer compliment a hotel could receive."*
+"Do you remember me?" — *"Indeed I do, Marlowe. I remember your appreciation for this old house, and how you rested here. A hotel never truly forgets."*
+"The same room, if it's free?" — *"The Lenore Suite is entirely yours — as quiet and welcoming as though it had been waiting only for your return."*
+
+Backed by state, not vibes: guest memory carried `recent_conversation` and `last_topic` across the absence, visit count reached 2, tier advanced to `visitor`.
+
+### Adjudication, again
+
+Three declines, all in empty phases, all the same coherent shape: *"No guests are present to receive hospitality."* Zero surfacings during the visits this time — the drives were being fed, so nothing needed to surface. The adjudicator keeps discriminating.
+
+### Still unexercised
+
+Zero suppressions, for a now-visible structural reason: pursuits in this design are short-lived — committed on one tick, enacted the next, satisfied immediately after. The window in which an event can arrive *while* a commitment outranks it is a tick or two wide. Suppression will earn its keep with long-running pursuits (a task that takes hours, a vigil), which no scenario yet has.
+
+### What this proves
+
+The Raven readies itself for guests who have not arrived, keeps house around the guest it has, remembers the one who left, and greets a return as the finest thing that can happen to a hotel — with the room already waiting. The want is structural; the welcome is earned state; the housekeeping is drives discharging through real affordances that, as of this entry, actually change the world.

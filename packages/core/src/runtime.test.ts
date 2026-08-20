@@ -436,3 +436,65 @@ describe("Runtime", () => {
     });
   });
 });
+
+describe("affordance stateChange", () => {
+  it("actually mutates the affordance when the action declares it", async () => {
+    const { dispatchAction } = await import("./action-handlers.js");
+    const place = createPlace({ id: "p", name: "P" });
+    addRoom(place, { id: roomId("lobby"), name: "Lobby", description: "" });
+    const lamp = {
+      id: affordanceId("lamp"),
+      roomId: roomId("lobby"),
+      kind: "lamp",
+      name: "Lamp",
+      description: "",
+      state: { lit: true },
+      actions: [
+        {
+          id: "dim",
+          name: "Dim",
+          description: "",
+          availableWhen: (s) => s.lit === true,
+          stateChange: { lit: false },
+        },
+      ],
+      sensable: true,
+    };
+    addAffordance(place, roomId("lobby"), lamp);
+
+    const resident = {
+      id: "r",
+      character: {
+        name: "R",
+        archetype: "",
+        systemPrompt: "",
+        voice: { register: "warm", quirks: [], avoidances: [] },
+        loyalties: { principal: null, values: [] },
+      },
+      presenceMode: "inhabitant",
+      currentRoom: roomId("lobby"),
+      focusRoom: null,
+      mood: { energy: 0.5, focus: 0.5, valence: 0 },
+    };
+
+    const first = dispatchAction(
+      { type: "act", affordanceId: affordanceId("lamp"), actionId: "dim" },
+      place,
+      resident,
+    );
+    expect(first.success).toBe(true);
+    // The line that was missing since Phase 1: the declared state change lands.
+    // (Read from the place — addAffordance stores a copy, not the local object.)
+    const stored = place.rooms.get(roomId("lobby"))!.affordances.get(affordanceId("lamp"))!;
+    expect(stored.state.lit).toBe(false);
+
+    // And availableWhen now guards against reality rather than a fiction —
+    // a lamp already dimmed cannot be dimmed again.
+    const second = dispatchAction(
+      { type: "act", affordanceId: affordanceId("lamp"), actionId: "dim" },
+      place,
+      resident,
+    );
+    expect(second.success).toBe(false);
+  });
+});

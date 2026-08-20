@@ -163,6 +163,17 @@ function handleAct(
     applySensorEffects(affordanceAction.affects, place);
   }
 
+  // Apply the action's declared state change. This line was missing from
+  // Phase 1 until now: `stateChange` was typed, documented, and authored in
+  // every demo's world config — and applied by nothing. Acting on a fireplace
+  // never lit it; "turn off the lamp" disabled the sight sensor (via
+  // `affects`) while the lamp's own state stayed `lit: true` forever. The
+  // world was never actually mutable by the resident, and every
+  // `availableWhen` guard that read post-action state was checking a fiction.
+  if (affordanceAction.stateChange) {
+    affordance.state = { ...affordance.state, ...affordanceAction.stateChange };
+  }
+
   const event: PresenceEvent = {
     type: "resident.acted",
     affordanceId: affordance.id,
