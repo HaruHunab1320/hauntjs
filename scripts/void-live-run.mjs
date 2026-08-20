@@ -36,7 +36,7 @@ import { createBeing, currentIntentions, eligibleToSurface } from "../../embersj
 
 const HOUR = 3_600_000;
 const HOURS = Number(process.env.HOURS ?? 48);
-const MODEL = process.env.HAUNT_MODEL_NAME ?? "gemini-3.1-pro-preview";
+const MODEL = process.env.HAUNT_MODEL_NAME ?? "gemini-3.6-flash";
 
 if (!process.env.GEMINI_API_KEY) {
   console.error("\n  GEMINI_API_KEY is not set.\n");

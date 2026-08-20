@@ -9,7 +9,9 @@ import type {
 } from "./types.js";
 
 const DEFAULT_MODEL = "claude-opus-4-7";
-const DEFAULT_MAX_TOKENS = 1024;
+// The Anthropic API requires max_tokens, so a default is unavoidable here —
+// but a tight one has caused truncation bugs twice, so it errs roomy.
+const DEFAULT_MAX_TOKENS = 8192;
 
 export class AnthropicProvider implements ModelProvider {
   readonly name = "anthropic";

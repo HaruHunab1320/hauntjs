@@ -21,7 +21,7 @@ const HTTP_PORT = Number(process.env.PORT ?? 4337);
 const TICK_INTERVAL_MS = Number(process.env.TICK_INTERVAL ?? 45 * 1000); // 45s ticks — slower, contemplative
 const TIME_MS_PER_HOUR = Number(process.env.TIME_MS_PER_HOUR ?? 300000); // 5 min = 1 in-world hour (slower pace)
 
-const MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-3.1-pro-preview";
+const MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-3.6-flash";
 
 // Simulation limits
 const MAX_IN_WORLD_DAYS = Number(process.env.MAX_DAYS ?? 3);

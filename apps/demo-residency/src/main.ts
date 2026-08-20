@@ -32,8 +32,8 @@ const TICK_INTERVAL_MS = Number(process.env.TICK_INTERVAL ?? 60 * 1000); // 60s 
 const TIME_MS_PER_HOUR = Number(process.env.TIME_MS_PER_HOUR ?? 600000); // 10 min = 1 in-world hour
 
 // Model tiers
-const RICH_MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-3.1-pro-preview";
-const FAST_MODEL = process.env.HAUNT_FAST_MODEL ?? "gemini-3-flash-preview";
+const RICH_MODEL = process.env.HAUNT_RICH_MODEL ?? "gemini-3.6-flash";
+const FAST_MODEL = process.env.HAUNT_FAST_MODEL ?? "gemini-3.6-flash";
 
 // Simulation limits
 const MAX_IN_WORLD_DAYS = Number(process.env.MAX_DAYS ?? 3); // Stop after N in-world days

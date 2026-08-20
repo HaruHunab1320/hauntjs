@@ -116,7 +116,6 @@ export function createPracticeEvaluator(
       const response = await options.model.chat({
         systemPrompt: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildEvaluationPrompt(attempt, evidence) }],
-        maxTokens: 800,
       });
       const verdict = parseVerdict(response.content);
       if (!verdict) {

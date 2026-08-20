@@ -9,7 +9,12 @@ import type {
 } from "./types.js";
 
 const DEFAULT_MODEL = "gpt-4o";
-const DEFAULT_MAX_TOKENS = 1024;
+// No default cap. For thinking models (Gemini 3.x via this endpoint) the cap
+// counts reasoning tokens too, and every default we have shipped has caused a
+// truncation bug — verdicts cut off at `"aim": "` after the model spent the
+// whole budget thinking. OpenAI-compatible endpoints treat an omitted
+// max_tokens as "up to the model's limit", which is what we want: let it cook.
+// Callers that genuinely need a ceiling can still pass one.
 
 export class OpenAIProvider implements ModelProvider {
   readonly name = "openai";
@@ -30,7 +35,7 @@ export class OpenAIProvider implements ModelProvider {
 
     const response = await this.client.chat.completions.create({
       model: this.model,
-      max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+      ...(request.maxTokens !== undefined ? { max_tokens: request.maxTokens } : {}),
       temperature: request.temperature,
       messages,
       ...(tools && tools.length > 0 ? { tools } : {}),
