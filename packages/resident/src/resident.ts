@@ -13,18 +13,20 @@ import { parseAllDecisions } from "./decision.js";
 import type { Being, InnerSituation, PracticeAttempt, PracticeAttemptResult } from "./embers.js";
 import {
   embersAvailableCapabilities,
+  embersCurrentIntentions,
   embersExpireAttempts,
   embersIntegrate,
   embersMetabolize,
   embersResolveAttempts,
   embersTickBeing,
+  embersUrgency,
   embersWeightPerceptions,
 } from "./embers.js";
 import { IntentionLoop, type IntentionLoopOptions } from "./intention-loop.js";
 import type { SqliteMemoryStore } from "./memory/store.js";
 import type { ModelProvider } from "./model/types.js";
 import { createPracticeEvaluator } from "./practice-evaluator.js";
-import { buildPrompt } from "./prompt.js";
+import { buildPrompt, type PursuitForPrompt } from "./prompt.js";
 
 export interface ResidentOptions {
   character: CharacterDefinition;
@@ -162,10 +164,18 @@ export class Resident implements ResidentMind {
 
     // Get inner situation from Embers if available
     let situation: InnerSituation | null = null;
+    let pursuits: PursuitForPrompt[] = [];
     let activePerceptions = perceptions;
 
     if (being) {
       situation = embersMetabolize(being);
+      // What it is already in the middle of. Suppression is control flow, but
+      // when the resident does speak it should not answer as though it had been
+      // sitting idle.
+      pursuits = embersCurrentIntentions(being).map((pursuit) => ({
+        aim: pursuit.aim,
+        urgency: embersUrgency(being, pursuit),
+      }));
       this.log.debug(
         `inner state: ${situation.orientation} — "${situation.felt?.slice(0, 80) ?? ""}"`,
       );
@@ -216,7 +226,7 @@ export class Resident implements ResidentMind {
         importance: r.importance,
       })),
       guestMemories,
-      situation,
+      situation ? { ...situation, pursuits } : null,
     );
 
     const response = await this.model.chat(request);

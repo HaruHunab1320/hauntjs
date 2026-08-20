@@ -110,7 +110,24 @@ function resolveAffordance(satisfier: Satisfier, context: RuntimeContext): Resid
 function resolveMovement(satisfier: Satisfier, context: RuntimeContext): ResidentAction | null {
   const target = roomId(satisfier.ref);
   if (!context.place.rooms.has(target)) return null;
-  if (context.resident.currentRoom === target) return null;
+
+  // Where the resident effectively *is*. A host never changes `currentRoom` —
+  // moving shifts `focusRoom` — so comparing against `currentRoom` would leave
+  // the satisfier resolving forever, and the resident pursuing a room it is
+  // already attending to until the attempt cap put it out of its misery.
+  const here =
+    context.resident.presenceMode === "host"
+      ? (context.resident.focusRoom ?? context.resident.currentRoom)
+      : context.resident.currentRoom;
+
+  if (here === target) return null;
+
+  // An inhabitant has to walk, so the room must actually be reachable.
+  if (context.resident.presenceMode !== "host") {
+    const room = context.place.rooms.get(context.resident.currentRoom);
+    if (room && !room.connectedTo.includes(target)) return null;
+  }
+
   return { type: "move", toRoom: target };
 }
 

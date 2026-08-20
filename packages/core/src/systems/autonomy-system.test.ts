@@ -228,3 +228,58 @@ describe("defaultSalience", () => {
     expect(clear.shouldDeliberate).toBe(true);
   });
 });
+
+describe("host movement", () => {
+  it("emits resident.moved so drives relieved by movement can ease", async () => {
+    const { dispatchAction } = await import("../action-handlers.js");
+    const ctx = makeCtx();
+    ctx.resident.presenceMode = "host";
+    ctx.resident.focusRoom = LOBBY;
+    addRoom(ctx.place, { id: roomId("study"), name: "Study", description: "" });
+
+    const result = dispatchAction(
+      { type: "move", toRoom: roomId("study") },
+      ctx.place,
+      ctx.resident,
+    );
+
+    expect(result.success).toBe(true);
+    expect(ctx.resident.focusRoom).toBe(roomId("study"));
+    // Without this event nothing downstream sees the move: no integration, so a
+    // drive satiated by movement would never ease however often it moved.
+    expect(result.event).toMatchObject({
+      type: "resident.moved",
+      from: LOBBY,
+      to: roomId("study"),
+    });
+  });
+
+  it("reports no event for a move to where attention already is", async () => {
+    const { dispatchAction } = await import("../action-handlers.js");
+    const ctx = makeCtx();
+    ctx.resident.presenceMode = "host";
+    ctx.resident.focusRoom = LOBBY;
+
+    const result = dispatchAction({ type: "move", toRoom: LOBBY }, ctx.place, ctx.resident);
+
+    expect(result.success).toBe(true);
+    // Satiating a drive for having done nothing would be a free lunch.
+    expect(result.event).toBeUndefined();
+  });
+
+  it("lets a host attend an unconnected room", async () => {
+    const { dispatchAction } = await import("../action-handlers.js");
+    const ctx = makeCtx();
+    ctx.resident.presenceMode = "host";
+    ctx.resident.focusRoom = LOBBY;
+    // Deliberately not connected to the lobby.
+    addRoom(ctx.place, { id: roomId("attic"), name: "Attic", description: "" });
+
+    const result = dispatchAction(
+      { type: "move", toRoom: roomId("attic") },
+      ctx.place,
+      ctx.resident,
+    );
+    expect(result.success).toBe(true);
+  });
+});

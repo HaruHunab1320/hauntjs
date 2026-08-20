@@ -12,6 +12,7 @@ import {
   addGuest,
   addRoom,
   affordanceId,
+  connectRooms,
   createPlace,
   enterRoom,
   guestId,
@@ -64,6 +65,8 @@ function makeContext(options: { lit?: boolean; guest?: boolean; being?: Being } 
   const place: Place = createPlace({ id: "p", name: "P" });
   addRoom(place, { id: LOBBY, name: "Lobby", description: "A hall with a fireplace." });
   addRoom(place, { id: STUDY, name: "Study", description: "Books." });
+  // An inhabitant has to be able to walk there, so the rooms must connect.
+  connectRooms(place, LOBBY, STUDY);
   addAffordance(place, LOBBY, hearth(options.lit ?? false));
 
   // Sensed, so `perceivePresence` can tell whether the room is quiet.
@@ -344,5 +347,57 @@ describe("the loop", () => {
       kind: "surfaced",
       candidate: { trigger: { kind: "coincidence" } },
     });
+  });
+});
+
+describe("movement for a host", () => {
+  function hostContext(focus = LOBBY) {
+    const context = makeContext();
+    context.resident.presenceMode = "host";
+    context.resident.focusRoom = focus;
+    return context;
+  }
+
+  it("resolves against focus, not the body", () => {
+    // A host's currentRoom never changes; only focusRoom does. Comparing
+    // against currentRoom would leave this resolving forever.
+    expect(resolveSatisfier({ kind: "movement", ref: "study" }, hostContext(LOBBY))).toEqual({
+      type: "move",
+      toRoom: STUDY,
+    });
+    expect(resolveSatisfier({ kind: "movement", ref: "study" }, hostContext(STUDY))).toBeNull();
+  });
+
+  it("stops pursuing once attention has arrived", async () => {
+    const being = beingWanting(0.1, { kind: "movement", ref: "study" });
+    const loop = new IntentionLoop({
+      model: new MockModelProvider(verdict("look in on the study", true)),
+    });
+    const context = hostContext(LOBBY);
+
+    await loop.run(being, context, TICK, []);
+    expect(embersCurrentIntentions(being)).toHaveLength(1);
+
+    const actions = await loop.run(being, context, TICK, []);
+    expect(actions).toEqual([{ type: "move", toRoom: STUDY }]);
+
+    // The move lands: attention is now on the study.
+    context.resident.focusRoom = STUDY;
+    await loop.run(being, context, TICK, []);
+
+    expect(embersCurrentIntentions(being)).toHaveLength(0);
+    expect(being.history.intentionLog.at(-1)).toMatchObject({
+      kind: "ended",
+      end: { kind: "satisfied" },
+    });
+  });
+
+  it("an inhabitant will not pursue a room it cannot walk to", () => {
+    const context = makeContext(); // inhabitant, in the lobby
+    // The Study connects to the Lobby, so that resolves.
+    expect(resolveSatisfier({ kind: "movement", ref: "study" }, context)).not.toBeNull();
+
+    context.place.rooms.get(LOBBY)!.connectedTo = [];
+    expect(resolveSatisfier({ kind: "movement", ref: "study" }, context)).toBeNull();
   });
 });

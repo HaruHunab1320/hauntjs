@@ -311,8 +311,20 @@ describe("Integration: full pipeline", () => {
 
       expect(result.success).toBe(true);
       expect(resident.focusRoom).toBe(roomId("study"));
-      // No resident.moved event for Host mode
-      expect(result.event).toBeUndefined();
+
+      // A host's attention moving still reports as resident.moved.
+      //
+      // This assertion previously required no event at all. That was incidental
+      // to what the test is actually about — the absence of a connectivity
+      // check — and it was quietly harmful: with no event there is no
+      // integration, so a drive relieved by movement never eased however often
+      // the resident moved. A being pursuing relief that way would shift focus
+      // forever and never feel better.
+      expect(result.event).toMatchObject({
+        type: "resident.moved",
+        from: roomId("lobby"),
+        to: roomId("study"),
+      });
 
       await rt.stop();
     });

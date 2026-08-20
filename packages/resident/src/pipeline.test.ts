@@ -252,3 +252,46 @@ describe("pipeline shape", () => {
     ]);
   });
 });
+
+describe("pursuits in the prompt", () => {
+  it("tells the resident what it is in the middle of", async () => {
+    const { buildPrompt } = await import("./prompt.js");
+    const context = makeCtx();
+
+    const prompt = buildPrompt(
+      context.resident.character,
+      { place: context.place, resident: context.resident, recentEvents: [], guestsInRoom: [] },
+      { type: "tick", at: new Date() },
+      [],
+      [],
+      new Map(),
+      {
+        orientation: "clear",
+        pursuits: [
+          { aim: "tend the fire before it dies", urgency: 0.7 },
+          { aim: "look in on the study", urgency: 0.3 },
+        ],
+      },
+    ).systemPrompt;
+
+    expect(prompt).toContain("You are in the middle of: tend the fire before it dies.");
+    expect(prompt).toContain("Also on your mind: look in on the study.");
+  });
+
+  it("says nothing when the resident is not pursuing anything", async () => {
+    const { buildPrompt } = await import("./prompt.js");
+    const context = makeCtx();
+
+    const prompt = buildPrompt(
+      context.resident.character,
+      { place: context.place, resident: context.resident, recentEvents: [], guestsInRoom: [] },
+      { type: "tick", at: new Date() },
+      [],
+      [],
+      new Map(),
+      { orientation: "clear", pursuits: [] },
+    ).systemPrompt;
+
+    expect(prompt).not.toContain("in the middle of");
+  });
+});

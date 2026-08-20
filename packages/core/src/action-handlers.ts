@@ -71,12 +71,31 @@ function handleMove(
   place: Place,
   resident: ResidentState,
 ): ActionResult {
-  // Host mode: treat move as focus shift
+  // Host mode: treat move as a focus shift. A host has no body to walk, so it
+  // does not need rooms to be connected — attention can go anywhere it senses.
   if (resident.presenceMode === "host") {
     const room = place.rooms.get(action.toRoom);
     if (!room) return { success: false, error: `Room "${action.toRoom}" does not exist` };
+
+    const from = resident.focusRoom ?? resident.currentRoom;
+    if (from === action.toRoom) {
+      // Already attending there. Reporting a move would satiate drives for
+      // having done nothing.
+      return { success: true };
+    }
     resident.focusRoom = action.toRoom;
-    return { success: true };
+
+    // A host's attention moving is still the resident having moved, and it must
+    // say so. Without an event nothing downstream sees it: no integration, so a
+    // drive relieved by movement never eases, and a resident pursuing relief
+    // through movement would shift focus forever and never feel better.
+    const event: PresenceEvent = {
+      type: "resident.moved",
+      from,
+      to: action.toRoom,
+      at: new Date(),
+    };
+    return { success: true, event };
   }
 
   // Inhabitant mode: walk between connected rooms

@@ -309,6 +309,27 @@ export function describeGuest(guest: Guest): string {
   return `- ${guest.name} (${guest.id}) — ${tier}, ${visits} visit${visits !== 1 ? "s" : ""}`;
 }
 
+/**
+ * What the resident is in the middle of.
+ *
+ * Deliberately terse and phrased as state rather than instruction. The resident
+ * already acts on these through the intention loop; this is here so it does not
+ * answer a guest as though it had been sitting idle when in fact it was partway
+ * through something. Telling it what to do about them would be the prompt doing
+ * the architecture's job.
+ */
+function buildPursuitSection(situation: InnerSituationForPrompt): string {
+  const pursuits = situation.pursuits ?? [];
+  if (pursuits.length === 0) return "";
+
+  const [current, ...also] = pursuits;
+  const lines = [`\n\nYou are in the middle of: ${current!.aim}.`];
+  if (also.length > 0) {
+    lines.push(`Also on your mind: ${also.map((p) => p.aim).join("; ")}.`);
+  }
+  return lines.join(" ");
+}
+
 /** Returns orientation-specific behavioral guidance for the resident. */
 function orientationGuidance(orientation: string): string {
   switch (orientation) {
@@ -334,7 +355,8 @@ function buildMoodSection(
     const guidance = orientationGuidance(situation.orientation);
     const guidanceLine = guidance ? `\n${guidance}` : "";
     const feltLine = situation.felt ? `${situation.felt}\n\n` : "";
-    return `### Inner state\n${feltLine}Orientation: ${situation.orientation}${guidanceLine}`;
+    const pursuits = buildPursuitSection(situation);
+    return `### Inner state\n${feltLine}Orientation: ${situation.orientation}${guidanceLine}${pursuits}`;
   }
   const { mood } = context.resident;
   return `### Your mood\nEnergy: ${(mood.energy * 100).toFixed(0)}% | Focus: ${(mood.focus * 100).toFixed(0)}% | Valence: ${mood.valence > 0 ? "positive" : mood.valence < 0 ? "negative" : "neutral"}`;
