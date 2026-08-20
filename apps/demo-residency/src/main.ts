@@ -18,6 +18,7 @@ import { Place2DAdapter } from "@hauntjs/place-2d";
 import {
   createModelProvider,
   createResidentPipeline,
+  inWorldClock,
   Resident,
   SqliteMemoryStore,
 } from "@hauntjs/resident";
@@ -99,10 +100,16 @@ async function start(): Promise<void> {
   console.log(`  Fast model: ${FAST_MODEL}`);
 
   // 6. Create Home's mind
+  // The being's clock must be the place's, not the wall's — see inWorldClock.
+  let timeSystemRef: TimeSystem | null = null;
+
   const residentMind = new Resident({
     character: home,
     model: homeModel,
     memory,
+    clock: inWorldClock(
+      () => timeSystemRef?.time ?? { elapsedRealMs: 0, realMsPerInWorldHour: 3_600_000 },
+    ),
   });
 
   // 7. Create the time system
@@ -110,6 +117,7 @@ async function start(): Promise<void> {
     realMsPerInWorldHour: TIME_MS_PER_HOUR,
     startHour: 6, // Dawn
   });
+  timeSystemRef = timeSystem;
 
   // 8. Create the runtime
   const runtime = new Runtime({

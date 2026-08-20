@@ -51,6 +51,26 @@ export interface ResidentOptions {
    * behavior.
    */
   intentions?: Partial<Omit<IntentionLoopOptions, "model">> | false;
+  /**
+   * The being's clock, in milliseconds of *its* experienced time.
+   *
+   * Drive drift, practice recency and wear are all specified per in-world hour,
+   * so a place whose clock runs faster than real time must say so. Otherwise
+   * the being ages in wall-clock milliseconds while everything around it
+   * advances on the compressed clock, and drives that should decay over a
+   * simulated day move by minutes' worth instead.
+   *
+   * Defaults to `Date.now`, which is correct only for a place running in real
+   * time. With a `TimeSystem`:
+   *
+   * ```ts
+   * clock: () => timeSystem.time.elapsedRealMs
+   *   * (3_600_000 / timeSystem.time.realMsPerInWorldHour)
+   * ```
+   *
+   * Must be monotonic. Only differences between successive calls are used.
+   */
+  clock?: () => number;
 }
 
 /**
@@ -58,6 +78,28 @@ export interface ResidentOptions {
  * Only reached when the evaluator is failing persistently.
  */
 const ATTEMPT_TTL_MS = 6 * 3_600_000;
+
+/**
+ * The `PresenceEvent` each resident action produces.
+ *
+ * The action name and the event name deliberately differ — an action is what
+ * the resident decided, the event is what happened — and they are not related
+ * by suffix. This was previously computed as `resident.${action.type}`, which
+ * produced `resident.move`, `resident.speak` and `resident.act`: none of them
+ * real event types, so `mapEventToInput` returned null for every one and **no
+ * resident action was ever integrated back into its inner life**.
+ *
+ * The cost was silent and total. Every drive satiated by the being's own
+ * behavior — tending, moving, speaking — could never be relieved by doing the
+ * thing, only by having something happen to it.
+ *
+ * `note`, `focus` and `wait` are absent on purpose: they emit no event.
+ */
+const RESIDENT_ACTION_EVENTS: Partial<Record<ResidentAction["type"], PresenceEvent["type"]>> = {
+  speak: "resident.spoke",
+  move: "resident.moved",
+  act: "resident.acted",
+};
 
 /** Events that warrant calling the model for deliberation. */
 const DELIBERATION_EVENTS = new Set([
@@ -76,7 +118,16 @@ export class Resident implements ResidentMind {
   private memory: SqliteMemoryStore;
   private log: Logger;
   private busy = false;
-  private lastTickAt = Date.now();
+  /**
+   * The being's clock.
+   *
+   * Defaults to wall time, which is right only when the place runs in real
+   * time. A place with compressed time — five real minutes to the in-world
+   * hour — must supply its own, or the being ages at a twelfth of the rate
+   * everything around it does and its drives barely move. See `ResidentOptions.clock`.
+   */
+  private readonly clock: () => number;
+  private lastTickAt: number;
   private evaluator: ((attempt: PracticeAttempt) => Promise<PracticeAttemptResult>) | null;
   private intentions: IntentionLoop | null;
 
@@ -85,6 +136,8 @@ export class Resident implements ResidentMind {
     this.model = options.model;
     this.memory = options.memory;
     this.log = options.logger ?? createLogger("Resident");
+    this.clock = options.clock ?? (() => Date.now());
+    this.lastTickAt = this.clock();
 
     if (options.practiceEvaluator === false) {
       this.evaluator = null;
@@ -111,7 +164,7 @@ export class Resident implements ResidentMind {
     // Update inner life if a Being is present
     const being = context.resident.being as Being | undefined;
     if (being) {
-      const now = Date.now();
+      const now = this.clock();
       const dtMs = now - this.lastTickAt;
       this.lastTickAt = now;
 
@@ -134,7 +187,14 @@ export class Resident implements ResidentMind {
       // arrived that warrants a model call.
       if (this.intentions) {
         const pursued = await this.intentions.run(being, context, event, perceptions);
-        if (pursued.length > 0) return pursued.length === 1 ? pursued[0]! : pursued;
+        if (pursued.length > 0) {
+          // The being has to experience what it just did. `deliberate` does this
+          // for actions the model chose, and returning early here skips it — so
+          // a drive relieved by movement would watch itself move and feel
+          // nothing, pursuing relief forever and never arriving at it.
+          this.integrateOwnActions(being, pursued);
+          return pursued.length === 1 ? pursued[0]! : pursued;
+        }
       }
     }
 
@@ -235,14 +295,7 @@ export class Resident implements ResidentMind {
     if (actions.length === 0) return null;
 
     // Integrate resident actions back into Embers
-    if (being) {
-      for (const action of actions) {
-        embersIntegrate(being, {
-          type: `resident.${action.type}` as PresenceEvent["type"],
-          at: new Date(),
-        } as PresenceEvent);
-      }
-    }
+    if (being) this.integrateOwnActions(being, actions);
 
     for (const action of actions) {
       if (action.type === "note") {
@@ -258,6 +311,21 @@ export class Resident implements ResidentMind {
     }
 
     return actions.length === 1 ? actions[0] : actions;
+  }
+
+  /**
+   * Feeds the resident's own actions back into its inner life.
+   *
+   * Without this an action is something the being watches itself do without
+   * experiencing — the drive that motivated it never eases, so it keeps
+   * pursuing relief it has already earned.
+   */
+  private integrateOwnActions(being: Being, actions: readonly ResidentAction[]): void {
+    for (const action of actions) {
+      const type = RESIDENT_ACTION_EVENTS[action.type];
+      if (!type) continue; // note, focus and wait produce no event
+      embersIntegrate(being, { type, at: new Date() } as PresenceEvent);
+    }
   }
 
   /**

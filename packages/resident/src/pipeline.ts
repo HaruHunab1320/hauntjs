@@ -95,3 +95,29 @@ export function createResidentPipeline(options: ResidentPipelineOptions = {}): S
     new BroadcastSystem(),
   ];
 }
+
+/**
+ * A being clock derived from a place's `TimeSystem`.
+ *
+ * Drive drift, practice recency and wear are all specified per in-world hour.
+ * A place running five real minutes to the hour therefore has to tell the
+ * being so — otherwise the being ages in wall-clock milliseconds while the
+ * place advances twelve times faster, and drives that should decay over a
+ * simulated day move by a few minutes' worth.
+ *
+ * ```ts
+ * new Resident({ ..., clock: inWorldClock(() => timeSystem.time) });
+ * ```
+ */
+export function inWorldClock(
+  time: () => {
+    elapsedRealMs: number;
+    realMsPerInWorldHour: number;
+  },
+): () => number {
+  return () => {
+    const { elapsedRealMs, realMsPerInWorldHour } = time();
+    if (!(realMsPerInWorldHour > 0)) return elapsedRealMs;
+    return elapsedRealMs * (3_600_000 / realMsPerInWorldHour);
+  };
+}
