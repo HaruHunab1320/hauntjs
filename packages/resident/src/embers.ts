@@ -266,7 +266,17 @@ function mapEventToInput(event: PresenceEvent): IntegrationInput | null {
       };
     case "resident.acted":
       return {
-        entry: { kind: "action", type: "tend-affordance" },
+        // The payload is what lets a drive price relief by the work rather
+        // than flat-rate it. Without it, satiatedBy cannot tell a one-tick
+        // stoke from three hours of suite preparation — and a being will
+        // always find the cheapest act that clears the need. Instant relief
+        // priced like earned relief is the needle, and configs need the
+        // information to price them apart.
+        entry: {
+          kind: "action",
+          type: "tend-affordance",
+          payload: { affordanceId: event.affordanceId, actionId: event.actionId },
+        },
       };
     case "resident.moved":
       return {

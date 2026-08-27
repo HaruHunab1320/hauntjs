@@ -27,10 +27,27 @@ export interface AffordanceAction {
   description: string;
   params?: Record<string, JsonSchema>;
   availableWhen?: (state: Record<string, unknown>) => boolean;
-  /** State changes to apply to the affordance when this action runs. */
+  /** State changes to apply to the affordance when this action completes. */
   stateChange?: Record<string, unknown>;
   /** Sensor effects to apply when this action runs. */
   affects?: SensorAffect[];
+  /**
+   * Invocations required before this action completes. Defaults to 1.
+   *
+   * Effort lives on the world, not on whoever wants the work done — because a
+   * place has more than one door to an act. A resident can reach an affordance
+   * through its intention loop or through a deliberation's act tool, and any
+   * duration modelled on only one path is duration the other path skips: in
+   * practice, the model simply performed "three hours" of suite preparation in
+   * a single tool call, because the tool had no concept of time.
+   *
+   * With effort here, every invocation — whoever makes it — advances the same
+   * progress counter (kept in the affordance's own state under
+   * `~progress:<actionId>`), and `stateChange` lands only on the completing
+   * invocation. Partial invocations still emit `resident.acted`: work is
+   * visible in the world while it is happening, not only when it is done.
+   */
+  effort?: number;
 }
 
 export interface Affordance {

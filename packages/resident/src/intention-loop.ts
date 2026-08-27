@@ -111,6 +111,37 @@ function resolveAffordance(satisfier: Satisfier, context: RuntimeContext): Resid
   return { type: "act", affordanceId: id, actionId: action.id };
 }
 
+/**
+ * World-side effort and progress for an affordance satisfier, if any.
+ *
+ * Effort lives on the affordance action (see `AffordanceAction.effort`), so the
+ * loop reads the world rather than keeping a private counter — the suite being
+ * half-prepared is a fact about the suite, and anyone's invocations count.
+ */
+export function readWorldEffort(
+  satisfier: Satisfier,
+  context: RuntimeContext,
+): { effort: number; done: number } | null {
+  if (satisfier.kind !== "affordance") return null;
+  const id = affordanceId(satisfier.ref);
+  for (const room of context.place.rooms.values()) {
+    const affordance = room.affordances.get(id);
+    if (!affordance) continue;
+    const actionId =
+      typeof satisfier.params?.actionId === "string" ? satisfier.params.actionId : null;
+    const action = actionId
+      ? affordance.actions.find((a) => a.id === actionId)
+      : affordance.actions[0];
+    if (!action) return null;
+    const raw = affordance.state[`~progress:${action.id}`];
+    return {
+      effort: Math.max(1, action.effort ?? 1),
+      done: typeof raw === "number" ? raw : 0,
+    };
+  }
+  return null;
+}
+
 function resolveMovement(satisfier: Satisfier, context: RuntimeContext): ResidentAction | null {
   const target = roomId(satisfier.ref);
   if (!context.place.rooms.has(target)) return null;
@@ -193,6 +224,8 @@ Keep it short. A response cut off mid-sentence cannot be read.`;
 export class IntentionLoop {
   private readonly log: Logger;
   private readonly urgentThreshold: number;
+  /** World progress last seen per pursuit, to tell a stalled act from a fresh one. */
+  private readonly lastWorldDone = new Map<string, number>();
 
   constructor(private readonly options: IntentionLoopOptions) {
     this.log = options.logger ?? createLogger("Intentions");
@@ -274,6 +307,31 @@ export class IntentionLoop {
     if (!pursuit) return [];
     if (pursuit.satisfier.kind === "expression") return []; // enacted via deliberation
 
+    // Affordance work is world-clocked: every tick returns the act, the world
+    // counts it, and the being's progress trails what the world confirms. Any
+    // other invoker's work counts too — if the model prepared half the suite
+    // through its act tool, the pursuit is half done.
+    const world = readWorldEffort(pursuit.satisfier, context);
+    if (world && world.effort > 1) {
+      const action = resolveSatisfier(pursuit.satisfier, context);
+      if (!action) return []; // completed (by anyone) — the reap observes it
+
+      if (world.done > pursuit.progress) {
+        embersRecordProgress(being, pursuit.id);
+        this.log.debug(`working on "${pursuit.aim}" (${world.done}/${world.effort})`);
+      } else if (
+        this.lastWorldDone.get(pursuit.id) === world.done &&
+        world.done <= pursuit.progress
+      ) {
+        // We acted, and the world's counter did not move: the act is not
+        // landing. That is a failed attempt, the honest currency.
+        embersRecordAction(being, pursuit.id);
+        this.log.debug(`the world is refusing "${pursuit.aim}"`);
+      }
+      this.lastWorldDone.set(pursuit.id, world.done);
+      return [action];
+    }
+
     if (pursuit.progress < pursuit.effort - 1) {
       embersRecordProgress(being, pursuit.id);
       this.log.debug(`working on "${pursuit.aim}" (${pursuit.progress + 1}/${pursuit.effort})`);
@@ -327,7 +385,12 @@ export class IntentionLoop {
       const trigger = this.triggerFor(pressure.pressure, quiet, event);
       if (!trigger) continue;
 
-      await this.surfaceAndAdjudicate(being, context, pressure, trigger);
+      // For affordance satisfiers the world owns the effort figure; the
+      // pursuable's own is only a fallback for satisfiers with no world side.
+      const world = readWorldEffort(pressure.satisfier, context);
+      const sized = world ? { ...pressure, effort: world.effort } : pressure;
+
+      await this.surfaceAndAdjudicate(being, context, sized, trigger);
       return; // One at a time. Noticing is not a batch operation.
     }
   }

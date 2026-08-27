@@ -158,6 +158,37 @@ function handleAct(
     };
   }
 
+  // Work takes time: an action with effort advances a progress counter kept in
+  // the affordance's own state, and only the completing invocation falls
+  // through to the effects and state change below. The counter lives in world
+  // state deliberately — progress is a fact about the suite being half-made,
+  // not about whoever is making it, and it is inspectable like any other state.
+  const effortRequired = Math.max(1, affordanceAction.effort ?? 1);
+  if (effortRequired > 1) {
+    const progressKey = `~progress:${action.actionId}`;
+    const raw = affordance.state[progressKey];
+    const done = (typeof raw === "number" ? raw : 0) + 1;
+
+    if (done < effortRequired) {
+      affordance.state = { ...affordance.state, [progressKey]: done };
+      // Partial work is still work the world can see.
+      return {
+        success: true,
+        event: {
+          type: "resident.acted",
+          affordanceId: affordance.id,
+          actionId: action.actionId,
+          at: new Date(),
+        },
+      };
+    }
+
+    // Completing invocation: clear the counter, then fall through.
+    const next = { ...affordance.state };
+    delete next[progressKey];
+    affordance.state = next;
+  }
+
   // Apply sensor effects declared by this action
   if (affordanceAction.affects) {
     applySensorEffects(affordanceAction.affects, place);

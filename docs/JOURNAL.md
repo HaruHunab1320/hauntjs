@@ -505,3 +505,34 @@ Zero suppressions, for a now-visible structural reason: pursuits in this design 
 ### What this proves
 
 The Raven readies itself for guests who have not arrived, keeps house around the guest it has, remembers the one who left, and greets a return as the finest thing that can happen to a hotel — with the room already waiting. The want is structural; the welcome is earned state; the housekeeping is drives discharging through real affordances that, as of this entry, actually change the world.
+
+## Entry 9 — The Vigil: Work Takes Time
+
+**Date:** 2026-08-26
+**Configuration:** The Raven. One long task — preparing the Lenore Suite properly, six invocations, three hours — declared as `effort` on the affordance action itself. A stranger visits mid-morning; shutters rattle twice.
+**Model:** gemini-3.6-flash
+**Duration:** 10 simulated hours
+
+### The principle, learned three times in one day
+
+"Nothing worth doing completes on contact." Building it honestly took three corrections, each found by a run:
+
+1. **The needle.** Relief was flat-rated: a one-tick hearth stoke paid the same +0.5 as three hours of suite work. The model — being a courteous hotelier — stoked mid-conversation, fully discharged the drive, and the real work expired at birth, its urgency floored by relief it never earned. Fix: satiation priced by the work.
+2. **The two doors.** Effort modelled on the *pursuit* bound only the intention loop. The model reached the same act through its deliberation tool and performed "three hours" of preparation in a single call. Fix: effort lives on the **world** — `AffordanceAction.effort`, a progress counter in the affordance's own state, advanced by every invocation from any door, `stateChange` landing only on the completing one.
+3. **Piecework fraud.** Partial invocations emitted the same `resident.acted` as completions, so every half-hour of work drew the full wage; the drive satiated by step two and the pursuit died mid-task. Fix: the resident integrates an `act` only when it completes. Working is not the same as having worked.
+
+Alongside these: a pursuit's completion is **observed, never declared** (the satisfier stops resolving because the world actually changed), a world that refuses an act produces honest *attempts* until the pursuit lapses, and an expired pairing now rests under a failure cooldown — without which the still-pressing drive recommitted the identical doomed work in the same evaluation. Sisyphus, at a model call per boulder.
+
+### What the live run then did
+
+At h2.0, with upkeep pressing past threshold *while the visitor stood in the lobby*, the pursuit surfaced — and the model declined it:
+
+> *"Set the Lenore Suite to rights"* — declined — **"Vann is currently present in the lobby."**
+
+At h4.0 — the tick Vann left — it surfaced again, was committed, and Poe worked it: six invocations across three simulated hours, the being's progress trailing the world's counter, five of those ticks costing no model call at all. Satisfied at h7.0, observed from world state. Upkeep's ledger: 0.550 → 0.550 — three hours of drift exactly repaid by one completion. Relief earned, once, at the end.
+
+The shutters rattled mid-visit and Poe — uncommitted at that moment precisely because he had deferred the work — attended them in character: *"The wind tests the joinery today. Excuse the draft, Vann."* In the dry pass, where the work was underway when they rattled, the identical event was **suppressed**: salience 0.25 against a commitment's 0.32, no model call made. Same event, opposite handling, and the difference is what the resident was doing.
+
+### What this proves
+
+The adjudicator schedules real work around people — defers a three-hour task because someone is present, resumes it the moment they leave — and every step of that judgment is in the log. Duration is physical: it lives on the world's side, binds every door to the act equally, pays nothing until the work is done, and fails honestly when the world refuses it. None of this is narrative machinery. It is the control loop a deployment into a real space with real tasks requires.

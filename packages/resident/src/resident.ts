@@ -114,6 +114,28 @@ const ATTEMPT_TTL_MS = 6 * 3_600_000;
  *
  * `note`, `focus` and `wait` produce nothing: they change no shared state.
  */
+/**
+ * Whether this invocation of an `act` will complete its action, given the
+ * world's current progress counter. Effort 1 actions always complete.
+ */
+function willCompleteAct(
+  action: ResidentAction & { type: "act" },
+  context: RuntimeContext,
+): boolean {
+  for (const room of context.place.rooms.values()) {
+    const affordance = room.affordances.get(action.affordanceId);
+    if (!affordance) continue;
+    const actionDef = affordance.actions.find((a) => a.id === action.actionId);
+    if (!actionDef) return true; // dispatch will fail loudly; nothing to price
+    const effort = Math.max(1, actionDef.effort ?? 1);
+    if (effort <= 1) return true;
+    const raw = affordance.state[`~progress:${action.actionId}`];
+    const done = typeof raw === "number" ? raw : 0;
+    return done + 1 >= effort;
+  }
+  return true;
+}
+
 function ownActionEvent(action: ResidentAction, context: RuntimeContext): PresenceEvent | null {
   const at = new Date();
   switch (action.type) {
@@ -419,6 +441,13 @@ export class Resident implements ResidentMind {
     context: RuntimeContext,
   ): void {
     for (const action of actions) {
+      // Relief lands at completion. A partial invocation of effortful work is
+      // real and world-visible, but it is not the work *done* — and if it
+      // integrated like a finished act, every work step would draw the full
+      // wage: the first run of this did exactly that, six half-hours of suite
+      // preparation each paying +0.5, the drive satiated by step two and the
+      // pursuit expired mid-task. Working is not the same as having worked.
+      if (action.type === "act" && !willCompleteAct(action, context)) continue;
       const event = ownActionEvent(action, context);
       if (event) embersIntegrate(being, event);
     }

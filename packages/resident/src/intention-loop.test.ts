@@ -14,6 +14,7 @@ import {
   affordanceId,
   connectRooms,
   createPlace,
+  dispatchAction,
   enterRoom,
   guestId,
   type Place,
@@ -402,10 +403,21 @@ describe("movement for a host", () => {
   });
 });
 
-describe("effortful pursuits — work takes time", () => {
+describe("effortful pursuits — work is world-clocked", () => {
   const PREP: Satisfier = { kind: "affordance", ref: "hearth", params: { actionId: "light" } };
 
-  function beingWithWork(effort) {
+  /** A hearth whose lighting is real work: three invocations, whoever makes them. */
+  function workContext() {
+    const context = makeContext(); // hearth unlit
+    const hearthObj = context.place.rooms.get(LOBBY)!.affordances.get(HEARTH)!;
+    hearthObj.actions[0]!.effort = 3;
+    // The base fixture's action declares no stateChange (older tests flip the
+    // state by hand); world-clocked completion needs the world to change.
+    hearthObj.actions[0]!.stateChange = { lit: true };
+    return context;
+  }
+
+  function beingWithWork() {
     return createBeing({
       id: "w",
       name: "W",
@@ -422,7 +434,7 @@ describe("effortful pursuits — work takes time", () => {
             target: 0.8,
             drift: { kind: "linear", ratePerHour: 0 },
             satiatedBy: [{ matches: { kind: "action", type: "tend-affordance" }, amount: 0.6 }],
-            pursuableBy: [{ satisfier: PREP, effort, hint: "the hearth" }],
+            pursuableBy: [{ satisfier: PREP, hint: "the hearth" }],
           },
         ],
       },
@@ -432,75 +444,81 @@ describe("effortful pursuits — work takes time", () => {
     });
   }
 
-  it("spends the middle of the work silent, occupied, and model-free", async () => {
-    const being = beingWithWork(4);
-    const model = new MockModelProvider(verdict("prepare the hearth properly", true));
+  /** The world takes the act, exactly as the pipeline's dispatch stage would. */
+  function worldTakes(actions, context) {
+    for (const action of actions) dispatchAction(action, context.place, context.resident);
+  }
+
+  it("acts every tick, and the being's progress trails the world's counter", async () => {
+    const being = beingWithWork();
+    const model = new MockModelProvider(verdict("light the hearth properly", true));
     const loop = new IntentionLoop({ model });
-    const context = makeContext(); // hearth unlit, so `light` resolves
+    const context = workContext();
 
     await loop.run(being, context, TICK, []); // surfaces + commits
     expect(model.calls).toHaveLength(1);
+    // The being's commitment carries the world's effort figure, not a guess.
+    expect(embersCurrentIntentions(being)[0]!.effort).toBe(3);
 
-    // Three working ticks: no world action, no model call, still occupied.
-    for (let i = 0; i < 3; i++) {
+    const hearthObj = context.place.rooms.get(LOBBY)!.affordances.get(HEARTH)!;
+
+    // Two working ticks: each returns the act, the world counts it, no model.
+    for (const expected of [1, 2]) {
       const actions = await loop.run(being, context, TICK, []);
-      expect(actions).toEqual([]);
-      expect(embersCurrentIntentions(being)).toHaveLength(1);
+      expect(actions).toEqual([{ type: "act", affordanceId: HEARTH, actionId: "light" }]);
+      worldTakes(actions, context);
+      expect(hearthObj.state["~progress:light"]).toBe(expected);
+      expect(hearthObj.state.lit).toBe(false); // not done until it is done
     }
-    expect(model.calls).toHaveLength(1); // work is free
-    expect(embersCurrentIntentions(being)[0]!.progress).toBe(3);
+    expect(model.calls).toHaveLength(1); // work is model-free
 
-    // The final step returns the act.
+    // The completing tick: the act lands, the hearth lights.
     const final = await loop.run(being, context, TICK, []);
-    expect(final).toEqual([{ type: "act", affordanceId: HEARTH, actionId: "light" }]);
-  });
+    worldTakes(final, context);
+    expect(hearthObj.state.lit).toBe(true);
 
-  it("completion is observed, not declared", async () => {
-    const being = beingWithWork(2);
-    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("prep", true)) });
-    const context = makeContext();
-
-    await loop.run(being, context, TICK, []); // commit
-    await loop.run(being, context, TICK, []); // work step
-    const final = await loop.run(being, context, TICK, []);
-    expect(final).toHaveLength(1);
-
-    // The act has been *returned* but the world has not changed yet — the
-    // pursuit must still be live. Nothing ends by fiat.
-    expect(embersCurrentIntentions(being)).toHaveLength(1);
-
-    // The world takes the act: the hearth lights. Only now, on observation,
-    // does the pursuit end satisfied.
-    context.place.rooms.get(LOBBY)!.affordances.get(HEARTH)!.state.lit = true;
+    // Completion is observed on the next pass, never declared.
     await loop.run(being, context, TICK, []);
     expect(embersCurrentIntentions(being)).toHaveLength(0);
-    expect(being.history.intentionLog.at(-1)).toMatchObject({
-      kind: "ended",
-      end: { kind: "satisfied" },
-    });
+    const endings = being.history.intentionLog.filter((e) => e.kind === "ended");
+    expect(endings.at(-1)).toMatchObject({ end: { kind: "satisfied" } });
+  });
+
+  it("work done through any other door counts toward the pursuit", async () => {
+    const being = beingWithWork();
+    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("light it", true)) });
+    const context = workContext();
+
+    await loop.run(being, context, TICK, []); // commit
+
+    // Someone else — the model via its act tool, a second resident, a person —
+    // does two thirds of the work.
+    worldTakes([{ type: "act", affordanceId: HEARTH, actionId: "light" }], context);
+    worldTakes([{ type: "act", affordanceId: HEARTH, actionId: "light" }], context);
+
+    // The pursuit sees the world's progress, not a private counter.
+    const actions = await loop.run(being, context, TICK, []);
+    expect(embersCurrentIntentions(being)[0]!.progress).toBeGreaterThan(0);
+    worldTakes(actions, context);
+
+    const hearthObj = context.place.rooms.get(LOBBY)!.affordances.get(HEARTH)!;
+    expect(hearthObj.state.lit).toBe(true);
   });
 
   it("a world that refuses the act produces attempts, and the pursuit lapses honestly", async () => {
-    const being = beingWithWork(2);
-    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("prep", true)) });
-    const context = makeContext();
+    const being = beingWithWork();
+    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("light it", true)) });
+    const context = workContext();
 
     await loop.run(being, context, TICK, []); // commit
-    await loop.run(being, context, TICK, []); // work
-    await loop.run(being, context, TICK, []); // final act returned
 
-    // The act keeps failing: the hearth never lights. Each retry is a real
-    // attempt — the honest failure currency — until the pursuit lapses.
+    // The acts are returned but the world never takes them — a jammed
+    // actuator, a stuck door. Each stalled tick is a real attempt.
     let lapsed = false;
-    for (let i = 0; i < 10 && !lapsed; i++) {
-      await loop.run(being, context, TICK, []);
+    for (let i = 0; i < 12 && !lapsed; i++) {
+      await loop.run(being, context, TICK, []); // never dispatched
       lapsed = embersCurrentIntentions(being).length === 0;
     }
-    // The first version of this assertion exposed a missing mechanic: the
-    // pursuit lapsed on schedule and the still-pressing drive re-surfaced the
-    // identical pairing within the same evaluation — attempts reset, progress
-    // reset, same doomed work, forever. The failure cooldown in Embers is what
-    // makes this hold: after an expiry, the pairing rests.
     expect(lapsed).toBe(true);
     const endings = being.history.intentionLog.filter((e) => e.kind === "ended");
     expect(endings.at(-1)).toMatchObject({ end: { kind: "expired" } });

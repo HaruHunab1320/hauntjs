@@ -498,3 +498,66 @@ describe("affordance stateChange", () => {
     expect(second.success).toBe(false);
   });
 });
+
+describe("affordance action effort", () => {
+  it("takes the declared number of invocations, whoever makes them", async () => {
+    const { dispatchAction } = await import("./action-handlers.js");
+    const place = createPlace({ id: "p", name: "P" });
+    addRoom(place, { id: roomId("suite"), name: "Suite", description: "" });
+    addAffordance(place, roomId("suite"), {
+      id: affordanceId("suite-care"),
+      roomId: roomId("suite"),
+      kind: "room-care",
+      name: "The Suite",
+      description: "",
+      state: { prepared: false },
+      actions: [
+        {
+          id: "prepare",
+          name: "Prepare",
+          description: "",
+          availableWhen: (s) => s.prepared === false,
+          stateChange: { prepared: true },
+          effort: 3,
+        },
+      ],
+      sensable: true,
+    });
+
+    const resident = {
+      id: "r",
+      character: {
+        name: "R",
+        archetype: "",
+        systemPrompt: "",
+        voice: { register: "warm", quirks: [], avoidances: [] },
+        loyalties: { principal: null, values: [] },
+      },
+      presenceMode: "host",
+      currentRoom: roomId("suite"),
+      focusRoom: roomId("suite"),
+      mood: { energy: 0.5, focus: 0.5, valence: 0 },
+    };
+
+    const act = { type: "act", affordanceId: affordanceId("suite-care"), actionId: "prepare" };
+    const stored = place.rooms.get(roomId("suite"))!.affordances.get(affordanceId("suite-care"))!;
+
+    // Two partial invocations: visible progress, no completion.
+    for (const expected of [1, 2]) {
+      const result = dispatchAction(act, place, resident);
+      expect(result.success).toBe(true);
+      expect(result.event?.type).toBe("resident.acted");
+      expect(stored.state["~progress:prepare"]).toBe(expected);
+      expect(stored.state.prepared).toBe(false);
+    }
+
+    // The completing invocation: stateChange lands, the counter clears.
+    const final = dispatchAction(act, place, resident);
+    expect(final.success).toBe(true);
+    expect(stored.state.prepared).toBe(true);
+    expect(stored.state["~progress:prepare"]).toBeUndefined();
+
+    // And the guard now guards: the work cannot be redone on a prepared suite.
+    expect(dispatchAction(act, place, resident).success).toBe(false);
+  });
+});
