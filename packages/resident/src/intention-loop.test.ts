@@ -401,3 +401,108 @@ describe("movement for a host", () => {
     expect(resolveSatisfier({ kind: "movement", ref: "study" }, context)).toBeNull();
   });
 });
+
+describe("effortful pursuits — work takes time", () => {
+  const PREP: Satisfier = { kind: "affordance", ref: "hearth", params: { actionId: "light" } };
+
+  function beingWithWork(effort) {
+    return createBeing({
+      id: "w",
+      name: "W",
+      drives: {
+        tierCount: 1,
+        drives: [
+          {
+            id: "upkeep",
+            name: "Upkeep",
+            description: "",
+            tier: 1,
+            weight: 1,
+            initialLevel: 0.1,
+            target: 0.8,
+            drift: { kind: "linear", ratePerHour: 0 },
+            satiatedBy: [{ matches: { kind: "action", type: "tend-affordance" }, amount: 0.6 }],
+            pursuableBy: [{ satisfier: PREP, effort, hint: "the hearth" }],
+          },
+        ],
+      },
+      practices: { seeds: [] },
+      subscriptions: [],
+      capabilities: [],
+    });
+  }
+
+  it("spends the middle of the work silent, occupied, and model-free", async () => {
+    const being = beingWithWork(4);
+    const model = new MockModelProvider(verdict("prepare the hearth properly", true));
+    const loop = new IntentionLoop({ model });
+    const context = makeContext(); // hearth unlit, so `light` resolves
+
+    await loop.run(being, context, TICK, []); // surfaces + commits
+    expect(model.calls).toHaveLength(1);
+
+    // Three working ticks: no world action, no model call, still occupied.
+    for (let i = 0; i < 3; i++) {
+      const actions = await loop.run(being, context, TICK, []);
+      expect(actions).toEqual([]);
+      expect(embersCurrentIntentions(being)).toHaveLength(1);
+    }
+    expect(model.calls).toHaveLength(1); // work is free
+    expect(embersCurrentIntentions(being)[0]!.progress).toBe(3);
+
+    // The final step returns the act.
+    const final = await loop.run(being, context, TICK, []);
+    expect(final).toEqual([{ type: "act", affordanceId: HEARTH, actionId: "light" }]);
+  });
+
+  it("completion is observed, not declared", async () => {
+    const being = beingWithWork(2);
+    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("prep", true)) });
+    const context = makeContext();
+
+    await loop.run(being, context, TICK, []); // commit
+    await loop.run(being, context, TICK, []); // work step
+    const final = await loop.run(being, context, TICK, []);
+    expect(final).toHaveLength(1);
+
+    // The act has been *returned* but the world has not changed yet — the
+    // pursuit must still be live. Nothing ends by fiat.
+    expect(embersCurrentIntentions(being)).toHaveLength(1);
+
+    // The world takes the act: the hearth lights. Only now, on observation,
+    // does the pursuit end satisfied.
+    context.place.rooms.get(LOBBY)!.affordances.get(HEARTH)!.state.lit = true;
+    await loop.run(being, context, TICK, []);
+    expect(embersCurrentIntentions(being)).toHaveLength(0);
+    expect(being.history.intentionLog.at(-1)).toMatchObject({
+      kind: "ended",
+      end: { kind: "satisfied" },
+    });
+  });
+
+  it("a world that refuses the act produces attempts, and the pursuit lapses honestly", async () => {
+    const being = beingWithWork(2);
+    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("prep", true)) });
+    const context = makeContext();
+
+    await loop.run(being, context, TICK, []); // commit
+    await loop.run(being, context, TICK, []); // work
+    await loop.run(being, context, TICK, []); // final act returned
+
+    // The act keeps failing: the hearth never lights. Each retry is a real
+    // attempt — the honest failure currency — until the pursuit lapses.
+    let lapsed = false;
+    for (let i = 0; i < 10 && !lapsed; i++) {
+      await loop.run(being, context, TICK, []);
+      lapsed = embersCurrentIntentions(being).length === 0;
+    }
+    // The first version of this assertion exposed a missing mechanic: the
+    // pursuit lapsed on schedule and the still-pressing drive re-surfaced the
+    // identical pairing within the same evaluation — attempts reset, progress
+    // reset, same doomed work, forever. The failure cooldown in Embers is what
+    // makes this hold: after an expiry, the pairing rests.
+    expect(lapsed).toBe(true);
+    const endings = being.history.intentionLog.filter((e) => e.kind === "ended");
+    expect(endings.at(-1)).toMatchObject({ end: { kind: "expired" } });
+  });
+});

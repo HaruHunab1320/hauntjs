@@ -35,6 +35,7 @@ import {
   embersEndIntention,
   embersExpirePursuits,
   embersRecordAction,
+  embersRecordProgress,
   embersSurface,
 } from "./embers.js";
 import type { ModelProvider } from "./model/types.js";
@@ -256,17 +257,49 @@ export class IntentionLoop {
     return top && top.satisfier.kind === "expression" ? top : null;
   }
 
-  /** Takes the next action toward the most urgent pursuit, if one resolves. */
+  /**
+   * Advances the most urgent pursuit by one step.
+   *
+   * A pursuit with effort spends most of its life here as *silent work*: the
+   * step is recorded, no action reaches the world, no model is called, and the
+   * being stays occupied — which holds the commitment window open, keeps new
+   * surfacing gated, and arms suppression against lesser events. The world
+   * only sees the final step, when the act lands and the pursuit discharges.
+   *
+   * Nothing worth doing completes on contact. Relief arrives at the end of the
+   * work, not at the moment of wanting it done.
+   */
   private actOnCommitment(being: Being, context: RuntimeContext): ResidentAction[] {
     const [pursuit] = embersCurrentIntentions(being);
     if (!pursuit) return [];
     if (pursuit.satisfier.kind === "expression") return []; // enacted via deliberation
 
+    if (pursuit.progress < pursuit.effort - 1) {
+      embersRecordProgress(being, pursuit.id);
+      this.log.debug(`working on "${pursuit.aim}" (${pursuit.progress + 1}/${pursuit.effort})`);
+      return [];
+    }
+
     const action = resolveSatisfier(pursuit.satisfier, context);
     if (!action) return [];
 
-    embersRecordAction(being, pursuit.id);
-    this.log.debug(`acting on "${pursuit.aim}"`);
+    // The final step returns the act — and deliberately does NOT end the
+    // pursuit. Completion is observed, never declared: if the act lands, the
+    // world's state changes, the satisfier stops resolving, and the reap above
+    // records `satisfied` on the next pass. If the act fails to take — which a
+    // real actuator in a real room can always do — the satisfier still
+    // resolves, and the retry below is recorded as an *attempt*, the honest
+    // failure currency that decays urgency and eventually lapses the pursuit.
+    //
+    // Initiation is the being's. Duration is the world's. Completion belongs
+    // to perception.
+    if (pursuit.progress < pursuit.effort) {
+      embersRecordProgress(being, pursuit.id);
+      this.log.debug(`finishing "${pursuit.aim}" (${pursuit.effort}/${pursuit.effort})`);
+    } else {
+      embersRecordAction(being, pursuit.id);
+      this.log.debug(`retrying "${pursuit.aim}" — the world has not taken it`);
+    }
     return [action];
   }
 
@@ -317,7 +350,13 @@ export class IntentionLoop {
   private async surfaceAndAdjudicate(
     being: Being,
     context: RuntimeContext,
-    pressure: { driveId: string; satisfier: Satisfier; hint?: string; pressure: number },
+    pressure: {
+      driveId: string;
+      satisfier: Satisfier;
+      hint?: string;
+      pressure: number;
+      effort?: number;
+    },
     trigger: SurfacingTrigger,
   ): Promise<void> {
     const verdict = await this.askForAim(being, context, pressure, trigger);
@@ -330,6 +369,7 @@ export class IntentionLoop {
         satisfier: pressure.satisfier,
         aim: verdict.aim,
         trigger,
+        effort: pressure.effort,
       });
     } catch (err) {
       this.log.debug("could not surface:", err);

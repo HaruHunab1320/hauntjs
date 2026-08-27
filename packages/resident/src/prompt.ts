@@ -18,6 +18,10 @@ export { ACTION_TOOLS } from "./prompt/tools.js";
 export interface PursuitForPrompt {
   aim: string;
   urgency: number;
+  /** Work steps done, for pursuits that take time. */
+  progress?: number;
+  /** Work steps required. Absent or 1 means a single act completes it. */
+  effort?: number;
 }
 
 /** The inner situation from Embers, if available. */

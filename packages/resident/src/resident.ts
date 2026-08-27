@@ -326,6 +326,8 @@ export class Resident implements ResidentMind {
       pursuits = embersCurrentIntentions(being).map((pursuit) => ({
         aim: pursuit.aim,
         urgency: embersUrgency(being, pursuit),
+        progress: pursuit.progress,
+        effort: pursuit.effort,
       }));
       this.log.debug(
         `inner state: ${situation.orientation} — "${situation.felt?.slice(0, 80) ?? ""}"`,

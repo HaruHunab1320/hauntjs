@@ -28,6 +28,7 @@ import {
   type PracticeAttempt,
   type PracticeAttemptResult,
   recordAction,
+  recordProgress,
   resolveAllPending,
   type Satisfier,
   type SerializedBeing,
@@ -383,9 +384,16 @@ export function embersSurface(
     satisfier: Satisfier;
     aim: string;
     trigger: SurfacingTrigger;
+    /** Work steps to discharge, from the pursuable. Defaults to 1. */
+    effort?: number;
   },
 ): SurfacedCandidate {
   return surface(being, input);
+}
+
+/** Record a completed work step toward a pursuit. Not an attempt — see Embers. */
+export function embersRecordProgress(being: Being, intentionId: string): void {
+  recordProgress(being, intentionId);
 }
 
 /** Take up a surfaced candidate. At the cap this supersedes the least urgent. */

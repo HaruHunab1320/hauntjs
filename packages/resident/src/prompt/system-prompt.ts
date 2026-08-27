@@ -323,7 +323,11 @@ function buildPursuitSection(situation: InnerSituationForPrompt): string {
   if (pursuits.length === 0) return "";
 
   const [current, ...also] = pursuits;
-  const lines = [`\n\nYou are in the middle of: ${current!.aim}.`];
+  const working =
+    current!.effort && current!.effort > 1
+      ? ` (${Math.min(current!.progress ?? 0, current!.effort)} of ${current!.effort} steps done)`
+      : "";
+  const lines = [`\n\nYou are in the middle of: ${current!.aim}${working}.`];
   if (also.length > 0) {
     lines.push(`Also on your mind: ${also.map((p) => p.aim).join("; ")}.`);
   }

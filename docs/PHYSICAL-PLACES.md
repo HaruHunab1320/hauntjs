@@ -159,6 +159,36 @@ needs world state. It is no longer read by the prompt.
 
 ---
 
+## Work in real time
+
+Everything above is about perceiving. Deploying into a real space also means
+*doing*, and real tasks take real time — which forces a division of labor the
+simulation could previously blur:
+
+> **Initiation is the being's. Duration is the world's. Completion belongs to
+> perception.**
+
+The intention loop now honors all three. A pursuit with `effort` occupies the
+being across time (silent, model-free work ticks — the commitment window that
+suppression needs). Its final act is *returned*, never assumed: the pursuit ends
+`satisfied` only when the satisfier stops resolving — that is, when the world's
+observed state actually changed. An act the world refuses (a jammed actuator, a
+stuck door) resolves again next tick and is recorded as a failed *attempt*,
+which decays the commitment and eventually lapses it — after which the failure
+cooldown keeps the being from hammering the same broken task at a model call
+per retry.
+
+Nothing in that paragraph is narrative. It is the control loop a real room
+needs: try, watch, finish or fail, rest before retrying.
+
+**Named open piece:** world-process duration. `effort` models the being's own
+labor. A dishwasher-shaped task — started by the being, run by the world,
+finished on its own clock — wants duration on the *affordance* (an action that
+sets an in-progress state and completes later, observed like anything else).
+That is the right next mechanic when a real appliance is on the other end.
+
+---
+
 ## Open direction: perception as nomination
 
 A physical sensor produces a *candidate*, not a fact. Motion at 0.45 confidence
