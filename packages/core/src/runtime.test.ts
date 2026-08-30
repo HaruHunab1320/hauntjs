@@ -10,7 +10,7 @@ import type {
   ResidentInterface,
   ResidentState,
 } from "./types.js";
-import { affordanceId, guestId, roomId } from "./types.js";
+import { affordanceId, guestId, roomId, sensorId } from "./types.js";
 
 function makeTestPlace(): Place {
   const place = createPlace({ id: "roost", name: "The Roost" });
@@ -559,5 +559,115 @@ describe("affordance action effort", () => {
 
     // And the guard now guards: the work cannot be redone on a prepared suite.
     expect(dispatchAction(act, place, resident).success).toBe(false);
+  });
+});
+
+describe("world-run processes", () => {
+  function makeWashPlace() {
+    const place = createPlace({ id: "p", name: "P" });
+    addRoom(place, { id: roomId("scullery"), name: "Scullery", description: "" });
+    addAffordance(place, roomId("scullery"), {
+      id: affordanceId("copper"),
+      roomId: roomId("scullery"),
+      kind: "boiler",
+      name: "The Copper",
+      description: "",
+      state: { clean: false },
+      actions: [
+        {
+          id: "run-wash",
+          name: "Run the wash",
+          description: "",
+          availableWhen: (s) => s.clean === false,
+          stateChange: { clean: true },
+          durationMs: 2 * 3_600_000,
+        },
+      ],
+      sensable: true,
+    });
+    // A state sensor, so the completion is perceptible.
+    const sid = sensorId("scullery.state");
+    place.rooms.get(roomId("scullery"))!.sensors.set(sid, {
+      id: sid,
+      roomId: roomId("scullery"),
+      modality: "state",
+      name: "s",
+      description: "",
+      fidelity: { kind: "full" },
+      enabled: true,
+      reach: { kind: "room" },
+    });
+    return place;
+  }
+
+  const resident = () => ({
+    id: "r",
+    character: {
+      name: "R",
+      archetype: "",
+      systemPrompt: "",
+      voice: { register: "warm", quirks: [], avoidances: [] },
+      loyalties: { principal: null, values: [] },
+    },
+    presenceMode: "host",
+    currentRoom: roomId("scullery"),
+    focusRoom: roomId("scullery"),
+    mood: { energy: 0.5, focus: 0.5, valence: 0 },
+  });
+
+  it("starting is not finishing, and the world completes on its own clock", async () => {
+    const place = makeWashPlace();
+    const res = resident();
+    let now = 0;
+
+    const perceived = [];
+    const mind = {
+      perceive: async (event, perceptions) => {
+        perceived.push({ type: event.type, perceptions: perceptions.length });
+        return null;
+      },
+    };
+
+    const rt = new Runtime({ place, resident: res, residentMind: mind, clock: () => now });
+    await rt.start();
+
+    const copper = place.rooms.get(roomId("scullery"))!.affordances.get(affordanceId("copper"))!;
+
+    // The being starts the wash. Its act succeeds; nothing is clean yet.
+    const start = await rt.applyAction({
+      type: "act",
+      affordanceId: affordanceId("copper"),
+      actionId: "run-wash",
+    });
+    expect(start.success).toBe(true);
+    expect(copper.state.clean).toBe(false);
+    expect(copper.state["~process:run-wash"]).toEqual({ remainingMs: 2 * 3_600_000 });
+
+    // It cannot be started twice while running.
+    const again = await rt.applyAction({
+      type: "act",
+      affordanceId: affordanceId("copper"),
+      actionId: "run-wash",
+    });
+    expect(again.success).toBe(false);
+
+    // An hour passes: still running, remaining counted down, world unchanged.
+    now += 3_600_000;
+    await rt.emit({ type: "tick", at: new Date() });
+    expect(copper.state.clean).toBe(false);
+    expect(copper.state["~process:run-wash"]).toEqual({ remainingMs: 3_600_000 });
+
+    // The second hour: the wash finishes. The state change lands, the marker
+    // clears — and the completion arrived as a perceptible event BEFORE the
+    // tick that carried the time, because the world moves first.
+    now += 3_600_000;
+    perceived.length = 0;
+    await rt.emit({ type: "tick", at: new Date() });
+    expect(copper.state.clean).toBe(true);
+    expect(copper.state["~process:run-wash"]).toBeUndefined();
+
+    expect(perceived.map((p) => p.type)).toEqual(["affordance.changed", "tick"]);
+    // ...and it was genuinely perceived: the state sensor produced a perception.
+    expect(perceived[0].perceptions).toBeGreaterThan(0);
   });
 });

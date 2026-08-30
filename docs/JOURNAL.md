@@ -536,3 +536,18 @@ The shutters rattled mid-visit and Poe — uncommitted at that moment precisely 
 ### What this proves
 
 The adjudicator schedules real work around people — defers a three-hour task because someone is present, resumes it the moment they leave — and every step of that judgment is in the log. Duration is physical: it lives on the world's side, binds every door to the act equally, pays nothing until the work is done, and fails honestly when the world refuses it. None of this is narrative machinery. It is the control loop a deployment into a real space with real tasks requires.
+
+## Entry 10 — The Wash: The World's Own Clock
+
+**Date:** 2026-08-29
+**Configuration:** The Raven's copper. One action composing both halves of time: `effort: 2` (loading the linens — Poe's labor) and `durationMs: 2h` (the wash — the world's).
+**Model:** gemini-3.6-flash
+**Duration:** 8 simulated hours
+
+The dishwasher shape, and the last open item on the physical-places list. Poe surfaced *"Set the copper boiling for the linens"* at h0.5, loaded it across two invocations (h1.0, h1.5), and his pursuit ended satisfied — his share was starting it. The wash ran on the Runtime's place clock, its remaining time sitting in the copper's own state like any other fact about the world. At h3.5 the world completed it: `stateChange` landed, an `affordance.changed` ran through the full pipeline, the sensors picked it up — and relief landed at that exact hour, linens 0.200 → 0.540. Not when he wanted it done; not when he started it; when it *was* done.
+
+The adjudicator also produced its best decline yet, unprompted: *"watch the front doors for an arriving guest"* — declined — **"wishing will not bring travelers through the door."**
+
+One honest note: live, Poe perceived the completion but chose not to remark on it — the deliberation ran and the model judged a finished wash unworthy of comment. Fair. The dry pass confirms the perception path mechanically; the model's taciturnity about laundry is character, not defect.
+
+The temporal model is now whole: the being's labor (`effort`), the world's processes (`durationMs`), relief priced at completion through either, failure honest through both. Initiation is the being's. Duration is the world's. Completion belongs to perception.

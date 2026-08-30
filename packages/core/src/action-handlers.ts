@@ -158,6 +158,16 @@ function handleAct(
     };
   }
 
+  // A process already underway cannot be started again. This guard is the
+  // engine's, not the author's — availableWhen typically watches the end
+  // state ("not yet clean"), which stays true the whole time the wash runs.
+  if (affordance.state[`~process:${action.actionId}`] !== undefined) {
+    return {
+      success: false,
+      error: `Action "${action.actionId}" is already underway`,
+    };
+  }
+
   // Work takes time: an action with effort advances a progress counter kept in
   // the affordance's own state, and only the completing invocation falls
   // through to the effects and state change below. The counter lives in world
@@ -187,6 +197,27 @@ function handleAct(
     const next = { ...affordance.state };
     delete next[progressKey];
     affordance.state = next;
+  }
+
+  // A world-run duration: the completing invocation starts the process rather
+  // than finishing the work. Effects and state change belong to the process's
+  // completion, which the Runtime performs on its clock and announces as an
+  // affordance.changed event. The remaining time lives in the affordance's own
+  // state, inspectable like anything else about the world.
+  if (affordanceAction.durationMs && affordanceAction.durationMs > 0) {
+    affordance.state = {
+      ...affordance.state,
+      [`~process:${action.actionId}`]: { remainingMs: affordanceAction.durationMs },
+    };
+    return {
+      success: true,
+      event: {
+        type: "resident.acted",
+        affordanceId: affordance.id,
+        actionId: action.actionId,
+        at: new Date(),
+      },
+    };
   }
 
   // Apply sensor effects declared by this action

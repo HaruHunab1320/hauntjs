@@ -1,4 +1,4 @@
-import { dispatchAction } from "./action-handlers.js";
+import { applySensorEffects, dispatchAction } from "./action-handlers.js";
 import { EventBus } from "./event-bus.js";
 import { ActionDispatchSystem } from "./systems/action-dispatch.js";
 import { AutonomySystem } from "./systems/autonomy-system.js";
@@ -27,6 +27,14 @@ export interface RuntimeOptions {
   onGuestReturn?: (guestId: GuestId) => void;
   /** Custom systems pipeline. If not provided, uses the default pipeline. */
   systems?: System[];
+  /**
+   * The place's clock, in milliseconds of place-time. Drives world-run
+   * processes (`AffordanceAction.durationMs`). Defaults to `Date.now` —
+   * correct only for a place running in real time; a compressed-time place
+   * must supply its own, exactly as the Resident's `clock` option does.
+   * Only differences between successive calls are used.
+   */
+  clock?: () => number;
 }
 
 /**
@@ -54,6 +62,8 @@ export class Runtime implements RuntimeInterface {
   private recentEvents: PresenceEvent[] = [];
   private running = false;
   private onGuestReturn: ((guestId: GuestId) => void) | null;
+  private readonly clock: () => number;
+  private lastProcessAdvance: number;
 
   constructor(options: RuntimeOptions) {
     this.place = options.place;
@@ -62,6 +72,8 @@ export class Runtime implements RuntimeInterface {
     this.onGuestReturn = options.onGuestReturn ?? null;
     this.eventBus = new EventBus();
     this.systems = options.systems ?? createDefaultPipeline();
+    this.clock = options.clock ?? (() => Date.now());
+    this.lastProcessAdvance = this.clock();
   }
 
   setResidentMind(mind: ResidentMind): void {
@@ -85,6 +97,70 @@ export class Runtime implements RuntimeInterface {
       throw new Error("Runtime is not running. Call start() first.");
     }
 
+    // The world moves first. Any process whose time has come completes now —
+    // its state change lands, and its affordance.changed runs through the full
+    // pipeline ahead of the incoming event, so the resident perceives what the
+    // world did before being asked to deal with what arrived.
+    for (const completion of this.advanceProcesses()) {
+      await this.runPipeline(completion);
+    }
+
+    await this.runPipeline(event);
+  }
+
+  /**
+   * Counts place-time against every running process and completes the due
+   * ones: effects and state change land, the marker clears, and the change is
+   * returned as an event to be perceived like any other.
+   */
+  private advanceProcesses(): PresenceEvent[] {
+    const now = this.clock();
+    const dtMs = Math.max(0, now - this.lastProcessAdvance);
+    this.lastProcessAdvance = now;
+    if (dtMs === 0) return [];
+
+    const completions: PresenceEvent[] = [];
+
+    for (const room of this.place.rooms.values()) {
+      for (const affordance of room.affordances.values()) {
+        for (const [key, value] of Object.entries(affordance.state)) {
+          if (!key.startsWith("~process:")) continue;
+          const remainingMs = (value as { remainingMs?: number })?.remainingMs;
+          if (typeof remainingMs !== "number") continue;
+
+          const left = remainingMs - dtMs;
+          if (left > 0) {
+            affordance.state = { ...affordance.state, [key]: { remainingMs: left } };
+            continue;
+          }
+
+          const actionId = key.slice("~process:".length);
+          const actionDef = affordance.actions.find((a) => a.id === actionId);
+          const prevState = { ...affordance.state };
+
+          const next = { ...affordance.state };
+          delete next[key];
+          affordance.state = actionDef?.stateChange ? { ...next, ...actionDef.stateChange } : next;
+          if (actionDef?.affects) {
+            applySensorEffects(actionDef.affects, this.place);
+          }
+
+          completions.push({
+            type: "affordance.changed",
+            affordanceId: affordance.id,
+            roomId: room.id,
+            prevState,
+            newState: { ...affordance.state },
+            at: new Date(),
+          });
+        }
+      }
+    }
+
+    return completions;
+  }
+
+  private async runPipeline(event: PresenceEvent): Promise<void> {
     const pipeline: PipelineState = {
       event,
       perceptions: [],

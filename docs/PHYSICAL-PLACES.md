@@ -181,11 +181,16 @@ per retry.
 Nothing in that paragraph is narrative. It is the control loop a real room
 needs: try, watch, finish or fail, rest before retrying.
 
-**Named open piece:** world-process duration. `effort` models the being's own
-labor. A dishwasher-shaped task — started by the being, run by the world,
-finished on its own clock — wants duration on the *affordance* (an action that
-sets an in-progress state and completes later, observed like anything else).
-That is the right next mechanic when a real appliance is on the other end.
+**World-process duration: built.** `AffordanceAction.durationMs` — the
+completing invocation starts a process instead of finishing the work; the
+remaining time lives in the affordance's own state (`~process:<actionId>`),
+counted down by the Runtime's place clock; effects and state change land at
+zero and are announced as an `affordance.changed` through the full pipeline,
+so the resident learns the wash is done through its sensors. It composes with
+`effort`: loading the machine is the being's labor, the wash is the world's.
+The being's pursuit ends satisfied when its share ends — at the start — and
+relief is priced on the completion event, which only the world can deliver.
+Verified live: relief landed at the exact simulated hour the process finished.
 
 ---
 

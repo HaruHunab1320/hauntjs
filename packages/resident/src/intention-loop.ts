@@ -105,6 +105,12 @@ function resolveAffordance(satisfier: Satisfier, context: RuntimeContext): Resid
       found.actions.find((a) => (a.availableWhen ? a.availableWhen(found.state) : true));
   if (!action) return null;
 
+  // A process already underway is not something to act on. The being's part
+  // — starting it — is done; the world is running it; the reap will read this
+  // null as "satisfied", which is the honest ending for the being's share of
+  // the work. Relief, if any, is priced on the completion event instead.
+  if (found.state[`~process:${action.id}`] !== undefined) return null;
+
   // A fire already lit is not something to go and light.
   if (action.availableWhen && !action.availableWhen(found.state)) return null;
 

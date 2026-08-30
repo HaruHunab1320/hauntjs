@@ -524,3 +524,90 @@ describe("effortful pursuits — work is world-clocked", () => {
     expect(endings.at(-1)).toMatchObject({ end: { kind: "expired" } });
   });
 });
+
+describe("world-run processes and the pursuit's share", () => {
+  it("a pursuit ends satisfied at the start of the process — its share is done", async () => {
+    const being = createBeing({
+      id: "l",
+      name: "L",
+      drives: {
+        tierCount: 1,
+        drives: [
+          {
+            id: "linens",
+            name: "Linens",
+            description: "",
+            tier: 1,
+            weight: 1,
+            initialLevel: 0.1,
+            target: 0.8,
+            drift: { kind: "linear", ratePerHour: 0 },
+            // Relief is priced on the completion, not the starting act.
+            satiatedBy: [
+              {
+                matches: {
+                  kind: "event",
+                  type: "place-change",
+                  predicate: (e) => e.payload?.newState?.clean === true,
+                },
+                amount: 0.5,
+              },
+            ],
+            pursuableBy: [
+              {
+                satisfier: { kind: "affordance", ref: "copper", params: { actionId: "run-wash" } },
+                hint: "the wash",
+              },
+            ],
+          },
+        ],
+      },
+      practices: { seeds: [] },
+      subscriptions: [],
+      capabilities: [],
+    });
+
+    const context = makeContext();
+    context.place.rooms.get(LOBBY)!.affordances.set(affordanceId("copper"), {
+      id: affordanceId("copper"),
+      roomId: LOBBY,
+      kind: "boiler",
+      name: "The Copper",
+      description: "",
+      state: { clean: false },
+      actions: [
+        {
+          id: "run-wash",
+          name: "Run the wash",
+          description: "",
+          availableWhen: (s) => s.clean === false,
+          stateChange: { clean: true },
+          durationMs: 2 * 3_600_000,
+        },
+      ],
+      sensable: true,
+    });
+
+    const loop = new IntentionLoop({ model: new MockModelProvider(verdict("run the wash", true)) });
+
+    await loop.run(being, context, TICK, []); // surfaces + commits
+    const actions = await loop.run(being, context, TICK, []);
+    expect(actions).toEqual([
+      { type: "act", affordanceId: affordanceId("copper"), actionId: "run-wash" },
+    ]);
+
+    // The world takes the act: the process starts.
+    dispatchAction(actions[0], context.place, context.resident);
+    const copper = context.place.rooms.get(LOBBY)!.affordances.get(affordanceId("copper"))!;
+    expect(copper.state["~process:run-wash"]).toBeDefined();
+
+    // The being's share is done. The pursuit ends satisfied — no relief yet,
+    // because relief is priced on the completion event, which is the world's
+    // to deliver.
+    await loop.run(being, context, TICK, []);
+    expect(embersCurrentIntentions(being)).toHaveLength(0);
+    const endings = being.history.intentionLog.filter((e) => e.kind === "ended");
+    expect(endings.at(-1)).toMatchObject({ end: { kind: "satisfied" } });
+    expect(being.drives.drives.get("linens")!.level).toBeCloseTo(0.1, 10);
+  });
+});

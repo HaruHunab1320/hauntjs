@@ -48,6 +48,24 @@ export interface AffordanceAction {
    * visible in the world while it is happening, not only when it is done.
    */
   effort?: number;
+  /**
+   * World-run duration, in milliseconds of place-time. Defaults to none —
+   * the action's effects land on its completing invocation.
+   *
+   * With a duration, the completing invocation *starts a process* instead:
+   * the affordance's state gains `~process:<actionId> = { remainingMs }`,
+   * counted down by the Runtime's clock, and `stateChange`/`affects` land
+   * only when it reaches zero — announced as an `affordance.changed` event
+   * through the full pipeline, so the resident learns the wash is done the
+   * way it learns anything: through its sensors.
+   *
+   * This is the dishwasher shape, and it composes with `effort`: effort is
+   * the being's labor to start the thing (loading the machine, invocation by
+   * invocation); duration is the world running it afterward on its own clock.
+   * Initiation is the being's. Duration is the world's. Completion belongs to
+   * perception.
+   */
+  durationMs?: number;
 }
 
 export interface Affordance {

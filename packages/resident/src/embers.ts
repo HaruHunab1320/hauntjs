@@ -258,7 +258,14 @@ function mapEventToInput(event: PresenceEvent): IntegrationInput | null {
       };
     case "affordance.changed":
       return {
-        entry: { kind: "event", type: "place-change" },
+        // Payload so configs can price relief on *which* change — a world-run
+        // process completing (the wash finishing) is a satiation event, and
+        // without the payload a drive cannot tell it from a door creaking.
+        entry: {
+          kind: "event",
+          type: "place-change",
+          payload: { affordanceId: event.affordanceId, newState: event.newState },
+        },
       };
     case "resident.spoke":
       return {
